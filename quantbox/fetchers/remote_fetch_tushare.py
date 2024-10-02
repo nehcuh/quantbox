@@ -1,5 +1,6 @@
 import tushare as ts
 from quantbox.util.basic import FUTURE_EXCHANGES, STOCK_EXCHANGES, TSPRO, EXCHANGES, DATABASE, DEFAULT_START
+from quantbox.util.tools import util_format_stock_symbols
 from quantbox.fetchers.local_fetch import Queryer
 import re
 import datetime
@@ -157,6 +158,146 @@ class TSFetcher:
                 (data["list_date"] <= cursor_date) & (data["delist_date"] > cursor_date)
             ]
 
+    def fetch_get_stock_list(
+        self,
+        symbols: Union[str, List[str], None] = None,
+        names: Union[str, List[str], None] = None,
+        exchanges: Union[str, List[str], None] = None,
+        markets: Union[str, List[str], None] = None,
+        list_status: Union[str, List[str], None] = 'L',
+        is_hs: Union[str, None] = None,
+        fields: Union[str, None] = None
+    ) -> pd.DataFrame:
+        """
+        explanation:
+         对 tushare 股票列表获取接口的封装
+
+        params:
+            * symbols ->
+                含义：股票代码, 默认为 None, 不做筛选
+                类型：Union[str, List[str], None]
+                参数支持: "SZSE.000001", "SHSE.600000"
+            * names ->
+                含义：股票名称，默认为 None，不做筛选
+                类型: Union[str, List[str], None]
+                参数支持: "平安银行", "浦发银行"
+            * markets ->
+                含义：市场类别，默认为 None, 不做筛选
+                类型: Union[str, List[str], None]
+                参数支持：主板, 创业板, 科创板, CDR, 北交所
+            * list_status ->
+                含义: 上市状态，默认为 None, 不做筛选
+                类型：Union[str, List[str], None]
+                参数支持： L上市 D退市 P暂停上市，默认是L
+            * exchanges ->
+                含义：交易所，默认为 None, 不做筛选
+                类型：Union[str, List[str], None]
+                参数支持：SSE上交所 SZSE深交所 BSE北交所
+            * is_hs ->
+                含义：是否沪港通标的
+                类型：Union[str, None] = None,
+                参数支持：N否 H沪股通 S深股通
+            * fields ->
+                含义：指定输出的字段
+                类型：Union[str, List[str], None] = None
+                参数支持：'ts_code,symbol,name,area,industry,list_date'
+
+        returns:
+            pd.DataFrame ->
+                符合条件的股票列表
+        """
+        if fields:
+            if isinstance(fields, list):
+                fields = ",".join(fields)
+        # 指定 symbols 则直接根据 symbols 查询，不考虑其他条件
+        if symbols:
+            symbols = util_format_stock_symbols(symbols, "ts")
+            if fields:
+                self.pro.stock_basic(symbols=",".join(symbols))[fields]
+            else:
+                self.pro.stock_basic(symbols=",".join(symbols))
+
+        # 指定 names 则直接根据 names 查询，不考虑其他条件
+        if names:
+            if isinstance(names, str):
+                names = names.split(",")
+            results = pd.DataFrame()
+            for name in names:
+                df = self.pro.stock_basic(name=name)
+                results = pd.concat([results, df], axis=0)
+            if fields:
+                return results[fields]
+            else:
+                return results
+
+        # 指定 markets 则直接根据 markets 查询，不考虑 exchanges
+        if markets:
+            if isinstance(markets, str):
+                markets = markets.split(",")
+            results = pd.DataFrame()
+            for market in markets:
+                if list_status:
+                    if is_hs:
+                        df = self.pro.stock_basic(market=market, list_status=list_status, is_hs=is_hs)
+                    else:
+                        df = self.pro.stock_basic(market=market, list_status=list_status)
+                        results = pd.concat([results, df], axis=0)
+                else:
+                    if is_hs:
+                        df_1 =self.pro.stock_basic(market=market, list_status="L", is_hs=is_hs)
+                        df_2 =self.pro.stock_basic(market=market, list_status="D", is_hs=is_hs)
+                        df_3 =self.pro.stock_basic(market=market, list_status="P", is_hs=is_hs)
+                        results = pd.concat([results, df_1, df_2, df_3], axis=0)
+                    else:
+                        df_1 =self.pro.stock_basic(market=market, list_status="L")
+                        df_2 =self.pro.stock_basic(market=market, list_status="D")
+                        df_3 =self.pro.stock_basic(market=market, list_status="P")
+                        results = pd.concat([results, df_1, df_2, df_3], axis=0)
+            if fields:
+                return results[fields]
+            else:
+                return results
+
+        if exchanges:
+            if isinstance(exchanges, str):
+                exchanges = exchanges.split(",")
+            results = pd.DataFrame()
+            for exchange in exchanges:
+                if list_status:
+                    if is_hs:
+                        df = self.pro.stock_basic(exchange=exchange, list_status=list_status, is_hs=is_hs)
+                    else:
+                        df = self.pro.stock_basic(exchange=exchange, list_status=list_status)
+                        results = pd.concat([results, df], axis=0)
+                else:
+                    if is_hs:
+                        df_1 =self.pro.stock_basic(exchange=exchange, list_status="L", is_hs=is_hs)
+                        df_2 =self.pro.stock_basic(exchange=exchange, list_status="D", is_hs=is_hs)
+                        df_3 =self.pro.stock_basic(exchange=exchange, list_status="P", is_hs=is_hs)
+                        results = pd.concat([results, df_1, df_2, df_3], axis=0)
+                    else:
+                        df_1 =self.pro.stock_basic(exchange=exchange, list_status="L")
+                        df_2 =self.pro.stock_basic(exchange=exchange, list_status="D")
+                        df_3 =self.pro.stock_basic(exchange=exchange, list_status="P")
+                        results = pd.concat([results, df_1, df_2, df_3], axis=0)
+            if fields:
+                return results[fields]
+            else:
+                return results
+
+        # 如果交易所，市场都不指定，则认为获取全部
+        if list_status:
+            results = self.pro.stock_basic(list_status=list_status)
+        else:
+            df_1 = self.pro.stock_basic(list_status="L")
+            df_2 = self.pro.stock_basic(list_status="D")
+            df_3 = self.pro.stock_basic(list_status="P")
+            results = pd.concat([df_1, df_2, df_3], axis=0)
+        if fields:
+            return results[fields]
+        else:
+            return results
+
     def fetch_get_holdings(
         self,
         exchanges: Union[str, List[str], None] = None,
@@ -290,10 +431,11 @@ if __name__ == "__main__":
     #     "2024-08-01",
     #     "2024-09-01"
     # ))
-    print(fetcher.fetch_get_future_contracts(
-        exchange="DCE",
-        spec_name="豆粕",
-    ))
+
+    # print(fetcher.fetch_get_future_contracts(
+    #     exchange="DCE",
+    #     spec_name="豆粕",
+    # ))
 
     # print(fetcher.fetch_get_future_contracts(
     #     exchange="DCE",
@@ -309,3 +451,9 @@ if __name__ == "__main__":
     # ))
 
     # print(fetcher.fetch_trade_dates(exchanges="SSE", start_date="2024-09-01", end_date="2024-09-30"))
+
+    print(fetcher.fetch_get_stock_list(symbols="000001, 600000"))
+    print(fetcher.fetch_get_stock_list(names=["招商证券", "贵州茅台"]))
+    print(fetcher.fetch_get_stock_list(names=["招商证券", "贵州茅台"]))
+    print(fetcher.fetch_get_stock_list(markets=["科创板", " 创业板"]))
+    print(fetcher.fetch_get_stock_list())
