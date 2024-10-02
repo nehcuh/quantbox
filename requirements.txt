@@ -3,3 +3,4 @@ tushare
 toml
 configparser
 pandas >= 2, < 3
+click

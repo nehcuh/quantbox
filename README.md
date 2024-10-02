@@ -17,6 +17,12 @@ Quantbox 是一个用于金融数据获取、存储和分析的框架，支持�
 pip install -r requirements.txt
 ```
 
+然后安装本项目
+
+```bash
+pip install -e .
+```
+
 ## 配置
 
 在使用之前，你需要配置 `config.toml` 文件，放置在 `~/.quantbox/settings/` 目录下，配置示例如下：
@@ -50,7 +56,7 @@ Quantbox 提供了一个便捷的命令行工具，帮助你快速获取和存�
 1. **保存所有数据**
 
     ```bash
-    python cli.py save_all
+    python cli.py save-all
     ```
 
     该命令会保存所有数据，包括交易日期、期货合约和期货持仓数据。
