@@ -6,7 +6,7 @@ from quantbox.util.basic import DATABASE, EXCHANGES
 from quantbox.fetchers.remote_fetch_tushare import TSFetcher
 from quantbox.fetchers.remote_fetch_gm import GMFetcher
 from quantbox.fetchers.local_fetch import Queryer
-from quantbox.util.tools import util_make_date_stamp, util_to_json_from_pandas
+from quantbox.util.tools import util_make_date_stamp, util_to_json_from_pandas, util_format_stock_symbols
 
 class TSSaver:
     def __init__(self):
@@ -147,9 +147,30 @@ class TSSaver:
                     )
                     collections.insert_many(util_to_json_from_pandas(results))
 
+
+    def save_stock_list(self):
+        """
+         本地化股票列表
+        """
+        collections = self.client.stock_list
+        collections.create_index(
+            [
+                ("symobl", pymongo.ASCENDING),
+                ("list_datestamp", pymongo.ASCENDING)]
+        )
+        # 数据量比较小，每次更新可以覆盖
+        data = self.ts_fetcher.fetch_get_stock_list()
+        data.symbol = util_format_stock_symbols(data.symbol, "standard")
+        columns = data.columns.tolist()
+        if "ts_code" in columns:
+            columns.remove("ts_code")
+        data["list_datestamp"] = data['list_date'].map(str).apply(lambda x: util_make_date_stamp(x))
+        collections.insert_many(util_to_json_from_pandas(data))
+
 if __name__ == "__main__":
     saver = TSSaver()
     # saver.save_trade_dates()
     # saver.save_future_contracts()
     # saver.save_future_holdings(exchanges=["DCE"])
-    saver.save_future_holdings()
+    # saver.save_future_holdings()
+    saver.save_stock_list()
