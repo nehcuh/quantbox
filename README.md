@@ -53,6 +53,8 @@ uri = "mongodb://localhost:27017"
 
 Quantbox 提供了一个便捷的命令行工具，帮助你快速获取和存储数据。
 
+![Save Commands](images/save_commands.png)
+
 1. **保存所有数据**
 
     ```bash
@@ -64,7 +66,7 @@ Quantbox 提供了一个便捷的命令行工具，帮助你快速获取和存�
 2. **保存交易日期数据**
 
     ```bash
-    python cli.py save_trade_dates
+    python cli.py save-trade-dates
     ```
 
     该命令会保存交易日期数据。
@@ -72,7 +74,7 @@ Quantbox 提供了一个便捷的命令行工具，帮助你快速获取和存�
 3. **保存期货合约数据**
 
     ```bash
-    python cli.py save_future_contracts
+    python cli.py save-future-contracts
     ```
 
     该命令会保存期货合约数据。
@@ -80,7 +82,7 @@ Quantbox 提供了一个便捷的命令行工具，帮助你快速获取和存�
 4. **保存期货持仓数据**
 
     ```bash
-    python cli.py save_future_holdings
+    python cli.py save-future-holdings
     ```
 
     该命令会保存期货持仓数据。
