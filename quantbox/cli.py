@@ -17,6 +17,7 @@ def save_all():
     saver.save_trade_dates()
     saver.save_future_contracts()
     saver.save_future_holdings()
+    saver.save_future_daily()
 
 @click.command()
 def save_trade_dates():
@@ -42,10 +43,28 @@ def save_future_holdings():
     saver = TSSaver()
     saver.save_future_holdings()
 
+@click.command()
+def save_future_daily():
+    """
+    保存期货持仓数据
+    """
+    saver = TSSaver()
+    saver.save_future_daily()
+
+@click.command()
+def save_stock_list():
+    """
+    保存期货持仓数据
+    """
+    saver = TSSaver()
+    saver.save_stock_list()
+
 cli.add_command(save_all)
 cli.add_command(save_trade_dates)
 cli.add_command(save_future_contracts)
 cli.add_command(save_future_holdings)
+cli.add_command(save_stock_list)
+cli.add_command(save_future_daily)
 
 if __name__ == "__main__":
     cli()

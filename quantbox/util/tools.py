@@ -8,7 +8,7 @@ from typing import Dict, List, Union
 import numpy as np
 import pandas as pd
 
-from quantbox.util.basic import DATABASE, FUTURE_EXCHANGES
+from quantbox.util.basic import DATABASE
 
 
 def util_make_date_stamp(
