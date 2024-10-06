@@ -1,12 +1,19 @@
-from typing import Union, List
 import datetime
-import pymongo
+from typing import List, Union
+
 import pandas as pd
-from quantbox.util.basic import DATABASE, EXCHANGES
-from quantbox.fetchers.remote_fetch_tushare import TSFetcher
-from quantbox.fetchers.remote_fetch_gm import GMFetcher
+import pymongo
+
 from quantbox.fetchers.local_fetch import Queryer
-from quantbox.util.tools import util_make_date_stamp, util_to_json_from_pandas, util_format_stock_symbols
+from quantbox.fetchers.remote_fetch_gm import GMFetcher
+from quantbox.fetchers.remote_fetch_tushare import TSFetcher
+from quantbox.util.basic import DATABASE, EXCHANGES
+from quantbox.util.tools import (
+    util_format_stock_symbols,
+    util_make_date_stamp,
+    util_to_json_from_pandas,
+)
+
 
 class TSSaver:
     def __init__(self):
@@ -20,21 +27,18 @@ class TSSaver:
 
     def save_trade_dates(self):
         """
-         本地化交易日期
+        本地化交易日期
         """
         collections = self.client.trade_date
         collections.create_index(
-            [
-                ("exchange", pymongo.ASCENDING),
-                ("datestamp", pymongo.DESCENDING)]
+            [("exchange", pymongo.ASCENDING), ("datestamp", pymongo.DESCENDING)]
         )
         for exchange in self.exchanges:
             count = collections.count_documents({"exchange": exchange})
             if count > 0:
                 # 获取第一个文档
                 first_doc = collections.find_one(
-                    {"exchange": exchange},
-                    sort=[("datestamp", pymongo.DESCENDING)]
+                    {"exchange": exchange}, sort=[("datestamp", pymongo.DESCENDING)]
                 )
                 latest_date = first_doc["trade_date"]
             else:
@@ -42,8 +46,7 @@ class TSSaver:
 
             data = util_to_json_from_pandas(
                 self.ts_fetcher.fetch_get_trade_dates(
-                    exchanges=exchange,
-                    start_date=latest_date
+                    exchanges=exchange, start_date=latest_date
                 )
             )
             if len(data) > 0:
@@ -66,32 +69,31 @@ class TSSaver:
             if exchange in ["SSE", "SZSE"]:
                 # 只考虑期货交易所
                 continue
-            total_contracts = self.ts_fetcher.fetch_get_future_contracts(exchange=exchange)
+            total_contracts = self.ts_fetcher.fetch_get_future_contracts(
+                exchange=exchange
+            )
             symbols = total_contracts.symbol.tolist()
             count = collections.count_documents(
-                {
-                    "exchange": exchange,
-                    "symbol": {"$in": symbols}
-                })
+                {"exchange": exchange, "symbol": {"$in": symbols}}
+            )
             if count > 0:
                 # 查询当前已有的合约信息
                 cursor = collections.find(
-                    {
-                        "exchange": exchange,
-                        "symbol": {
-                            "$in": symbols
-                        }
-                    },
+                    {"exchange": exchange, "symbol": {"$in": symbols}},
                     {"_id": 0},
-                    batch_size=10000
+                    batch_size=10000,
                 )
                 local_contracts = pd.DataFrame([item for item in cursor])
-                external_symbols = set(symbols) - set(local_contracts["symbol"].tolist())
+                external_symbols = set(symbols) - set(
+                    local_contracts["symbol"].tolist()
+                )
                 if external_symbols:
-                    external_contracts = total_contracts.loc[total_contracts["symbol"].isin(list(external_symbols))]
-                    collections.insert_many(util_to_json_from_pandas(
-                        external_contracts
-                    ))
+                    external_contracts = total_contracts.loc[
+                        total_contracts["symbol"].isin(list(external_symbols))
+                    ]
+                    collections.insert_many(
+                        util_to_json_from_pandas(external_contracts)
+                    )
             else:
                 collections.insert_many(util_to_json_from_pandas(total_contracts))
 
@@ -99,11 +101,11 @@ class TSSaver:
         self,
         exchanges: Union[str, List[str], None] = None,
         start_date: Union[str, datetime.date, None] = None,
-        end_date: Union[str,datetime.date, None] = None,
-        offset: int=365
+        end_date: Union[str, datetime.date, None] = None,
+        offset: int = 365,
     ):
         """
-         保存期货龙虎榜数据到本地
+        保存期货龙虎榜数据到本地
         """
         collections = self.client.future_holdings
         collections.create_index(
@@ -133,30 +135,32 @@ class TSSaver:
             if start_date is None:
                 start_date = end_date
         for exchange in exchanges:
-            trade_dates = self.queryer.fetch_trade_dates(exchanges=exchange, start_date=start_date, end_date=end_date)
+            trade_dates = self.queryer.fetch_trade_dates(
+                exchanges=exchange, start_date=start_date, end_date=end_date
+            )
             for trade_date in trade_dates.trade_date.tolist():
-                print(f"Now saving future holding of {exchange} at trade_date {trade_date}")
-                count = collections.count_documents({
-                    "datestamp": util_make_date_stamp(trade_date),
-                    "exchange": exchange
-                })
+                print(
+                    f"Now saving future holding of {exchange} at trade_date {trade_date}"
+                )
+                count = collections.count_documents(
+                    {
+                        "datestamp": util_make_date_stamp(trade_date),
+                        "exchange": exchange,
+                    }
+                )
                 if count == 0:
                     results = self.ts_fetcher.fetch_get_holdings(
-                        exchanges=exchange,
-                        cursor_date=trade_date
+                        exchanges=exchange, cursor_date=trade_date
                     )
                     collections.insert_many(util_to_json_from_pandas(results))
 
-
     def save_stock_list(self):
         """
-         本地化股票列表
+        本地化股票列表
         """
         collections = self.client.stock_list
         collections.create_index(
-            [
-                ("symobl", pymongo.ASCENDING),
-                ("list_datestamp", pymongo.ASCENDING)]
+            [("symobl", pymongo.ASCENDING), ("list_datestamp", pymongo.ASCENDING)]
         )
         # 数据量比较小，每次更新可以覆盖
         data = self.ts_fetcher.fetch_get_stock_list()
@@ -164,8 +168,65 @@ class TSSaver:
         columns = data.columns.tolist()
         if "ts_code" in columns:
             columns.remove("ts_code")
-        data["list_datestamp"] = data['list_date'].map(str).apply(lambda x: util_make_date_stamp(x))
+        data["list_datestamp"] = (
+            data["list_date"].map(str).apply(lambda x: util_make_date_stamp(x))
+        )
         collections.insert_many(util_to_json_from_pandas(data))
+
+    def save_future_daily(
+        self,
+        exchanges: Union[str, List[str], None] = None,
+        start_date: Union[str, datetime.date, None] = None,
+        end_date: Union[str, datetime.date, None] = None,
+        offset: int = 365,
+    ):
+        """
+        保存期货日线行情
+        """
+        collections = self.client.future_daily
+        collections.create_index(
+            [("symbol", pymongo.ASCENDING), ("datestamp", pymongo.DESCENDING)]
+        )
+        cursor_date = datetime.date.today()
+        for exchange in self.future_exchanges:
+            contracts = self.queryer.fetch_future_contracts(exchanges=exchange)
+            for _, contract_info in contracts.iterrows():
+                list_date = contract_info["list_date"]
+                delist_date = contract_info["delist_date"]
+                symbol = contract_info["symbol"]
+                count = collections.count_documents(
+                    {"symbol": symbol, "datestamp": util_make_date_stamp(cursor_date)}
+                )
+                if count > 0:
+                    first_doc = collections.find_one(
+                        {"symbol": symbol}, sort=[("datestamp", pymongo.DESCENDING)]
+                    )
+                    latest_date = first_doc["trade_date"]
+                    if pd.Timestamp(latest_date) < pd.Timestamp(delist_date):
+                        data = self.ts_fetcher.fetch_get_future_daily(
+                            symbols=symbol,
+                            start_date=self.queryer.fetch_next_trade_date(latest_date),
+                            end_date=delist_date,
+                        )
+                        if "ts_code" in data.columns:
+                            columns = data.columns.tolist()
+                            columns.remove("ts_code")
+                        collections.insert_many(util_to_json_from_pandas(data[columns]))
+                else:
+                    data = self.ts_fetcher.fetch_get_future_daily(
+                        symbols=symbol,
+                        start_date=list_date,
+                        end_date=delist_date,
+                    )
+                    if data is None:
+                        print(
+                            f"当前合约 {symbol}, 上市时间 {list_date}, 下市时间 {delist_date}, 没有查询到数据"
+                        )
+                    if "ts_code" in data.columns:
+                        columns = data.columns.tolist()
+                        columns.remove("ts_code")
+                    collections.insert_many(util_to_json_from_pandas(data))
+
 
 if __name__ == "__main__":
     saver = TSSaver()
@@ -173,4 +234,5 @@ if __name__ == "__main__":
     # saver.save_future_contracts()
     # saver.save_future_holdings(exchanges=["DCE"])
     # saver.save_future_holdings()
-    saver.save_stock_list()
+    # saver.save_stock_list()
+    saver.save_future_daily()
