@@ -1,13 +1,24 @@
-import tushare as ts
-from quantbox.util.basic import FUTURE_EXCHANGES, STOCK_EXCHANGES, TSPRO, EXCHANGES, DATABASE, DEFAULT_START
-from quantbox.util.tools import util_format_stock_symbols
-from quantbox.fetchers.local_fetch import Queryer
-import re
 import datetime
-import pandas as pd
-from typing import Union, List, Optional
+import re
+from typing import List, Optional, Union
 
-from quantbox.util.tools import util_make_date_stamp
+import pandas as pd
+
+from quantbox.fetchers.local_fetch import Queryer
+from quantbox.util.basic import (
+    DATABASE,
+    DEFAULT_START,
+    EXCHANGES,
+    FUTURE_EXCHANGES,
+    STOCK_EXCHANGES,
+    TSPRO,
+)
+from quantbox.util.tools import (
+    util_format_future_symbols,
+    util_format_stock_symbols,
+    util_make_date_stamp,
+)
+
 
 class TSFetcher:
     def __init__(self):
@@ -26,7 +37,7 @@ class TSFetcher:
         self,
         exchanges: Union[List[str], str, None] = None,
         start_date: Union[str, datetime.date, int, None] = None,
-        end_date: Union[str, datetime.date, int, None] = None
+        end_date: Union[str, datetime.date, int, None] = None,
     ) -> pd.DataFrame:
         """
         explanation:
@@ -59,20 +70,20 @@ class TSFetcher:
         results = pd.DataFrame()
         for exchange in exchanges:
             data = self.pro.trade_cal(
-                exchange=exchange,
-                start_date=start_date,
-                end_date=end_date
+                exchange=exchange, start_date=start_date, end_date=end_date
             )
             # PS: tushare 保留 is_open 这个字段有道理，交易日计划与实际可能会有偏差
             # TODO: 未来考虑优化
             data = data.loc[data["is_open"] == 1]
-            data["datestamp"] = data["cal_date"].map(str).apply(
-                lambda x: util_make_date_stamp(x)
+            data["datestamp"] = (
+                data["cal_date"].map(str).apply(lambda x: util_make_date_stamp(x))
             )
             results = pd.concat([results, data], axis=0)
         results = results.rename(columns={"cal_date": "trade_date"})
         results.trade_date = pd.to_datetime(results.trade_date).dt.strftime("%Y-%m-%d")
-        results.pretrade_date = pd.to_datetime(results.pretrade_date).dt.strftime("%Y-%m-%d")
+        results.pretrade_date = pd.to_datetime(results.pretrade_date).dt.strftime(
+            "%Y-%m-%d"
+        )
         return results[["exchange", "trade_date", "pretrade_date", "datestamp"]]
 
     def fetch_get_future_contracts(
@@ -164,9 +175,9 @@ class TSFetcher:
         names: Union[str, List[str], None] = None,
         exchanges: Union[str, List[str], None] = None,
         markets: Union[str, List[str], None] = None,
-        list_status: Union[str, List[str], None] = 'L',
+        list_status: Union[str, List[str], None] = "L",
         is_hs: Union[str, None] = None,
-        fields: Union[str, None] = None
+        fields: Union[str, None] = None,
     ) -> pd.DataFrame:
         """
         explanation:
@@ -238,20 +249,30 @@ class TSFetcher:
             for market in markets:
                 if list_status:
                     if is_hs:
-                        df = self.pro.stock_basic(market=market, list_status=list_status, is_hs=is_hs)
+                        df = self.pro.stock_basic(
+                            market=market, list_status=list_status, is_hs=is_hs
+                        )
                     else:
-                        df = self.pro.stock_basic(market=market, list_status=list_status)
+                        df = self.pro.stock_basic(
+                            market=market, list_status=list_status
+                        )
                         results = pd.concat([results, df], axis=0)
                 else:
                     if is_hs:
-                        df_1 =self.pro.stock_basic(market=market, list_status="L", is_hs=is_hs)
-                        df_2 =self.pro.stock_basic(market=market, list_status="D", is_hs=is_hs)
-                        df_3 =self.pro.stock_basic(market=market, list_status="P", is_hs=is_hs)
+                        df_1 = self.pro.stock_basic(
+                            market=market, list_status="L", is_hs=is_hs
+                        )
+                        df_2 = self.pro.stock_basic(
+                            market=market, list_status="D", is_hs=is_hs
+                        )
+                        df_3 = self.pro.stock_basic(
+                            market=market, list_status="P", is_hs=is_hs
+                        )
                         results = pd.concat([results, df_1, df_2, df_3], axis=0)
                     else:
-                        df_1 =self.pro.stock_basic(market=market, list_status="L")
-                        df_2 =self.pro.stock_basic(market=market, list_status="D")
-                        df_3 =self.pro.stock_basic(market=market, list_status="P")
+                        df_1 = self.pro.stock_basic(market=market, list_status="L")
+                        df_2 = self.pro.stock_basic(market=market, list_status="D")
+                        df_3 = self.pro.stock_basic(market=market, list_status="P")
                         results = pd.concat([results, df_1, df_2, df_3], axis=0)
             if fields:
                 return results[fields]
@@ -265,20 +286,30 @@ class TSFetcher:
             for exchange in exchanges:
                 if list_status:
                     if is_hs:
-                        df = self.pro.stock_basic(exchange=exchange, list_status=list_status, is_hs=is_hs)
+                        df = self.pro.stock_basic(
+                            exchange=exchange, list_status=list_status, is_hs=is_hs
+                        )
                     else:
-                        df = self.pro.stock_basic(exchange=exchange, list_status=list_status)
+                        df = self.pro.stock_basic(
+                            exchange=exchange, list_status=list_status
+                        )
                         results = pd.concat([results, df], axis=0)
                 else:
                     if is_hs:
-                        df_1 =self.pro.stock_basic(exchange=exchange, list_status="L", is_hs=is_hs)
-                        df_2 =self.pro.stock_basic(exchange=exchange, list_status="D", is_hs=is_hs)
-                        df_3 =self.pro.stock_basic(exchange=exchange, list_status="P", is_hs=is_hs)
+                        df_1 = self.pro.stock_basic(
+                            exchange=exchange, list_status="L", is_hs=is_hs
+                        )
+                        df_2 = self.pro.stock_basic(
+                            exchange=exchange, list_status="D", is_hs=is_hs
+                        )
+                        df_3 = self.pro.stock_basic(
+                            exchange=exchange, list_status="P", is_hs=is_hs
+                        )
                         results = pd.concat([results, df_1, df_2, df_3], axis=0)
                     else:
-                        df_1 =self.pro.stock_basic(exchange=exchange, list_status="L")
-                        df_2 =self.pro.stock_basic(exchange=exchange, list_status="D")
-                        df_3 =self.pro.stock_basic(exchange=exchange, list_status="P")
+                        df_1 = self.pro.stock_basic(exchange=exchange, list_status="L")
+                        df_2 = self.pro.stock_basic(exchange=exchange, list_status="D")
+                        df_3 = self.pro.stock_basic(exchange=exchange, list_status="P")
                         results = pd.concat([results, df_1, df_2, df_3], axis=0)
             if fields:
                 return results[fields]
@@ -304,7 +335,7 @@ class TSFetcher:
         cursor_date: Union[int, str, datetime.date, None] = None,
         start_date: Union[int, str, datetime.date, None] = None,
         end_date: Union[int, str, datetime.date, None] = None,
-        symbols: Union[str, List[str], None]=None,
+        symbols: Union[str, List[str], None] = None,
     ) -> pd.DataFrame:
         """
         explanation:
@@ -344,14 +375,11 @@ class TSFetcher:
                 if cursor_date is None:
                     cursor_date = datetime.date.today()
                 latest_trade_date = self.local_queryer.fetch_pre_trade_date(
-                    exchange=exchange,
-                    cursor_date=cursor_date,
-                    include=True
-                )['trade_date']
+                    exchange=exchange, cursor_date=cursor_date, include=True
+                )["trade_date"]
                 if symbols is None:
                     symbols = self.local_queryer.fetch_future_contracts(
-                        exchanges=exchange,
-                        cursor_date=cursor_date
+                        exchanges=exchange, cursor_date=cursor_date
                     ).symbol.tolist()
                 else:
                     if isinstance(symbols, str):
@@ -359,14 +387,16 @@ class TSFetcher:
                 for symbol in symbols:
                     holdings = self.pro.fut_holding(
                         trade_date=latest_trade_date.replace("-", ""),
-                        symbol = symbol,
-                        exchange=exchange
+                        symbol=symbol,
+                        exchange=exchange,
                     )
                     if not holdings.empty:
                         if total_holdings.empty:
                             total_holdings = holdings
                         else:
-                            total_holdings = pd.concat([total_holdings, holdings], axis=0)
+                            total_holdings = pd.concat(
+                                [total_holdings, holdings], axis=0
+                            )
             else:
                 if end_date is None:
                     end_date = datetime.date.today()
@@ -374,13 +404,17 @@ class TSFetcher:
                 end_date = pd.Timestamp(str(end_date)).strftime("%Y%m%d")
                 if symbols is None:
                     # 对于这种场景，可以先去根据交易日获取所有的合约列表，然后去查询
-                    trade_dates = self.local_queryer.fetch_trade_dates(exchanges=exchange, start_date=start_date, end_date=end_date).trade_date.tolist()
+                    trade_dates = self.local_queryer.fetch_trade_dates(
+                        exchanges=exchange, start_date=start_date, end_date=end_date
+                    ).trade_date.tolist()
                     symbols = []
                     for trade_date in trade_dates:
-                        symbols = symbols + self.local_queryer.fetch_future_contracts(
-                            exchanges=exchange,
-                            cursor_date=trade_date
-                        ).symbol.tolist()
+                        symbols = (
+                            symbols
+                            + self.local_queryer.fetch_future_contracts(
+                                exchanges=exchange, cursor_date=trade_date
+                            ).symbol.tolist()
+                        )
                     symbols = list(set(symbols))
                 else:
                     if isinstance(symbols, str):
@@ -390,20 +424,159 @@ class TSFetcher:
                         symbol=symbol,
                         exchange=exchange,
                         start_date=start_date,
-                        end_date=end_date
+                        end_date=end_date,
                     )
                     if not holdings.empty:
                         if total_holdings.empty:
                             total_holdings = holdings
                         else:
-                            total_holdings = pd.concat([total_holdings, holdings], axis=0)
+                            total_holdings = pd.concat(
+                                [total_holdings, holdings], axis=0
+                            )
             if total_holdings.empty:
                 print(f"当前期货交易所 {exchange} 没有持仓数据")
                 continue
-            total_holdings["datestamp"] = total_holdings['trade_date'].apply(lambda x: util_make_date_stamp(x))
-            total_holdings['trade_date'] = pd.to_datetime(total_holdings['trade_date']).dt.strftime("%Y-%m-%d")
+            total_holdings["datestamp"] = total_holdings["trade_date"].apply(
+                lambda x: util_make_date_stamp(x)
+            )
+            total_holdings["trade_date"] = pd.to_datetime(
+                total_holdings["trade_date"]
+            ).dt.strftime("%Y-%m-%d")
             total_holdings["exchange"] = exchange
         return total_holdings
+
+    def fetch_get_future_daily(
+        self,
+        cursor_date: Union[str, datetime.date, int] = None,
+        symbols: Union[str, List[str], None] = None,
+        exchanges: Union[str, List[str], None] = None,
+        start_date: Union[str, datetime.date, int, None] = None,
+        end_date: Union[str, datetime.date, int, None] = None,
+        fields: Union[List[str], None] = None,
+    ):
+        """
+        explanation:
+            获取指定交易所指定品种持仓情况
+
+        params:
+            * cursor_date ->
+                含义：指定日期最近交易日（当前日期包括在内）, 默认为 None，如果 start_date 不指定时，将默认 cursor_date 为当前日期
+                类型：Union[str, datetime.date, int, None]
+                参数支持： 20240930, "20240926"
+            * symbols ->
+                含义：指定合约代码列表，默认为 None, 当指定 symbols 后，exchanges 参数失效
+                类型： Union[str, List[str]]
+                参数支持：["M2501, M2505"]
+            * exchanges ->
+                含义：交易所 列表, 默认为 None
+                类型：Union[str, List[str], None]
+                参数支持：DEC, INE, SHFE, INE, CFFEX
+            * start_date ->
+                含义：起始时间，默认为 None，当指定了 start_date 以后，cursor_date 失效
+                类型：Union[str, int, datetime.date]
+                参数支持：20200913, "20210305", ...
+            * end_date ->
+                含义： 结束时间，默认为 None, 当指定了 start_date 以后，end_date 如果为 None，则默认为当前日期
+                类型：Union[str, int, datetime.date]
+                参数支持：20200913, "20210305", ...
+            returns:
+                pd.DataFrame ->
+                    期货日线行情
+        """
+        results = pd.DataFrame()
+        if start_date:
+            if end_date is None:
+                end_date = datetime.date.today()
+            if symbols:
+                symbols = util_format_future_symbols(symbols=symbols, format="tushare")
+                symbols = ",".join(symbols)
+                if fields:
+                    results = self.pro.fut_daily(
+                        ts_code=symbols,
+                        start_date=pd.Timestamp(str(start_date)).strftime("%Y%m%d"),
+                        end_date=pd.Timestamp(str(end_date)).strftime("%Y%m%d"),
+                        fields=fields,
+                    )
+                else:
+                    print("symbols:", symbols)
+                    results = self.pro.fut_daily(
+                        ts_code=symbols,
+                        start_date=pd.Timestamp(str(start_date)).strftime("%Y%m%d"),
+                        end_date=pd.Timestamp(str(end_date)).strftime("%Y%m%d"),
+                    )
+                    print(results)
+            else:
+                if exchanges is None:
+                    exchanges = self.future_exchanges
+                elif isinstance(exchanges, str):
+                    exchanges = exchanges.split(",")
+                results = pd.DataFrame()
+                for exchange in exchanges:
+                    if fields:
+                        df_local = self.pro.fut_daily(
+                            exchange=exchange,
+                            start_date=pd.Timestamp(str(start_date)).strftime("%Y%m%d"),
+                            end_date=pd.Timestamp(str(end_date)).strftime("%Y%m%d"),
+                            fields=fields,
+                        )
+                    else:
+                        df_local = self.pro.fut_daily(
+                            start_date=pd.Timestamp(str(start_date)).strftime("%Y%m%d"),
+                            end_date=pd.Timestamp(str(end_date)).strftime("%Y%m%d"),
+                            exchange=exchange,
+                        )
+                    results = pd.concat([results, df_local], axis=0)
+        else:
+            if cursor_date is None:
+                cursor_date = datetime.date.today()
+            latest_trade_date = self.local_queryer.fetch_pre_trade_date(
+                cursor_date=cursor_date, include=True
+            )["trade_date"]
+            if symbols:
+                symbols = util_format_future_symbols(symbols=symbols, format="tushare")
+                symbols = ",".join(symbols)
+                if fields:
+                    results = self.pro.fut_daily(
+                        ts_code=symbols,
+                        trade_date=latest_trade_date.replace("-", ""),
+                        fields=fields,
+                    )
+                else:
+                    results = self.pro.fut_daily(
+                        ts_code=symbols,
+                        trade_date=latest_trade_date.replace("-", ""),
+                    )
+            else:
+                if exchanges is None:
+                    exchanges = self.future_exchanges
+                elif isinstance(exchanges, str):
+                    exchanges = exchanges.split(",")
+                results = pd.DataFrame()
+                for exchange in exchanges:
+                    if fields:
+                        df_local = self.pro.fut_daily(
+                            trade_date=latest_trade_date.replace("-", ""),
+                            exchange=exchange,
+                            fields=fields,
+                        )
+                    else:
+                        df_local = self.pro.fut_daily(
+                            trade_date=latest_trade_date.replace("-", ""),
+                            exchange=exchange,
+                        )
+                    results = pd.concat([results, df_local], axis=0)
+            if "trade_date" in results.columns:
+                results["datestamp"] = results.trade_date.map(str).apply(
+                    lambda x: util_make_date_stamp(x)
+                )
+                results.trade_date = pd.to_datetime(results["trade_date"]).dt.strftime(
+                    "%Y-%m-%d"
+                )
+            if "ts_code" in results.columns:
+                results["symbol"] = (
+                    results.ts_code.map(str).str.split(".").apply(lambda x: x[0])
+                )
+            return results
 
 
 # 添加全局函数
@@ -411,13 +584,22 @@ def fetch_get_trade_dates(exchanges=None, start_date=None, end_date=None):
     fetcher = TSFetcher()
     return fetcher.fetch_get_trade_dates(exchanges, start_date, end_date)
 
-def fetch_get_future_contracts(exchange="DCE", spec_name=None, cursor_date=None, fields=None):
+
+def fetch_get_future_contracts(
+    exchange="DCE", spec_name=None, cursor_date=None, fields=None
+):
     fetcher = TSFetcher()
     return fetcher.fetch_get_future_contracts(exchange, spec_name, cursor_date, fields)
 
-def fetch_get_holdings(exchanges=None, cursor_date=None, start_date=None, end_date=None, symbols=None):
+
+def fetch_get_holdings(
+    exchanges=None, cursor_date=None, start_date=None, end_date=None, symbols=None
+):
     fetcher = TSFetcher()
-    return fetcher.fetch_get_holdings(exchanges, cursor_date, start_date, end_date, symbols)
+    return fetcher.fetch_get_holdings(
+        exchanges, cursor_date, start_date, end_date, symbols
+    )
+
 
 if __name__ == "__main__":
     fetcher = TSFetcher()
