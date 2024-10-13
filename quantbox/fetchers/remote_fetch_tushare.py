@@ -453,10 +453,10 @@ class TSFetcher:
         start_date: Union[str, datetime.date, int, None] = None,
         end_date: Union[str, datetime.date, int, None] = None,
         fields: Union[List[str], None] = None,
-    ):
+    ) -> pd.DataFrame:
         """
         explanation:
-            获取指定交易所指定品种持仓情况
+            获取指定交易所指定品种持仓情况, 注意，tushare 的 SHFE 对应查询 symbol 后缀为 SHF, CZCE 查询后缀为 ZCE
 
         params:
             * cursor_date ->
@@ -488,7 +488,7 @@ class TSFetcher:
             if end_date is None:
                 end_date = datetime.date.today()
             if symbols:
-                symbols = util_format_future_symbols(symbols=symbols, format="tushare")
+                symbols = util_format_future_symbols(symbols=symbols, format="tushare", tushare_daily_spec=True)
                 symbols = ",".join(symbols)
                 if fields:
                     results = self.pro.fut_daily(
@@ -498,13 +498,11 @@ class TSFetcher:
                         fields=fields,
                     )
                 else:
-                    print("symbols:", symbols)
                     results = self.pro.fut_daily(
                         ts_code=symbols,
                         start_date=pd.Timestamp(str(start_date)).strftime("%Y%m%d"),
                         end_date=pd.Timestamp(str(end_date)).strftime("%Y%m%d"),
                     )
-                    print(results)
             else:
                 if exchanges is None:
                     exchanges = self.future_exchanges
@@ -533,7 +531,7 @@ class TSFetcher:
                 cursor_date=cursor_date, include=True
             )["trade_date"]
             if symbols:
-                symbols = util_format_future_symbols(symbols=symbols, format="tushare")
+                symbols = util_format_future_symbols(symbols=symbols, format="tushare", tushare_daily_spec=True)
                 symbols = ",".join(symbols)
                 if fields:
                     results = self.pro.fut_daily(
@@ -565,18 +563,29 @@ class TSFetcher:
                             exchange=exchange,
                         )
                     results = pd.concat([results, df_local], axis=0)
-            if "trade_date" in results.columns:
-                results["datestamp"] = results.trade_date.map(str).apply(
-                    lambda x: util_make_date_stamp(x)
-                )
-                results.trade_date = pd.to_datetime(results["trade_date"]).dt.strftime(
-                    "%Y-%m-%d"
-                )
-            if "ts_code" in results.columns:
-                results["symbol"] = (
-                    results.ts_code.map(str).str.split(".").apply(lambda x: x[0])
-                )
-            return results
+        if "trade_date" in results.columns:
+            results["datestamp"] = results.trade_date.map(str).apply(
+                lambda x: util_make_date_stamp(x)
+            )
+            results.trade_date = pd.to_datetime(results["trade_date"]).dt.strftime(
+                "%Y-%m-%d"
+            )
+        if "ts_code" in results.columns:
+            columns = results.columns.tolist()
+            results["symbol"] = (
+                results.ts_code.map(str).str.split(".").apply(lambda x: x[0])
+            )
+            results["exchange"] = (
+                results.ts_code.map(str).str.split(".").apply(lambda x: x[1])
+            )
+            replace_dict = {
+                r'\SHF$': 'SHFE',
+                r'\ZCE$': 'CZCE'
+            }
+            results.exchange = results.exchange.replace(replace_dict, regex=True)
+            columns = ["symbol", "exchange"] + columns
+            results = results[columns]
+        return results
 
 
 # 添加全局函数

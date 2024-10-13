@@ -123,7 +123,7 @@ def util_format_stock_symbols(
 
 
 def util_format_future_symbols(
-    symbols: Union[str, List[str]], format: str = "tushare"
+    symbols: Union[str, List[str]], format: str = "tushare", tushare_daily_spec: bool=False
 ) -> List[str]:
     """
     explanation:
@@ -143,10 +143,21 @@ def util_format_future_symbols(
     if isinstance(symbols, str):
         symbols = symbols.split(",")
     if format in ["tushare", "ts"]:
-        return [
-            f"{symbol}.{fut_code_exchange_map[code]}"
-            for symbol, code in zip(symbols, fut_codes)
-        ]
+        if tushare_daily_spec:
+            suffix_map = {"SHFE": "SHF", "CEZE": "ZCE"}
+            original_list = [
+                f"{symbol}.{fut_code_exchange_map[code]}"
+                for symbol, code in zip(symbols, fut_codes)
+            ]
+            return [
+                '.'.join([item.split('.')[0], suffix_map.get(item.split('.')[1], item.split('.')[1])])
+                for item in original_list
+            ]
+        else:
+            return [
+                f"{symbol}.{fut_code_exchange_map[code]}"
+                for symbol, code in zip(symbols, fut_codes)
+            ]
 
 
 @lru_cache(maxsize=None)

@@ -189,9 +189,6 @@ class TSSaver:
         )
         cursor_date = datetime.date.today()
         for exchange in self.future_exchanges:
-            # TODO: Tushare 获取 SHFE 期货行情数据有问题
-            if exchange == 'SHFE':
-                continue
             contracts = self.queryer.fetch_future_contracts(exchanges=exchange)
             for _, contract_info in contracts.iterrows():
                 list_date = contract_info["list_date"]
@@ -206,11 +203,15 @@ class TSSaver:
                     )
                     latest_date = first_doc["trade_date"]
                     if pd.Timestamp(latest_date) < pd.Timestamp(delist_date):
+                        if symbol.endswith("SHFE"):
+                            symbol.replace("SHFE", "SHF")
                         data = self.ts_fetcher.fetch_get_future_daily(
                             symbols=symbol,
                             start_date=self.queryer.fetch_next_trade_date(latest_date),
                             end_date=delist_date,
                         )
+                        data["symbol"] = symbol
+                        data["exchange"] = exchange
                         if "ts_code" in data.columns:
                             columns = data.columns.tolist()
                             columns.remove("ts_code")
@@ -221,10 +222,11 @@ class TSSaver:
                         start_date=list_date,
                         end_date=delist_date,
                     )
-                    if data is None:
+                    if data is None or data.empty:
                         print(
                             f"当前合约 {symbol}, 上市时间 {list_date}, 下市时间 {delist_date}, 没有查询到数据"
                         )
+                        continue
                     if "ts_code" in data.columns:
                         columns = data.columns.tolist()
                         columns.remove("ts_code")
