@@ -584,6 +584,8 @@ class TSFetcher:
             }
             results.exchange = results.exchange.replace(replace_dict, regex=True)
             columns = ["symbol", "exchange"] + columns
+            if "ts_code" in columns:
+                columns.remove("ts_code")
             results = results[columns]
         return results
 

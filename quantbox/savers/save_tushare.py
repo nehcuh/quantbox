@@ -202,21 +202,16 @@ class TSSaver:
                         {"symbol": symbol}, sort=[("datestamp", pymongo.DESCENDING)]
                     )
                     latest_date = first_doc["trade_date"]
+                    print(f"当前保存合约 {symbol} 从 {latest_date} 到 {delist_date} 日线行情")
                     if pd.Timestamp(latest_date) < pd.Timestamp(delist_date):
-                        if symbol.endswith("SHFE"):
-                            symbol.replace("SHFE", "SHF")
                         data = self.ts_fetcher.fetch_get_future_daily(
                             symbols=symbol,
                             start_date=self.queryer.fetch_next_trade_date(latest_date),
                             end_date=delist_date,
                         )
-                        data["symbol"] = symbol
-                        data["exchange"] = exchange
-                        if "ts_code" in data.columns:
-                            columns = data.columns.tolist()
-                            columns.remove("ts_code")
                         collections.insert_many(util_to_json_from_pandas(data[columns]))
                 else:
+                    print(f"当前保存合约 {symbol} 从 {list_date} 到 {delist_date} 日线行情")
                     data = self.ts_fetcher.fetch_get_future_daily(
                         symbols=symbol,
                         start_date=list_date,
@@ -227,9 +222,6 @@ class TSSaver:
                             f"当前合约 {symbol}, 上市时间 {list_date}, 下市时间 {delist_date}, 没有查询到数据"
                         )
                         continue
-                    if "ts_code" in data.columns:
-                        columns = data.columns.tolist()
-                        columns.remove("ts_code")
                     collections.insert_many(util_to_json_from_pandas(data))
 
 
