@@ -144,7 +144,7 @@ def util_format_future_symbols(
         symbols = symbols.split(",")
     if format in ["tushare", "ts"]:
         if tushare_daily_spec:
-            suffix_map = {"SHFE": "SHF", "CEZE": "ZCE"}
+            suffix_map = {"SHFE": "SHF", "CZCE": "ZCE"}
             original_list = [
                 f"{symbol}.{fut_code_exchange_map[code]}"
                 for symbol, code in zip(symbols, fut_codes)
