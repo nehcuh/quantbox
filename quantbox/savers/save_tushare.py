@@ -189,6 +189,9 @@ class TSSaver:
         )
         cursor_date = datetime.date.today()
         for exchange in self.future_exchanges:
+            # TODO: Tushare 获取 SHFE 期货行情数据有问题
+            if exchange == 'SHFE':
+                continue
             contracts = self.queryer.fetch_future_contracts(exchanges=exchange)
             for _, contract_info in contracts.iterrows():
                 list_date = contract_info["list_date"]
