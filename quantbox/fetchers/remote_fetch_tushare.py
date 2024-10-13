@@ -579,8 +579,8 @@ class TSFetcher:
                 results.ts_code.map(str).str.split(".").apply(lambda x: x[1])
             )
             replace_dict = {
-                r'\SHF$': 'SHFE',
-                r'\ZCE$': 'CZCE'
+                r'SHF$': 'SHFE',
+                r'ZCE$': 'CZCE'
             }
             results.exchange = results.exchange.replace(replace_dict, regex=True)
             columns = ["symbol", "exchange"] + columns

@@ -614,7 +614,7 @@ class Queryer:
 
     def fetch_future_daily(
        self,
-       cursor_date: Union[str, datetime.date, int] = None,
+       cursor_date: Union[str, datetime.date, int, None] = None,
        symbols: Union[str, List[str], None] = None,
        exchanges: Union[str, List[str], None] = None,
        start_date: Union[str, datetime.date, int, None] = None,
