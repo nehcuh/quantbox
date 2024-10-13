@@ -4,7 +4,7 @@ from typing import List, Union
 import pandas as pd
 import pymongo
 
-from quantbox.fetchers.local_fetch import Queryer
+from quantbox.fetchers.local_fetch import Queryer, fetch_next_trade_date
 from quantbox.fetchers.remote_fetch_gm import GMFetcher
 from quantbox.fetchers.remote_fetch_tushare import TSFetcher
 from quantbox.util.basic import DATABASE, EXCHANGES
@@ -203,10 +203,10 @@ class TSSaver:
                     )
                     latest_date = first_doc["trade_date"]
                     print(f"当前保存合约 {symbol} 从 {latest_date} 到 {delist_date} 日线行情")
-                    if pd.Timestamp(latest_date) < pd.Timestamp(delist_date):
+                    if (pd.Timestamp(latest_date) < pd.Timestamp(delist_date)) and (self.queryer.fetch_next_trade_date(latest_date)['trade_date'] < datetime.date.today().strftime("%Y-%m-%d")):
                         data = self.ts_fetcher.fetch_get_future_daily(
                             symbols=symbol,
-                            start_date=self.queryer.fetch_next_trade_date(latest_date),
+                            start_date=self.queryer.fetch_next_trade_date(latest_date)['trade_date'],
                             end_date=delist_date,
                         )
                         collections.insert_many(util_to_json_from_pandas(data[columns]))

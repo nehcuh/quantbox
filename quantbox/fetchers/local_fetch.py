@@ -5,7 +5,7 @@ import pymongo
 from typing import Union, List, Dict, Optional
 
 from quantbox.util.basic import DATABASE, DEFAULT_START, EXCHANGES, FUTURE_EXCHANGES, STOCK_EXCHANGES
-from quantbox.util.tools import util_make_date_stamp
+from quantbox.util.tools import util_make_date_stamp, util_format_future_symbols
 
 class Queryer:
     def __init__(self):
@@ -612,6 +612,125 @@ class Queryer:
                     else:
                         return results
 
+    def fetch_future_daily(
+       self,
+       cursor_date: Union[str, datetime.date, int] = None,
+       symbols: Union[str, List[str], None] = None,
+       exchanges: Union[str, List[str], None] = None,
+       start_date: Union[str, datetime.date, int, None] = None,
+       end_date: Union[str, datetime.date, int, None] = None,
+       fields: Union[List[str], None] = None,
+    ) -> pd.DataFrame:
+        """
+        explanation:
+            获取指定交易所指定品种日线行情
+
+        params:
+            * cursor_date ->
+                含义：指定日期最近交易日（当前日期包括在内）, 默认为 None，如果 start_date 不指定时，将默认 cursor_date 为当前日期
+                类型：Union[str, datetime.date, int, None]
+                参数支持： 20240930, "20240926"
+            * symbols ->
+                含义：指定合约代码列表，默认为 None, 当指定 symbols 后，exchanges 参数失效
+                类型： Union[str, List[str]]
+                参数支持：["M2501, M2505"]
+            * exchanges ->
+                含义：交易所 列表, 默认为 None
+                类型：Union[str, List[str], None]
+                参数支持：DEC, INE, SHFE, INE, CFFEX
+            * start_date ->
+                含义：起始时间，默认为 None，当指定了 start_date 以后，cursor_date 失效
+                类型：Union[str, int, datetime.date]
+                参数支持：20200913, "20210305", ...
+            * end_date ->
+                含义： 结束时间，默认为 None, 当指定了 start_date 以后，end_date 如果为 None，则默认为当前日期
+                类型：Union[str, int, datetime.date]
+                参数支持：20200913, "20210305", ...
+            returns:
+                pd.DataFrame ->
+                    期货日线行情
+        """
+        collections = self.client.future_daily
+        if start_date:
+            if end_date is None:
+                end_date = datetime.date.today()
+            if symbols:
+                symbols = util_format_future_symbols(symbols=symbols)
+                cursor = collections.find(
+                    {
+                        "symbol": {"$in": symbols},
+                        "datestamp": {
+                            "$gte": util_make_date_stamp(start_date),
+                            "$lte": util_make_date_stamp(end_date),
+                        },
+                    },
+                    {"_id": 0},
+                    batch_size=10000,
+                )
+                results = pd.DataFrame([item for item in cursor])
+                if fields:
+                    return results[fields]
+                else:
+                    return results
+            else:
+                if exchanges is None:
+                    exchanges = self.future_exchanges
+                elif isinstance(exchanges, str):
+                    exchanges = exchanges.split(",")
+                for exchange in exchanges:
+                    cursor = collections.find({
+                        "datestamp": {
+                            "$gte": util_make_date_stamp(start_date),
+                            "$lte": util_make_date_stamp(end_date),
+                        },
+                        "exchange": {"$in": exchanges}
+                        },
+                        {"_id": 0},
+                        batch_size=10000,
+                    )
+                    results = pd.DataFrame([item for item in cursor])
+                    if fields:
+                        return results[fields]
+                    else:
+                        return results
+        else:
+            if cursor_date is None:
+                cursor_date = datetime.date.today()
+            latest_trade_date = self.fetch_pre_trade_date(
+                cursor_date=cursor_date, include=True
+            )["trade_date"]
+            if symbols:
+                symbols = util_format_future_symbols(symbols=symbols)
+                cursor = collections.find({
+                    "symbol": {"$in": symbols},
+                    "datestamp": util_make_date_stamp(cursor_date)
+                },
+                {"_id": 0},
+                batch_size=1000
+                )
+                results = pd.DataFrame([item for item in cursor])
+                if fields:
+                    return results[fields]
+                else:
+                    return results
+            else:
+                if exchanges is None:
+                    exchanges = self.future_exchanges
+                elif isinstance(exchanges, str):
+                    exchanges = exchanges.split(",")
+                cursor = collections.find({
+                    "datestamp": util_make_date_stamp(cursor_date),
+                    "exchange": {"$in": exchanges}
+                },
+                {"_id": 0},
+                batch_size=1000
+                )
+                results = pd.DataFrame([item for item in cursor])
+                if fields:
+                    return results[fields]
+                else:
+                    return results
+
 
 # 添加全局函数
 def fetch_trade_dates(exchanges=None, start_date=None, end_date=None):
@@ -635,8 +754,6 @@ def fetch_future_holdings(symbol=None, exchanges=None, spec_names=None, cursor_d
     return queryer.fetch_future_holdings(symbol, exchanges, spec_names, cursor_date, start_date, end_date, fields)
 
 
-
-
 if __name__ == "__main__":
     local_fetcher = Queryer()
     # print(local_fetcher.fetch_pre_trade_date())
@@ -651,7 +768,17 @@ if __name__ == "__main__":
     # print(local_fetcher.fetch_future_contracts(exchanges=["DCE"], spec_name="豆粕", cursor_date="2024-09-30"))
     # print(local_fetcher.fetch_future_contracts(spec_name="豆粕", cursor_date="2024-09-30"))
     # print(local_fetcher.fetch_future_contracts(cursor_date="2024-09-30"))
-    print(local_fetcher.fetch_future_holdings(symbol="M2501", cursor_date="2024-09-27"))
-    print(local_fetcher.fetch_future_holdings(symbol="M2501", start_date="2024-09-26", end_date="2024-09-27"))
+    # print(local_fetcher.fetch_future_holdings(symbol="M2501", cursor_date="2024-09-27"))
+    # print(local_fetcher.fetch_future_holdings(symbol="M2501", start_date="2024-09-26", end_date="2024-09-27"))
     # print(local_fetcher.fetch_future_holdings(spec_names=["豆粕", "热轧卷板"], start_date="2024-09-01", end_date="2024-09-10"))
     # print(local_fetcher.fetch_future_holdings(spec_names=["豆粕", "热轧卷板"], cursor_date="2024-09-30"))
+    print(local_fetcher.fetch_future_daily(
+        symbols=["M2501", "RB2501"],
+        start_date="20240901",
+        end_date="20240930"
+    ))
+
+    print(local_fetcher.fetch_future_daily(
+        exchanges="SHFE, DCE",
+        cursor_date="20240930"
+    ))

@@ -456,7 +456,7 @@ class TSFetcher:
     ) -> pd.DataFrame:
         """
         explanation:
-            获取指定交易所指定品种持仓情况, 注意，tushare 的 SHFE 对应查询 symbol 后缀为 SHF, CZCE 查询后缀为 ZCE
+            获取指定交易所指定合约日线行情, 注意，tushare 的 SHFE 对应查询 symbol 后缀为 SHF, CZCE 查询后缀为 ZCE
 
         params:
             * cursor_date ->

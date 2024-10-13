@@ -3,7 +3,7 @@ import json
 import re
 import time
 from functools import lru_cache
-from typing import Dict, List, Union
+from typing import Dict, List, Union, Optional
 
 import numpy as np
 import pandas as pd
@@ -123,7 +123,7 @@ def util_format_stock_symbols(
 
 
 def util_format_future_symbols(
-    symbols: Union[str, List[str]], format: str = "tushare", tushare_daily_spec: bool=False
+    symbols: Union[str, List[str]], format: Optional[str] = None, tushare_daily_spec: bool=False
 ) -> List[str]:
     """
     explanation:
@@ -158,6 +158,9 @@ def util_format_future_symbols(
                 f"{symbol}.{fut_code_exchange_map[code]}"
                 for symbol, code in zip(symbols, fut_codes)
             ]
+    else:
+        symbols = [symbol.split(".")[0] for symbol in symbols]
+    return symbols
 
 
 @lru_cache(maxsize=None)
