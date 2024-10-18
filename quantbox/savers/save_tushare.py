@@ -1,5 +1,6 @@
 import datetime
 from typing import List, Union
+import time
 
 import pandas as pd
 import pymongo
@@ -7,7 +8,7 @@ import pymongo
 from quantbox.fetchers.local_fetch import Queryer, fetch_next_trade_date
 from quantbox.fetchers.remote_fetch_gm import GMFetcher
 from quantbox.fetchers.remote_fetch_tushare import TSFetcher
-from quantbox.util.basic import DATABASE, EXCHANGES
+from quantbox.util.basic import DATABASE, EXCHANGES, FUTURE_EXCHANGES, STOCK_EXCHANGES
 from quantbox.util.tools import (
     util_format_stock_symbols,
     util_make_date_stamp,
@@ -22,8 +23,8 @@ class TSSaver:
         self.queryer = Queryer()
         self.client = DATABASE
         self.exchanges = EXCHANGES
-        self.future_exchanges = EXCHANGES
-        self.stock_exchanges = EXCHANGES
+        self.future_exchanges = FUTURE_EXCHANGES
+        self.stock_exchanges = STOCK_EXCHANGES
 
     def save_trade_dates(self):
         """
@@ -65,10 +66,7 @@ class TSSaver:
                 ("datestamp", pymongo.DESCENDING),
             ]
         )
-        for exchange in self.exchanges:
-            if exchange in ["SSE", "SZSE"]:
-                # 只考虑期货交易所
-                continue
+        for exchange in self.future_exchanges:
             total_contracts = self.ts_fetcher.fetch_get_future_contracts(
                 exchange=exchange
             )
@@ -120,15 +118,15 @@ class TSSaver:
         if isinstance(exchanges, str):
             exchanges = exchanges.split(",")
         # 股票交易所不考虑
-        if "SSE" in exchanges:
-            exchanges.remove("SSE")
-        if "SZSE" in exchanges:
-            exchanges.remove("SZSE")
+        exchanges = [x for x in exchanges if x not in self.stock_exchanges]
         # FIXME: 上海能源交易所在 tushare 的接口上获取相应持仓数据为空
         if "INE" in exchanges:
             exchanges.remove("INE")
         if end_date is None:
-            end_date = datetime.date.today()
+            if datetime.datetime.now().hour > 21:
+                end_date = datetime.date.today()
+            else:
+                end_date = datetime.date.today() - datetime.timedelta(days=1)
             if start_date is None:
                 start_date = end_date - datetime.timedelta(days=offset)
         else:
@@ -149,9 +147,18 @@ class TSSaver:
                     }
                 )
                 if count == 0:
-                    results = self.ts_fetcher.fetch_get_holdings(
-                        exchanges=exchange, cursor_date=trade_date
-                    )
+                    retry_offset = 5
+                    while True:
+                        try:
+                            print(f"尝试保存交易所 {exchange} 在交易日 {trade_date} 的持仓排名")
+                            results = self.ts_fetcher.fetch_get_holdings(
+                                exchanges=exchange, cursor_date=trade_date
+                            )
+                            if not results.empty:
+                                print(f"保存交易所 {exchange} 在交易日 {trade_date} 的持仓排名 成功")
+                                break
+                        except:
+                            time.sleep(60.0)
                     collections.insert_many(util_to_json_from_pandas(results))
 
     def save_stock_list(self):
