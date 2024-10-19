@@ -13,6 +13,7 @@ from quantbox.util.tools import (
     util_format_stock_symbols,
     util_make_date_stamp,
     util_to_json_from_pandas,
+    is_trade_date
 )
 
 
@@ -123,16 +124,15 @@ class TSSaver:
         if "INE" in exchanges:
             exchanges.remove("INE")
         if end_date is None:
-            if datetime.datetime.now().hour > 21:
-                end_date = datetime.date.today()
-            else:
-                end_date = datetime.date.today() - datetime.timedelta(days=1)
+            end_date = datetime.date.today()
             if start_date is None:
                 start_date = end_date - datetime.timedelta(days=offset)
         else:
             if start_date is None:
-                start_date = end_date
+                start_date = pd.Timestamp(end_date) - pd.Timedelta(days=offset)
         for exchange in exchanges:
+            if is_trade_date(end_date, exchange) and (pd.Timstamp(end_date) == pd.Timestamp(datetime.date.today())) and datetime.datetime.now().hour < 16:
+                end_date = pd.Timestamp(end_date) - pd.Timedelta(days=1)
             trade_dates = self.queryer.fetch_trade_dates(
                 exchanges=exchange, start_date=start_date, end_date=end_date
             )
@@ -157,7 +157,10 @@ class TSSaver:
                             if not results.empty:
                                 print(f"保存交易所 {exchange} 在交易日 {trade_date} 的持仓排名 成功")
                                 break
+                            if retry_offset >= 5:
+                                break
                         except:
+                            retry_offset += 1
                             time.sleep(60.0)
                     collections.insert_many(util_to_json_from_pandas(results))
 

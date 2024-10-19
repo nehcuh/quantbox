@@ -8,7 +8,7 @@ from typing import Dict, List, Union, Optional
 import numpy as np
 import pandas as pd
 
-from quantbox.util.basic import DATABASE
+from quantbox.util.basic import DATABASE, EXCHANGES
 
 
 def util_make_date_stamp(
@@ -129,10 +129,11 @@ def util_format_future_symbols(
     explanation:
         格式化期货代码，注意，无论传入是 str, 还是 List，返回都是 List
 
-    format ->
-        含义：指定期货代码格式类型
-        类型：str
-        参数支持："standard"("M2501"), "wd/wind/ts/tushare"("M2501.DCE")
+    params:
+        format ->
+            含义：指定期货代码格式类型
+            类型：str
+            参数支持："standard"("M2501"), "wd/wind/ts/tushare"("M2501.DCE")
     """
     # TODO: 理论上直接硬编码应该更快，后续可以优化
     # 这里先从数据库加载每个交易所的品种清单，然后进行匹配
@@ -176,3 +177,44 @@ def load_contract_exchange_mapper() -> Dict:
     collections = DATABASE.future_contracts
     results = list(collections.aggregate(pipeline))
     return {item["fut_code"]: item["exchange"] for item in results}
+
+
+def is_trade_date(
+    cursor_date: Union[str, int, datetime.date, None] = None,
+    exchange: str='SSE'
+) -> bool:
+    """
+    explanation:
+        判断指定日期是否为交易日，默认为 None，即当期日期的判断，交易所默认为 SSE
+
+    params:
+        cursor_date ->
+            含义：指定日期，默认为 None，即当期日期
+            类型：str, int, datetime.date
+            参数支持：19981203, "20240910", datetime.date()
+        exchange ->
+            含义：指定交易所，默认为上交所
+            类型：str
+             参数支持：SSE, SZSE, DCE, INE, ...
+
+    returns:
+        bool：是否是交易日
+    """
+    if cursor_date is None:
+        cursor_date = datetime.date.today()
+
+    collections = DATABASE.trade_date
+
+    if exchange not in EXCHANGES:
+        raise ValueError("[ERROR]\t 不支持的交易所类型")
+
+    datestamp = util_make_date_stamp(cursor_date)
+
+    count = collections.count_documents({
+        "datestamp": datestamp,
+        "exchange": exchange
+    })
+    if count > 0:
+        return True
+    else:
+        return False
