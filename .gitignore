@@ -113,3 +113,6 @@ local.py
 
 # Rope
 .ropeproject
+
+# Private straties
+biz/
