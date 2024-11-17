@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import patch, MagicMock
-from quantbox.fetchers.remote_fetch_tushare import TSFetcher
-from quantbox.fetchers.remote_fetch_gm import GMFetcher
+from quantbox.fetchers.fetcher_tushare import TSFetcher
+from quantbox.fetchers.fetcher_goldminer import GMFetcher
 import pandas as pd
 import datetime
 from quantbox.util.tools import util_make_date_stamp
@@ -21,8 +21,8 @@ class TestTSFetcher(unittest.TestCase):
         self.mock_local.fetch_future_contracts = MagicMock()
         
         # Create patchers
-        self.patcher1 = patch('quantbox.fetchers.remote_fetch_tushare.TSPRO', self.mock_pro)
-        self.patcher2 = patch('quantbox.fetchers.remote_fetch_tushare.LocalFetcher', return_value=self.mock_local)
+        self.patcher1 = patch('quantbox.fetchers.fetcher_tushare.TSPRO', self.mock_pro)
+        self.patcher2 = patch('quantbox.fetchers.fetcher_tushare.LocalFetcher', return_value=self.mock_local)
         
         # Start patchers
         self.patcher1.start()
@@ -119,7 +119,7 @@ class TestGMFetcher(unittest.TestCase):
         # Create patchers
         self.patcher1 = patch('gm.api.get_symbol_infos', self.mock_api.get_symbol_infos)
         self.patcher2 = patch('gm.api.fut_get_transaction_rankings', self.mock_api.get_future_holdings)
-        self.patcher3 = patch('quantbox.fetchers.remote_fetch_gm.LocalFetcher', return_value=self.mock_local)
+        self.patcher3 = patch('quantbox.fetchers.fetcher_goldminer.LocalFetcher', return_value=self.mock_local)
         self.patcher4 = patch('gm.api.get_trading_dates', self.mock_api.get_trading_dates)
         
         # Start patchers

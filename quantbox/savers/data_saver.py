@@ -41,9 +41,9 @@ import time
 import pandas as pd
 import pymongo
 
+from quantbox.fetchers.fetcher_goldminer import GMFetcher
+from quantbox.fetchers.fetcher_tushare import TSFetcher
 from quantbox.fetchers.local_fetch import LocalFetcher, fetch_next_trade_date
-from quantbox.fetchers.remote_fetch_gm import GMFetcher
-from quantbox.fetchers.remote_fetch_tushare import TSFetcher
 from quantbox.util.basic import DATABASE, EXCHANGES, FUTURE_EXCHANGES, STOCK_EXCHANGES
 from quantbox.util.tools import (
     util_format_stock_symbols,
