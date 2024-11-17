@@ -498,7 +498,7 @@ class Queryer:
                         return results
                 else:
                     for exchange in exchanges:
-                        latest_trade_date = self.fetch_pre_trade_date(exchange=exchange, cursor_date=cursor_date)["trade_date"]
+                        latest_trade_date = self.fetch_pre_trade_date(exchange=exchange, cursor_date=cursor_date, include=True)["trade_date"]
                         cursor = collections.find(
                             {
                                 "datestamp": util_make_date_stamp(latest_trade_date),
