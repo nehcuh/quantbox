@@ -79,6 +79,40 @@ pip install -e .
     docker-compose -f database.yaml up -d
     ```
 
+### 交互式命令行工具
+
+Quantbox 提供了一个交互式的命令行工具，可以更方便地执行数据保存操作。安装完成后，直接在终端输入 `quantbox` 即可进入交互式环境：
+
+```bash
+$ quantbox
+Welcome to Quantbox Shell!
+输入 help 或 ? 查看支持的命令
+输入 quit 或 exit 退出程序
+
+quantbox> help
+
+Documented commands (type help <topic>):
+========================================
+exit  help  quit  save_all          save_future_daily     save_stock_list    
+save_future_contracts  save_future_holdings  save_trade_dates
+
+quantbox> save_trade_dates
+交易日期数据保存完成
+
+quantbox> exit
+再见！
+```
+
+支持的命令：
+- `save_all`: 保存所有数据
+- `save_trade_dates`: 保存交易日期数据
+- `save_future_contracts`: 保存期货合约数据
+- `save_future_holdings`: 保存期货持仓数据
+- `save_future_daily`: 保存期货日线数据
+- `save_stock_list`: 保存股票列表数据
+- `help`: 显示帮助信息
+- `exit` 或 `quit`: 退出程序
+
 ### 命令行工具
 
 Quantbox 提供了一个便捷的命令行工具，帮助你快速获取和存储数据。

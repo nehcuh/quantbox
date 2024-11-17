@@ -6,10 +6,15 @@ setup(
     packages=find_packages(),
     entry_points={
         "console_scripts": [
+            "quantbox=quantbox.shell:main",
             "save-all=future_toolbox.cli:main"
         ]
     },
     install_requires=[
-        "tushare"
+        "tushare",
+        "pymongo",
+        "pandas",
+        "click",
+        "toml"
     ]
 )
