@@ -1,24 +1,32 @@
 # Quantbox
 
-Quantbox 是一个用于金融数据获取、存储和分析的框架，支持多种数据源和多种金融市场数据。该项目旨在为金融分析师、研究员和开发者提供一个方便、灵活和可扩展的工具包。
+Quantbox 是一个用于金融数据获取、存储和分析的框架，支持多种数据源（如掘金量化、Tushare等）和多种金融市场数据。该项目旨在为金融分析师、研究员和开发者提供一个方便、灵活和可扩展的工具包。
 
 ## 功能特性
 
-- **数据获取**：支持从不同数据源（如 Tushare）获取股票和期货数据。
-- **数据存储**：支持将获取的数据存储到本地 MongoDB 数据库。
-- **数据查询**：提供便捷的接口查询存储在本地数据库中的数据。
-- **命令行工具**：提供 CLI 命令行工具，方便用户执行数据获取和存储操作。
+- **多数据源支持**：
+  - Tushare (ts)
+  - 掘金量化 (gm)
+  - 支持自定义数据源扩展
+- **数据存储**：支持将获取的数据存储到本地 MongoDB 数据库
+- **数据查询**：提供便捷的接口查询存储在本地数据库中的数据
+- **命令行工具**：提供 CLI 命令行工具，方便用户执行数据获取和存储操作
+- **灵活配置**：支持通过配置文件管理多个数据源的认证信息
 
 ## 安装
 
-首先，确保你已经安装了 Python 和 MongoDB，然后你可以通过以下命令安装项目依赖：
+### 环境要求
+- Python >= 3.7
+- MongoDB
 
+### 安装步骤
+
+1. 安装项目依赖：
 ```bash
 pip install -r requirements.txt
 ```
 
-然后安装本项目
-
+2. 安装本项目：
 ```bash
 pip install -e .
 ```
@@ -31,6 +39,9 @@ pip install -e .
 [TSPRO]
 token = "your tushare token"
 
+[GM]
+token = "your gm token"
+
 [MONGODB]
 uri = "mongodb://localhost:27017"
 ```
@@ -38,7 +49,8 @@ uri = "mongodb://localhost:27017"
 ## 使用
 
 ### 数据库安装
-推荐直接使用 Docker 进行部署，可以进行以下操作：
+推荐直接使用 Docker 进行部署：
+
 1. **创建数据卷**
     ```bash
     docker volume create qbmg
@@ -53,183 +65,86 @@ uri = "mongodb://localhost:27017"
 
 Quantbox 提供了一个便捷的命令行工具，帮助你快速获取和存储数据。
 
-![Save Commands](images/save_commands.png)
-
 1. **保存所有数据**
-
     ```bash
-    python cli.py save-all
+    quantbox-save save-all --engine ts  # 使用 Tushare 数据源
+    quantbox-save save-all --engine gm  # 使用掘金量化数据源
     ```
 
-    该命令会保存所有数据，包括交易日期、期货合约和期货持仓数据。
-
-2. **保存交易日期数据**
-
+2. **保存期货持仓数据**
     ```bash
-    python cli.py save-trade-dates
+    quantbox-save save-future-holdings --engine ts  # 使用 Tushare 数据源
+    quantbox-save save-future-holdings --engine gm  # 使用掘金量化数据源
     ```
-
-    该命令会保存交易日期数据。
 
 3. **保存期货合约数据**
-
     ```bash
-    python cli.py save-future-contracts
+    quantbox-save save-future-contracts --engine ts
     ```
 
-    该命令会保存期货合约数据。
-
-4. **保存期货持仓数据**
-
+4. **保存交易日期数据**
     ```bash
-    python cli.py save-future-holdings
+    quantbox-save save-trade-dates --engine ts
     ```
-
-    该命令会保存期货持仓数据。
 
 5. **保存股票列表**
-
     ```bash
-    python cli.py save-stock-list
+    quantbox-save save-stock-list --engine ts
     ```
-
-    该命令会保存股票列表。
 
 6. **保存期货日线行情**
-
     ```bash
-    python cli.py save-future-daily
+    quantbox-save save-future-daily --engine ts
     ```
 
-    该命令会保存期货日线行情。
-
-### 代码示例
-
-你也可以在代码中直接调用框架提供的接口。
-
-#### 从 Tushare 获取数据
+### Python API 使用示例
 
 ```python
-from quantbox import fetch_get_trade_dates, fetch_get_future_contracts, fetch_get_holdings
+from quantbox.fetchers import TSFetcher, GMFetcher
+from quantbox.savers import DataSaver
 
-# 获取交易日期数据
-trade_dates = fetch_get_trade_dates(exchanges="SSE", start_date="2023-01-01", end_date="2023-12-31")
-print(trade_dates)
+# 使用 Tushare 数据源
+ts_fetcher = TSFetcher()
+saver = DataSaver(fetcher=ts_fetcher)
+saver.save_future_holdings()
 
-# 获取期货合约数据
-future_contracts = fetch_get_future_contracts(exchange="DCE", spec_name="豆粕")
-print(future_contracts)
-
-# 获取期货持仓数据
-holdings = fetch_get_holdings(exchanges="DCE", cursor_date="2023-09-30")
-print(holdings)
+# 使用掘金量化数据源
+gm_fetcher = GMFetcher()
+saver = DataSaver(fetcher=gm_fetcher)
+saver.save_future_holdings()
 ```
 
-#### 从本地数据库查询数据
+## 开发
 
-```python
-from quantbox import fetch_trade_dates, fetch_pre_trade_date, fetch_next_trade_date, fetch_future_contracts, fetch_future_holdings
+### 添加新的数据源
+1. 在 `quantbox/fetchers` 目录下创建新的 fetcher 类
+2. 继承 `BaseFetcher` 类并实现必要的方法
+3. 在 `DataSaver` 中添加对新数据源的支持
 
-# 查询交易日期数据
-local_trade_dates = fetch_trade_dates(exchanges="SSE", start_date="2023-01-01", end_date="2023-12-31")
-print(local_trade_dates)
-
-# 查询前 N 个交易日
-pre_trade_date = fetch_pre_trade_date(exchange="SSE", cursor_date="2023-09-30", n=1)
-print(pre_trade_date)
-
-# 查询后 N 个交易日
-next_trade_date = fetch_next_trade_date(exchange="SSE", cursor_date="2023-09-30", n=1)
-print(next_trade_date)
-
-# 查询期货合约数据
-local_future_contracts = fetch_future_contracts(exchanges="DCE", spec_name="豆粕")
-print(local_future_contracts)
-
-# 查询期货持仓数据
-local_holdings = fetch_future_holdings(exchanges="DCE", cursor_date="2023-09-30")
-print(local_holdings)
+### 运行测试
+```bash
+pytest tests/
 ```
 
 ## 贡献指南
 
-如果你愿意为本项目贡献代码和想法，请阅读[贡献指南](CONTRIBUTING.md)。
-
-## 常见问题
-
-你可以在[常见问题](FAQ.md)页面找到常见问题的解答。
-
-## 许可证
-
-本项目基于 MIT 许可证，请参阅 [LICENSE](LICENSE) 文件了解更多细节。
-```
-
-### `CONTRIBUTING.md` 示例
-
-```md
-# 贡献指南
-
-非常欢迎你对 Quantbox 作出贡献！在提交代码之前，请确保阅读以下内容。
-
-## 环境准备
-
-1. Fork 本仓库并克隆到本地：
-
-    ```bash
-    git clone https://github.com/your_username/quantbox.git
-    cd quantbox
-    ```
-
-2. 创建虚拟环境并安装依赖：
-
-    ```bash
-    python -m venv env
-    source env/bin/activate
-    pip install -r requirements.txt
-    ```
-
-## 提交代码
-
-1. 在本地新建一个分支：
-
-    ```bash
-    git checkout -b your-feature-branch
-    ```
-
-2. 提交你的修改：
-
-    ```bash
-    git add .
-    git commit -m "添加了新的功能"
-    git push origin your-feature-branch
-    ```
-
-3. 在 GitHub 上创建一个 Pull Request。
+1. Fork 本项目
+2. 创建你的特性分支 (`git checkout -b feature/AmazingFeature`)
+3. 提交你的改动 (`git commit -m 'Add some AmazingFeature'`)
+4. 推送到分支 (`git push origin feature/AmazingFeature`)
+5. 创建一个 Pull Request
 
 ## 代码规范
 
-请确保你的代码符合项目的代码规范，包括但不限于：
-
+- 使用 Python 类型注解
 - 遵循 PEP 8 编码规范
-- 添加必要的文档和注释
-- 添加相应的单元测试
+- 为新功能编写测试用例
+- 保持代码文档的更新
 
-感谢你的贡献！
-```
+## 版本历史
 
-### `FAQ.md` 示例
-
-```md
-# 常见问题
-
-## 如何获取 Tushare 的 Token？
-
-你需要在 Tushare 官网注册并申请 API Token，然后将其配置在 `~/.quantbox/settings/config.toml` 文件中。
-
-## 如何配置 MongoDB？
-
-你可以参考 MongoDB 官方文档，安装并运行 MongoDB，然后在 `~/.quantbox/settings/config.toml` 文件中配置连接 URI。
-
-## 如何添加新的数据源？
-
-你可以通过继承 `remote_fetch` 或 `local_fetch` 模块中的类，并实现相应的数据获取和存储方法。
+- 0.1.0
+  - 支持多数据源（Tushare、掘金量化）
+  - 改进配置管理
+  - 优化数据获取接口
+  - 添加完整的命令行工具支持

@@ -69,6 +69,8 @@ class TSFetcher:
         end_date = pd.Timestamp(str(end_date)).strftime("%Y%m%d")
         results = pd.DataFrame()
         for exchange in exchanges:
+            if exchange == 'SHSE':
+                exchange = "SSE"
             data = self.pro.trade_cal(
                 exchange=exchange, start_date=start_date, end_date=end_date
             )
@@ -84,6 +86,7 @@ class TSFetcher:
         results.pretrade_date = pd.to_datetime(results.pretrade_date).dt.strftime(
             "%Y-%m-%d"
         )
+        results.loc[results['exchange'] == "SSE", "exchange"] = "SHSE"
         return results[["exchange", "trade_date", "pretrade_date", "datestamp"]]
 
     def fetch_get_future_contracts(

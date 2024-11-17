@@ -29,8 +29,8 @@ class Config:
         elif self.config_file.endswith(".json"):
             self._load_json_config()
 
-        self.exchanges = ["SSE", "SZSE", "SHFE", "DCE", "CFFEX", "CZCE", "INE"]
-        self.stock_exchanges = ["SSE", "SZSE"]
+        self.exchanges = ["SHSE", "SZSE", "SHFE", "DCE", "CFFEX", "CZCE", "INE"]
+        self.stock_exchanges = ["SHSE", "SZSE"]
         self.future_exchanges = ["SHFE", "DCE", "CFFEX", "CZCE", "INE"]
         self.default_start = "1990-12-19"
 
@@ -45,6 +45,19 @@ class Config:
         token = self.config["TSPRO"].get("token", None)
         if token is None:
             raise ValueError(f"[ERROR]\t TSPRO 配置中没有获取到 tushare token")
+        return token
+
+    @property
+    def gm_token(self):
+        """
+        explanation:
+            获取掘金量化 token 
+        """
+        if 'GM' not in self.config:
+            raise ValueError(f"[ERROR]\t 配置文件中没有 GM 配置")
+        token = self.config["GM"].get("token", None)
+        if token is None:
+            raise ValueError(f"[ERROR]\t GM 配置中没有获取到 gm token")
         return token
 
     @property

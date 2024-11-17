@@ -102,9 +102,17 @@ class TSSaver:
         start_date: Union[str, datetime.date, None] = None,
         end_date: Union[str, datetime.date, None] = None,
         offset: int = 365,
+        engine: str = "ts"
     ):
         """
         保存期货龙虎榜数据到本地
+
+        Args:
+            exchanges: 交易所列表，默认为 None，表示所有期货交易所
+            start_date: 开始日期，默认为 None
+            end_date: 结束日期，默认为 None
+            offset: 当未指定开始日期时，往前偏移的天数，默认为 365 天
+            engine: 数据源引擎，支持 'ts' (Tushare) 和 'gm' (掘金)，默认为 'ts'
         """
         collections = self.client.future_holdings
         collections.create_index(
@@ -120,9 +128,11 @@ class TSSaver:
             exchanges = exchanges.split(",")
         # 股票交易所不考虑
         exchanges = [x for x in exchanges if x not in self.stock_exchanges]
+        
         # FIXME: 上海能源交易所在 tushare 的接口上获取相应持仓数据为空
         if "INE" in exchanges:
             exchanges.remove("INE")
+                
         if end_date is None:
             end_date = datetime.date.today()
             if start_date is None:
@@ -130,8 +140,9 @@ class TSSaver:
         else:
             if start_date is None:
                 start_date = pd.Timestamp(end_date) - pd.Timedelta(days=offset)
+                
         for exchange in exchanges:
-            if is_trade_date(end_date, exchange) and (pd.Timstamp(end_date) == pd.Timestamp(datetime.date.today())) and datetime.datetime.now().hour < 16:
+            if is_trade_date(end_date, exchange) and (pd.Timestamp(end_date) == pd.Timestamp(datetime.date.today())) and datetime.datetime.now().hour < 16:
                 end_date = pd.Timestamp(end_date) - pd.Timedelta(days=1)
             trade_dates = self.queryer.fetch_trade_dates(
                 exchanges=exchange, start_date=start_date, end_date=end_date
@@ -151,18 +162,29 @@ class TSSaver:
                     while True:
                         try:
                             print(f"尝试保存交易所 {exchange} 在交易日 {trade_date} 的持仓排名")
-                            results = self.ts_fetcher.fetch_get_holdings(
-                                exchanges=exchange, cursor_date=trade_date
-                            )
+                            # 根据不同引擎调用不同的数据获取方法
+                            if engine == 'ts':
+                                results = self.ts_fetcher.fetch_get_holdings(
+                                    exchanges=exchange, cursor_date=trade_date
+                                )
+                            elif engine == 'gm':
+                                results = self.gm_fetcher.fetch_get_holdings(
+                                    exchanges=exchange, cursor_date=trade_date
+                                )
+                            else:
+                                raise ValueError(f"Unsupported engine: {engine}. Use 'ts' or 'gm'")
+                                
                             if not results.empty:
                                 print(f"保存交易所 {exchange} 在交易日 {trade_date} 的持仓排名 成功")
                                 break
                             if retry_offset >= 5:
                                 break
-                        except:
+                        except Exception as e:
+                            print(f"Error: {str(e)}")
                             retry_offset += 1
                             time.sleep(60.0)
-                    collections.insert_many(util_to_json_from_pandas(results))
+                    if not results.empty:
+                        collections.insert_many(util_to_json_from_pandas(results))
 
     def save_stock_list(self):
         """
@@ -173,7 +195,7 @@ class TSSaver:
             [("symobl", pymongo.ASCENDING), ("list_datestamp", pymongo.ASCENDING)]
         )
         # 数据量比较小，每次更新可以覆盖
-        data = self.ts_fetcher.fetch_get_stock_list()
+        data = self.ts_fetcher.fetch_get_stock_list(list_status=None)
         data.symbol = util_format_stock_symbols(data.symbol, "standard")
         columns = data.columns.tolist()
         if "ts_code" in columns:
@@ -240,6 +262,6 @@ if __name__ == "__main__":
     # saver.save_trade_dates()
     # saver.save_future_contracts()
     # saver.save_future_holdings(exchanges=["DCE"])
-    # saver.save_future_holdings()
+    saver.save_future_holdings(engine="gm")
     # saver.save_stock_list()
-    saver.save_future_daily()
+    # saver.save_future_daily()
