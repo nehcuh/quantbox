@@ -25,18 +25,45 @@ pip install -e .
 
 ## 配置
 
-在使用之前，你需要配置 `config.toml` 文件，放置在 `~/.quantbox/settings/` 目录下，配置示例如下：
+在使用之前，你需要配置 `config.toml` 文件，放置在 `~/.quantbox/settings/` 目录下。你可以按照以下步骤进行配置：
 
-```toml
-[TSPRO]
-token = "your tushare token"
+1. **创建配置目录**
+   ```bash
+   mkdir -p ~/.quantbox/settings
+   ```
 
-[GMAPI]
-token = "your gm token"
+2. **复制配置模板**
+   ```bash
+   cp templates/config.toml ~/.quantbox/settings/
+   ```
 
-[MONGODB]
-uri = "mongodb://localhost:27017"
-```
+3. **编辑配置文件**
+   
+   编辑 `~/.quantbox/settings/config.toml` 文件，填入你的配置信息：
+
+   ```toml
+   [TSPRO]
+   token = "your tushare token"  # 从 https://tushare.pro 获取
+
+   [GMAPI]
+   token = "your gm token"  # 从 https://www.myquant.cn 获取
+
+   [MONGODB]
+   uri = "mongodb://localhost:27017"  # MongoDB 连接 URI
+   ```
+
+   配置项说明：
+   - **TSPRO.token**: Tushare API 的访问令牌，可以从 [Tushare Pro](https://tushare.pro) 官网注册获取
+   - **GMAPI.token**: 掘金量化 API 的访问令牌，可以从[掘金量化](https://www.myquant.cn)官网注册获取
+   - **MONGODB.uri**: MongoDB 数据库的连接 URI，如果使用本地默认配置的 MongoDB，通常是 "mongodb://localhost:27017"
+
+4. **验证配置**
+   
+   运行以下命令验证配置是否正确：
+   ```bash
+   python cli.py save-trade-dates
+   ```
+   如果配置正确，将会开始下载交易日期数据。
 
 ## 使用
 
