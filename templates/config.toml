@@ -1,4 +1,11 @@
+# Tushare API 配置
 [TSPRO]
-token = ""
+token = ""  # 你的 Tushare token，从 https://tushare.pro 获取
+
+# 掘金 API 配置
+[GMAPI]
+token = ""  # 你的掘金 token，从 https://www.myquant.cn 获取
+
+# MongoDB 数据库配置
 [MONGODB]
-uri = ""
+uri = ""  # MongoDB 连接 URI，例如：mongodb://localhost:27017
