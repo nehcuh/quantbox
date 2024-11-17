@@ -4,7 +4,7 @@ from typing import List, Optional, Union
 
 import pandas as pd
 
-from quantbox.fetchers.local_fetch import LocalFetcher
+from quantbox.fetchers.local_fetcher import LocalFetcher
 from quantbox.util.basic import (
     DATABASE,
     DEFAULT_START,

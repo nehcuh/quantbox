@@ -5,7 +5,7 @@ import math
 import pandas as pd
 from gm.api import *
 
-from quantbox.fetchers.local_fetch import LocalFetcher
+from quantbox.fetchers.local_fetcher import LocalFetcher
 from quantbox.util.basic import (
     DATABASE,
     DEFAULT_START,
@@ -152,3 +152,78 @@ class GMFetcher:
                         holdings_data = pd.concat([holdings_data, pd.DataFrame(transformed_data)], axis=0)
                 total_holdings = pd.concat([total_holdings, holdings_data])
         return total_holdings
+
+    def fetch_get_trade_dates(
+        self,
+        exchanges: Union[List[str], str, None] = None,
+        start_date: Union[str, datetime.date, int, None] = None,
+        end_date: Union[str, datetime.date, int, None] = None,
+    ) -> pd.DataFrame:
+        """
+        获取指定交易所的日期范围内的交易日
+
+        Args:
+            exchanges: 交易所, 默认为所有交易所
+                支持: ['SHSE', 'SZSE', 'SHFE', 'DCE', 'CFFEX', 'CZCE', 'INE']
+            start_date: 起始时间, 默认从 DEFAULT_START 开始
+                支持格式: [19910906, '1992-03-02', datetime.date(2024, 9, 16)]
+            end_date: 截止时间, 默认截止为当前日期
+                支持格式: [19910906, '1992-03-02', datetime.date(2024, 9, 16)]
+
+        Returns:
+            DataFrame with columns: ['exchange', 'trade_date', 'pretrade_date', 'datestamp']
+        """
+        if exchanges is None:
+            exchanges = self.exchanges
+        if isinstance(exchanges, str):
+            exchanges = exchanges.split(",")
+        if start_date is None:
+            start_date = self.default_start
+        if end_date is None:
+            end_date = datetime.date(datetime.date.today().year, 12, 31)
+
+        # 转换日期格式
+        start_date = pd.Timestamp(str(start_date))
+        end_date = pd.Timestamp(str(end_date))
+
+        results = pd.DataFrame()
+        for exchange in exchanges:
+            # 掘金量化的交易所代码与 Tushare 略有不同，需要转换
+            gm_exchange = exchange
+            if exchange == "SSE":
+                gm_exchange = "SHSE"
+
+            # 按年度获取交易日历
+            start_year = start_date.year
+            end_year = end_date.year
+            exchange_dates = pd.DataFrame()
+
+            for year in range(start_year, end_year + 1):
+                dates = get_trading_dates(exchange=gm_exchange, start_date=f"{year}-01-01", end_date=f"{year}-12-31")
+                df = pd.DataFrame({
+                    'trade_date': dates,
+                    'exchange': gm_exchange
+                })
+                exchange_dates = pd.concat([exchange_dates, df], axis=0)
+
+            # 过滤日期范围
+            exchange_dates['trade_date'] = pd.to_datetime(exchange_dates['trade_date'])
+            mask = (exchange_dates['trade_date'] >= start_date) & (exchange_dates['trade_date'] <= end_date)
+            exchange_dates = exchange_dates.loc[mask]
+
+            # 计算前一交易日
+            exchange_dates = exchange_dates.sort_values('trade_date')
+            exchange_dates['pretrade_date'] = exchange_dates['trade_date'].shift(1)
+            
+            # 添加日期戳
+            exchange_dates["datestamp"] = (
+                exchange_dates['trade_date'].apply(lambda x: util_make_date_stamp(x))
+            )
+            
+            # 格式化日期
+            exchange_dates['trade_date'] = exchange_dates['trade_date'].dt.strftime('%Y-%m-%d')
+            exchange_dates['pretrade_date'] = exchange_dates['pretrade_date'].dt.strftime('%Y-%m-%d')
+
+            results = pd.concat([results, exchange_dates], axis=0)
+
+        return results[["exchange", "trade_date", "pretrade_date", "datestamp"]]
