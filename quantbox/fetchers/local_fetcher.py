@@ -1,13 +1,11 @@
 """
 Local fetcher module for retrieving data from local database.
 """
-from itertools import batched
+from datetime import datetime
 import pandas as pd
-import datetime
-import pymongo
-from typing import Union, List, Dict, Optional
+from typing import List, Optional, Union
 
-from quantbox.fetchers.base_fetcher import BaseFetcher
+from quantbox.fetchers.base import BaseFetcher
 from quantbox.util.basic import DATABASE, DEFAULT_START, EXCHANGES, FUTURE_EXCHANGES, STOCK_EXCHANGES
 from quantbox.util.tools import util_make_date_stamp, util_format_future_symbols
 
