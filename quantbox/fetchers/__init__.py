@@ -1,6 +1,13 @@
-from quantbox.fetchers.fetcher_goldminer import GMFetcher
-from quantbox.fetchers.fetcher_tushare import TSFetcher
-from quantbox.fetchers.local_fetcher import LocalFetcher
+try:
+    from quantbox.fetchers.fetcher_goldminer import GMFetcher
+except ImportError:
+    GMFetcher = None
+
+try:
+    from quantbox.fetchers.fetcher_tushare import TSFetcher
+except ImportError:
+    TSFetcher = None
+
 from quantbox.fetchers.remote_fetcher import RemoteFetcher
 
-__all__ = ['GMFetcher', 'TSFetcher', 'LocalFetcher', 'RemoteFetcher']
+__all__ = ['RemoteFetcher', 'GMFetcher', 'TSFetcher']

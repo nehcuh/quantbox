@@ -1,9 +1,9 @@
 """
 Local fetcher module for retrieving data from local database.
 """
-from datetime import datetime
+import datetime
 import pandas as pd
-from typing import List, Optional, Union
+from typing import List, Optional, Union, Dict
 
 from quantbox.fetchers.base import BaseFetcher
 from quantbox.util.basic import DATABASE, DEFAULT_START, EXCHANGES, FUTURE_EXCHANGES, STOCK_EXCHANGES
@@ -31,8 +31,8 @@ class LocalFetcher(BaseFetcher):
     def fetch_trade_dates(
         self,
         exchanges: Union[str, List[str], None] = None,
-        start_date: Union[str, int, datetime.date, None] = None,
-        end_date: Union[str, int, datetime.date, None] = None,
+        start_date: Union[str, int, datetime.datetime, None] = None,
+        end_date: Union[str, int, datetime.datetime, None] = None,
     ) -> pd.DataFrame:
         """
         explanation:
@@ -46,11 +46,11 @@ class LocalFetcher(BaseFetcher):
             * start_date ->
                 含义: 起始时间, 默认从 "1990-12-19" 开始
                 类型: int, str, datetime
-                参数支持: [19910906, '1992-03-02', datetime.date(2024, 9, 16)]
+                参数支持: [19910906, '1992-03-02', datetime.datetime(2024, 9, 16)]
             * end_date ->
                 含义: 截止时间
                 类型: int, str, datetime, 默认截止为当前日期
-                参数支持: [19910906, '1992-03-02', datetime.date(2024, 9, 16)]
+                参数支持: [19910906, '1992-03-02', datetime.datetime(2024, 9, 16)]
         returns:
             pd.DataFrame ->
                 符合条件的交易日
@@ -62,7 +62,7 @@ class LocalFetcher(BaseFetcher):
         if start_date is None:
             start_date = self.default_start
         if end_date is None:
-            end_date = datetime.date.today()
+            end_date = datetime.datetime.today()
         collections = self.client.trade_date
         cursor = collections.find(
             {
@@ -82,7 +82,7 @@ class LocalFetcher(BaseFetcher):
     def fetch_pre_trade_date(
         self,
         exchange: str="SSE",
-        cursor_date: Union[str, int, datetime.date, None] = None,
+        cursor_date: Union[str, int, datetime.datetime, None] = None,
         n: int=1,
         include: bool=False
     ) -> str:
@@ -98,7 +98,7 @@ class LocalFetcher(BaseFetcher):
             cursor_date ->
                 含义: 指定时间, 默认为当前日期
                 类型: int, str, datetime
-                参数支持: 19910906, '1992-03-02', datetime.date(2024, 9, 16), ...
+                参数支持: 19910906, '1992-03-02', datetime.datetime(2024, 9, 16), ...
             int ->
                 含义：往前回溯日期，默认为 1
                 类型：int
@@ -109,7 +109,7 @@ class LocalFetcher(BaseFetcher):
                 参数支持：True, False
         """
         if cursor_date is None:
-            cursor_date = datetime.date.today()
+            cursor_date = datetime.datetime.today()
         collections = self.client.trade_date
         count = collections.count_documents({
             "exchange": exchange,
@@ -157,7 +157,7 @@ class LocalFetcher(BaseFetcher):
     def fetch_next_trade_date(
         self,
         exchange: str="SSE",
-        cursor_date: Union[str, int, datetime.date, None] = None,
+        cursor_date: Union[str, int, datetime.datetime, None] = None,
         n: int=1,
         include: bool=False
     ) -> Dict:
@@ -173,7 +173,7 @@ class LocalFetcher(BaseFetcher):
             * cursor_date ->
                 含义: 指定时间, 默认为当前日期
                 类型: int, str, datetime
-                参数支持: 19910906, '1992-03-02', datetime.date(2024, 9, 16), ...
+                参数支持: 19910906, '1992-03-02', datetime.datetime(2024, 9, 16), ...
             * int ->
                 含义：往后回溯日期，默认为 1
                 类型：int
@@ -187,7 +187,7 @@ class LocalFetcher(BaseFetcher):
                 符合条件的交易日信息
         """
         if cursor_date is None:
-            cursor_date = datetime.date.today()
+            cursor_date = datetime.datetime.today()
         collections = self.client.trade_date
         count = collections.count_documents({
             "exchange": exchange,
@@ -258,7 +258,7 @@ class LocalFetcher(BaseFetcher):
             * cursor_date ->
                 含义: 指定时间, 默认为 None, 即获取所有合约
                 类型: int, str, datetime
-                参数支持: [19910906, '1992-03-02', datetime.date(2024, 9, 16)]
+                参数支持: [19910906, '1992-03-02', datetime.datetime(2024, 9, 16)]
             * fields ->
                 含义：自定义字段，默认为 None, 获取合约所有字段
                 类型: Union[List[str], None]
@@ -402,15 +402,15 @@ class LocalFetcher(BaseFetcher):
                 参数支持：豆粕、热卷、...
             * cursor_date ->
                 含义：指定日期，默认为 None，取离今天最近的交易日（今天包含在内）
-                类型：Union[str, int, datetime.date]
+                类型：Union[str, int, datetime.datetime]
                 参数支持：20200913, "20210305", ...
             * start_date ->
                 含义：起始时间，默认为 None，如果为 None，则默认使用 cursor_date
-                类型：Union[str, int, datetime.date]
+                类型：Union[str, int, datetime.datetime]
                 参数支持：20200913, "20210305", ...
             * end_date ->
                 含义： 结束时间，默认为 None, 当 start_date 为 None 时，参数不生效
-                类型：Union[str, int, datetime.date]
+                类型：Union[str, int, datetime.datetime]
                 参数支持：20200913, "20210305", ...
             * symbols ->
                 含义：指定交易品种，默认为 None, 当前交易所所有合约
@@ -432,7 +432,7 @@ class LocalFetcher(BaseFetcher):
         if start_date is None:
             # 按照指定日期查询，需要首先明确交易所，然后查询 最近一个交易日
             if cursor_date is None:
-                cursor_date = datetime.date.today()
+                cursor_date = datetime.datetime.today()
             # 1.1 按照是否指定合约进行判断
             if symbol:
                 info = collections_contracts.find_one(
@@ -528,7 +528,7 @@ class LocalFetcher(BaseFetcher):
                             return results
         else:
             if end_date is None:
-                end_date = datetime.date.today()
+                end_date = datetime.datetime.today()
             if symbol:
                 info = collections_contracts.find_one(
                     {
@@ -624,11 +624,11 @@ class LocalFetcher(BaseFetcher):
 
     def fetch_future_daily(
        self,
-       cursor_date: Union[str, datetime.date, int, None] = None,
+       cursor_date: Union[str, datetime.datetime, int, None] = None,
        symbols: Union[str, List[str], None] = None,
        exchanges: Union[str, List[str], None] = None,
-       start_date: Union[str, datetime.date, int, None] = None,
-       end_date: Union[str, datetime.date, int, None] = None,
+       start_date: Union[str, datetime.datetime, int, None] = None,
+       end_date: Union[str, datetime.datetime, int, None] = None,
        fields: Union[List[str], None] = None,
     ) -> pd.DataFrame:
         """
@@ -638,7 +638,7 @@ class LocalFetcher(BaseFetcher):
         params:
             * cursor_date ->
                 含义：指定日期最近交易日（当前日期包括在内）, 默认为 None，如果 start_date 不指定时，将默认 cursor_date 为当前日期
-                类型：Union[str, datetime.date, int, None]
+                类型：Union[str, datetime.datetime, int, None]
                 参数支持： 20240930, "20240926"
             * symbols ->
                 含义：指定合约代码列表，默认为 None, 当指定 symbols 后，exchanges 参数失效
@@ -650,11 +650,11 @@ class LocalFetcher(BaseFetcher):
                 参数支持：DEC, INE, SHFE, INE, CFFEX
             * start_date ->
                 含义：起始时间，默认为 None，当指定了 start_date 以后，cursor_date 失效
-                类型：Union[str, int, datetime.date]
+                类型：Union[str, int, datetime.datetime]
                 参数支持：20200913, "20210305", ...
             * end_date ->
                 含义： 结束时间，默认为 None, 当指定了 start_date 以后，end_date 如果为 None，则默认为当前日期
-                类型：Union[str, int, datetime.date]
+                类型：Union[str, int, datetime.datetime]
                 参数支持：20200913, "20210305", ...
             returns:
                 pd.DataFrame ->
@@ -663,7 +663,7 @@ class LocalFetcher(BaseFetcher):
         collections = self.client.future_daily
         if start_date:
             if end_date is None:
-                end_date = datetime.date.today()
+                end_date = datetime.datetime.today()
             if symbols:
                 symbols = util_format_future_symbols(symbols=symbols)
                 cursor = collections.find(
@@ -705,7 +705,7 @@ class LocalFetcher(BaseFetcher):
                         return results
         else:
             if cursor_date is None:
-                cursor_date = datetime.date.today()
+                cursor_date = datetime.datetime.today()
             latest_trade_date = self.fetch_pre_trade_date(
                 cursor_date=cursor_date, include=True
             )["trade_date"]

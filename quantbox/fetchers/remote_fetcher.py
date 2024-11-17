@@ -19,6 +19,7 @@ import logging
 import json
 from pathlib import Path
 import pandas as pd
+import platform
 
 from quantbox.fetchers.base import BaseFetcher
 from quantbox.fetchers.fetcher_tushare import TSFetcher
@@ -68,6 +69,23 @@ class RemoteFetcher(BaseFetcher):
         """
         super().__init__()
         self.engine = engine.lower()
+        if self.engine == 'gm':
+            try:
+                import platform
+                if platform.system() == 'Darwin':
+                    logger.warning("GoldMiner API is not supported on macOS, falling back to TuShare")
+                    self.engine = 'ts'
+                    self._fetcher = TSFetcher()
+                else:
+                    self._fetcher = GMFetcher()
+            except ImportError:
+                logger.warning("GoldMiner API is not available, falling back to TuShare")
+                self.engine = 'ts'
+                self._fetcher = TSFetcher()
+        elif self.engine == 'ts':
+            self._fetcher = TSFetcher()
+        else:
+            raise ValueError(f"Unsupported engine: {self.engine}")
 
         # Load configuration
         self.config = (
@@ -82,25 +100,17 @@ class RemoteFetcher(BaseFetcher):
                 setattr(self.config, key, value)
 
         # Initialize components
-        self._validate_engine()
-        self._init_fetcher()
         self._init_logging()
         self._init_monitoring()
         self._init_validation()
 
-    def _validate_engine(self):
-        """Validate the engine selection."""
-        if self.engine not in ['ts', 'gm']:
-            raise ValueError(
-                f"Invalid engine: {self.engine}. Supported engines: ['ts', 'gm']"
-            )
-
-    def _init_fetcher(self):
-        """Initialize the specific fetcher based on engine selection."""
-        try:
-            self._fetcher = TSFetcher() if self.engine == 'ts' else GMFetcher()
-        except Exception as e:
-            raise RuntimeError(f"Failed to initialize {self.engine} fetcher: {str(e)}")
+    def initialize(self):
+        """
+        Initialize the fetcher with necessary credentials and settings.
+        使用必要的凭证和设置初始化获取器。
+        """
+        if hasattr(self._fetcher, 'initialize'):
+            self._fetcher.initialize()
 
     def _init_logging(self):
         """Initialize logging configuration."""

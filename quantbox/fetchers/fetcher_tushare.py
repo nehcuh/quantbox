@@ -56,6 +56,15 @@ class TSFetcher(BaseFetcher):
         self.client = DATABASE
         self.default_start = DEFAULT_START
 
+    def initialize(self):
+        """
+        Initialize the fetcher with necessary credentials and settings.
+        使用必要的凭证和设置初始化获取器。
+        """
+        # TuShare API client is already initialized in __init__
+        # Tushare API 客户端已经在 __init__ 中初始化
+        pass
+
     def fetch_get_trade_dates(
         self,
         exchanges: Union[List[str], str, None] = None,

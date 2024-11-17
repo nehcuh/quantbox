@@ -3,7 +3,16 @@ import re
 from typing import List, Optional, Union
 import math
 import pandas as pd
-from gm.api import get_symbol_infos, set_token, fut_get_transaction_rankings
+import platform
+import warnings
+
+if platform.system() != 'Darwin':  # Not macOS
+    from gm.api import get_symbol_infos, set_token, fut_get_transaction_rankings
+else:
+    warnings.warn("GoldMiner API is not supported on macOS")
+    get_symbol_infos = None
+    set_token = None
+    fut_get_transaction_rankings = None
 
 from quantbox.fetchers.base import BaseFetcher
 from quantbox.fetchers.local_fetcher import LocalFetcher
@@ -38,20 +47,30 @@ class GMFetcher(BaseFetcher):
     """
     
     def __init__(self):
+        if platform.system() == 'Darwin':
+            raise NotImplementedError(
+                "GoldMiner API is not supported on macOS. "
+                "Please use other data sources or run on Linux/Windows."
+            )
         super().__init__()
+        if platform.system() == 'Darwin':
+            raise NotImplementedError(
+                "GoldMiner API is not supported on macOS. "
+                "Please use TuShare or run on Linux/Windows."
+            )
         self.exchanges = EXCHANGES
         self.stock_exchanges = STOCK_EXCHANGES
         self.future_exchanges = FUTURE_EXCHANGES
         self.client = DATABASE
         self.default_start = DEFAULT_START
-        self.local_queryer = LocalFetcher()
 
-    def initialize(self) -> None:
-        """Initialize GMFetcher with API token"""
-        token = QUANTCONFIG.gm_token
-        if not token:
-            raise ValueError("GM token not found in configuration")
-        set_token(token)
+    def initialize(self):
+        """
+        Initialize the fetcher with necessary credentials and settings.
+        使用必要的凭证和设置初始化获取器。
+        """
+        if platform.system() != 'Darwin':  # Not macOS
+            set_token(QUANTCONFIG.get('goldminer', {}).get('token', ''))
 
     def _format_symbol(self, symbol: str) -> str:
         """Format symbol to GM API format"""
@@ -101,6 +120,11 @@ class GMFetcher(BaseFetcher):
             ValueError: If date parameters are invalid
             RuntimeError: If API call fails
         """
+        if platform.system() == 'Darwin':
+            raise NotImplementedError(
+                "GoldMiner API is not supported on macOS. "
+                "Please use other data sources or run on Linux/Windows."
+            )
         try:
             # Validate inputs
             start_date, end_date = self.validator.validate_dates(
