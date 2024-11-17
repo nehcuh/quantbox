@@ -4,7 +4,7 @@ from typing import List, Optional, Union
 
 import pandas as pd
 
-from quantbox.fetchers.local_fetcher import LocalFetcher
+from quantbox.fetchers.base import BaseFetcher
 from quantbox.util.basic import (
     DATABASE,
     DEFAULT_START,
@@ -20,18 +20,41 @@ from quantbox.util.tools import (
 )
 
 
-class TSFetcher:
+class TSFetcher(BaseFetcher):
+    """
+    TuShare data fetcher implementation.
+    基于 Tushare 的数据获取实现。
+
+    This class provides methods to fetch various financial data from TuShare API, including:
+    提供从 Tushare API 获取各种金融数据的方法，包括：
+
+    - Trading dates / 交易日历
+    - Future contracts / 期货合约
+    - Stock listings / 股票列表
+    - Holdings data / 持仓数据
+    - Daily market data / 日线行情
+
+    Attributes:
+        pro: TuShare API client / Tushare API 客户端
+        exchanges: List of supported exchanges / 支持的交易所列表
+        stock_exchanges: List of supported stock exchanges / 支持的股票交易所列表
+        future_exchanges: List of supported future exchanges / 支持的期货交易所列表
+        client: Database client / 数据库客户端
+        default_start: Default start date / 默认起始日期
+    """
+
     def __init__(self):
         """
-        基于 tushare 的接口优化的查询类
+        Initialize TuShare fetcher with API client and configuration.
+        初始化 Tushare 数据获取器，设置 API 客户端和配置。
         """
+        super().__init__()
         self.pro = TSPRO
         self.exchanges = EXCHANGES
         self.stock_exchanges = STOCK_EXCHANGES
         self.future_exchanges = FUTURE_EXCHANGES
         self.client = DATABASE
         self.default_start = DEFAULT_START
-        self.local_queryer = LocalFetcher()
 
     def fetch_get_trade_dates(
         self,
@@ -40,54 +63,106 @@ class TSFetcher:
         end_date: Union[str, datetime.date, int, None] = None,
     ) -> pd.DataFrame:
         """
-        explanation:
-            获取指定交易所的日期范围内的交易日
+        Fetch trading dates for specified exchanges within a date range.
+        获取指定交易所的日期范围内的交易日。
 
-        params:
-            * exchanges ->
-                含义: 交易所, 默认为上交所 SSE
-                类型: str
-                参数支持: ['SSE', 'SZSE', 'SHFE', 'DCE', 'CFFEX', 'CZCE', 'INE']
-            * start_date ->
-                含义: 起始时间, 默认从 DEFAULT_START 开始
-                类型: int, str, datetime
-                参数支持: [19910906, '1992-03-02', datetime.date(2024, 9, 16)]
-            * end_date ->
-                含义: 截止时间
-                类型: int, str, datetime, 默认截止为当前日期
-                参数支持: [19910906, '1992-03-02', datetime.date(2024, 9, 16)]
+        Args:
+            exchanges: Exchange(s) to fetch data from, defaults to all exchanges
+                     要获取数据的交易所，默认为所有交易所
+                Supported: ['SSE', 'SZSE', 'SHFE', 'DCE', 'CFFEX', 'CZCE', 'INE']
+                支持: ['SSE', 'SZSE', 'SHFE', 'DCE', 'CFFEX', 'CZCE', 'INE']
+            start_date: Start date, defaults to DEFAULT_START
+                       起始时间，默认从 DEFAULT_START 开始
+                Formats: [19910906, '1992-03-02', datetime.date(2024, 9, 16)]
+                支持格式: [19910906, '1992-03-02', datetime.date(2024, 9, 16)]
+            end_date: End date, defaults to current year end
+                     截止时间，默认截止为当前年底
+                Formats: [19910906, '1992-03-02', datetime.date(2024, 9, 16)]
+                支持格式: [19910906, '1992-03-02', datetime.date(2024, 9, 16)]
+
+        Returns:
+            DataFrame containing trading dates with columns:
+            包含以下字段的交易日期DataFrame：
+            - exchange: Exchange code / 交易所代码
+            - trade_date: Trading date / 交易日期
+            - pretrade_date: Previous trading date / 前一交易日
+            - datestamp: Date timestamp / 日期时间戳
+
+        Raises:
+            ValueError: If invalid exchange or date format is provided
+                      当提供的交易所或日期格式无效时
+            RuntimeError: If API call fails
+                        当API调用失败时
         """
-        if exchanges is None:
-            exchanges = self.exchanges
-        if isinstance(exchanges, str):
-            exchanges = exchanges.split(",")
-        if start_date is None:
-            start_date = self.default_start
-        if end_date is None:
-            end_date = datetime.date(datetime.date.today().year, 12, 31)
-        start_date = pd.Timestamp(str(start_date)).strftime("%Y%m%d")
-        end_date = pd.Timestamp(str(end_date)).strftime("%Y%m%d")
-        results = pd.DataFrame()
-        for exchange in exchanges:
-            if exchange == 'SHSE':
-                exchange = "SSE"
-            data = self.pro.trade_cal(
-                exchange=exchange, start_date=start_date, end_date=end_date
-            )
-            # PS: tushare 保留 is_open 这个字段有道理，交易日计划与实际可能会有偏差
-            # TODO: 未来考虑优化
-            data = data.loc[data["is_open"] == 1]
-            data["datestamp"] = (
-                data["cal_date"].map(str).apply(lambda x: util_make_date_stamp(x))
-            )
-            results = pd.concat([results, data], axis=0)
-        results = results.rename(columns={"cal_date": "trade_date"})
-        results.trade_date = pd.to_datetime(results.trade_date).dt.strftime("%Y-%m-%d")
-        results.pretrade_date = pd.to_datetime(results.pretrade_date).dt.strftime(
-            "%Y-%m-%d"
-        )
-        results.loc[results['exchange'] == "SSE", "exchange"] = "SHSE"
-        return results[["exchange", "trade_date", "pretrade_date", "datestamp"]]
+        try:
+            # Validate and normalize exchanges
+            # 验证并标准化交易所参数
+            if exchanges is None:
+                exchanges = self.exchanges
+            elif isinstance(exchanges, str):
+                exchanges = [ex.strip() for ex in exchanges.split(",")]
+            
+            # Validate exchanges
+            # 验证交易所代码
+            invalid_exchanges = [ex for ex in exchanges if ex not in self.exchanges]
+            if invalid_exchanges:
+                raise ValueError(f"Invalid exchanges: {invalid_exchanges}. Supported exchanges: {self.exchanges}")
+
+            # Normalize dates
+            # 标准化日期
+            try:
+                start_date = pd.Timestamp(str(start_date)) if start_date else pd.Timestamp(self.default_start)
+                end_date = pd.Timestamp(str(end_date)) if end_date else pd.Timestamp(f"{datetime.date.today().year}-12-31")
+            except (ValueError, TypeError) as e:
+                raise ValueError(f"Invalid date format: {str(e)}")
+
+            if start_date > end_date:
+                raise ValueError(f"Start date ({start_date}) must be before end date ({end_date})")
+
+            results = []
+            for exchange in exchanges:
+                try:
+                    # Convert exchange code for TuShare API
+                    # 转换交易所代码以适配 Tushare API
+                    ts_exchange = "SSE" if exchange == "SHSE" else exchange
+
+                    # Fetch trading calendar
+                    # 获取交易日历
+                    data = self.pro.trade_cal(
+                        exchange=ts_exchange,
+                        start_date=start_date.strftime("%Y%m%d"),
+                        end_date=end_date.strftime("%Y%m%d")
+                    )
+                    
+                    if data.empty:
+                        continue
+
+                    # Filter trading days and add required information
+                    # 过滤交易日并添加必要信息
+                    data = data.loc[data["is_open"] == 1].copy()
+                    data["exchange"] = "SHSE" if ts_exchange == "SSE" else ts_exchange
+                    data["datestamp"] = data["cal_date"].map(str).apply(util_make_date_stamp)
+                    
+                    # Format dates
+                    # 格式化日期
+                    data = data.rename(columns={"cal_date": "trade_date"})
+                    data['trade_date'] = pd.to_datetime(data['trade_date']).dt.strftime('%Y-%m-%d')
+                    data['pretrade_date'] = data['trade_date'].shift(1)
+                    
+                    results.append(data)
+
+                except Exception as e:
+                    self._handle_error(e, f"Failed to fetch trading dates for exchange {exchange}")
+
+            if not results:
+                return pd.DataFrame(columns=["exchange", "trade_date", "pretrade_date", "datestamp"])
+
+            # Combine results and ensure column order
+            # 合并结果并确保列顺序
+            return pd.concat(results, axis=0)[["exchange", "trade_date", "pretrade_date", "datestamp"]]
+
+        except Exception as e:
+            self._handle_error(e, "fetch_get_trade_dates")
 
     def fetch_get_future_contracts(
         self,
@@ -334,119 +409,255 @@ class TSFetcher:
 
     def fetch_get_holdings(
         self,
-        exchanges: Union[str, List[str], None] = None,
-        cursor_date: Union[int, str, datetime.date, None] = None,
-        start_date: Union[int, str, datetime.date, None] = None,
-        end_date: Union[int, str, datetime.date, None] = None,
-        symbols: Union[str, List[str], None] = None,
+        exchanges: Union[List[str], str, None] = None,
+        cursor_date: Optional[str] = None,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        symbols: Union[List[str], str, None] = None,
     ) -> pd.DataFrame:
         """
-        explanation:
-            获取指定交易所指定品种持仓情况
+        Fetch holdings data for specified exchanges and symbols.
+        获取指定交易所和合约的持仓数据。
 
-        params:
-            * exchanges ->
-                含义：交易所, 默认为 DCE
-                类型：Union[str, List[str], None]
-                参数支持：DEC, INE, SHFE, INE, CFFEX
-            * cursor_date ->
-                含义：指定日期，默认为 None，取离今天最近的交易日（今天包含在内）
-                类型：Union[str, int, datetime.date]
-                参数支持：20200913, "20210305", ...
-            * start_date ->
-                含义：起始时间，默认为 None
-                类型：Union[str, int, datetime.date]
-                参数支持：20200913, "20210305", ...
-            * end_date ->
-                含义： 结束时间，默认为 None
-                类型：Union[str, int, datetime.date]
-                参数支持：20200913, "20210305", ...
-            * symbols ->
-                含义：指定交易品种，默认为 None, 当前交易所所有合约
-        returns:
-            pd.DataFrame ->
-                实际龙虎榜数据
+        Args:
+            exchanges: Exchange(s) to fetch data from, defaults to all future exchanges
+                     要获取数据的交易所，默认为所有期货交易所
+                Supported: ['SHFE', 'DCE', 'CFFEX', 'CZCE', 'INE']
+                支持: ['SHFE', 'DCE', 'CFFEX', 'CZCE', 'INE']
+            cursor_date: Reference date for fetching data, defaults to latest trading day
+                       获取数据的参考日期，默认为最近交易日
+                Formats: [20200913, '2021-03-05']
+                支持格式: [20200913, '2021-03-05']
+            start_date: Start date for date range query
+                       日期范围查询的起始日期
+                Formats: [20200913, '2021-03-05']
+                支持格式: [20200913, '2021-03-05']
+            end_date: End date for date range query
+                     日期范围查询的结束日期
+                Formats: [20200913, '2021-03-05']
+                支持格式: [20200913, '2021-03-05']
+            symbols: List of symbols to fetch data for
+                    要获取数据的合约代码列表
+                Formats: ['IF2403', 'IF2406'] or 'IF2403,IF2406'
+                支持格式: ['IF2403', 'IF2406'] 或 'IF2403,IF2406'
+
+        Returns:
+            DataFrame containing holdings data with columns:
+            包含以下字段的持仓数据DataFrame：
+            - trade_date: Trading date / 交易日期
+            - symbol: Contract symbol / 合约代码
+            - exchange: Exchange code / 交易所代码
+            - vol: Volume / 成交量
+            - amount: Trading amount / 成交金额
+            - datestamp: Date timestamp / 日期时间戳
+
+        Raises:
+            ValueError: If invalid exchange, symbol or date format is provided
+                      当提供的交易所、合约代码或日期格式无效时
+            RuntimeError: If API call fails
+                        当API调用失败时
         """
-        if exchanges is None:
-            exchanges = self.future_exchanges
-        if isinstance(exchanges, str):
-            exchanges = exchanges.split(",")
-        total_holdings = pd.DataFrame()
-        for exchange in exchanges:
-            # 如果 start_date 为 None, 默认按照指定日期进行查询
-            if start_date is None:
-                if cursor_date is None:
-                    cursor_date = datetime.date.today()
-                latest_trade_date = self.local_queryer.fetch_pre_trade_date(
-                    exchange=exchange, cursor_date=cursor_date, include=True
-                )["trade_date"]
-                if symbols is None:
-                    symbols = self.local_queryer.fetch_future_contracts(
-                        exchanges=exchange, cursor_date=cursor_date
-                    ).symbol.tolist()
-                else:
-                    if isinstance(symbols, str):
-                        symbols = symbols.split(",")
-                for symbol in symbols:
-                    holdings = self.pro.fut_holding(
-                        trade_date=latest_trade_date.replace("-", ""),
-                        symbol=symbol,
-                        exchange=exchange,
-                    )
-                    if not holdings.empty:
-                        if total_holdings.empty:
-                            total_holdings = holdings
-                        else:
-                            total_holdings = pd.concat(
-                                [total_holdings, holdings], axis=0
-                            )
-            else:
-                if end_date is None:
-                    end_date = datetime.date.today()
-                start_date = pd.Timestamp(str(start_date)).strftime("%Y%m%d")
-                end_date = pd.Timestamp(str(end_date)).strftime("%Y%m%d")
-                if symbols is None:
-                    # 对于这种场景，可以先去根据交易日获取所有的合约列表，然后去查询
-                    trade_dates = self.local_queryer.fetch_trade_dates(
-                        exchanges=exchange, start_date=start_date, end_date=end_date
-                    ).trade_date.tolist()
-                    symbols = []
-                    for trade_date in trade_dates:
-                        symbols = (
-                            symbols
-                            + self.local_queryer.fetch_future_contracts(
-                                exchanges=exchange, cursor_date=trade_date
-                            ).symbol.tolist()
-                        )
-                    symbols = list(set(symbols))
-                else:
-                    if isinstance(symbols, str):
-                        symbols = symbols.split(",")
-                for symbol in symbols:
-                    holdings = self.pro.fut_holding(
-                        symbol=symbol,
-                        exchange=exchange,
-                        start_date=start_date,
-                        end_date=end_date,
-                    )
-                    if not holdings.empty:
-                        if total_holdings.empty:
-                            total_holdings = holdings
-                        else:
-                            total_holdings = pd.concat(
-                                [total_holdings, holdings], axis=0
-                            )
-            if total_holdings.empty:
-                print(f"当前期货交易所 {exchange} 没有持仓数据")
-                continue
-            total_holdings["datestamp"] = total_holdings["trade_date"].apply(
-                lambda x: util_make_date_stamp(x)
+        try:
+            # Validate and normalize exchanges
+            # 验证并标准化交易所参数
+            if exchanges is None:
+                exchanges = self.future_exchanges
+            elif isinstance(exchanges, str):
+                exchanges = [ex.strip() for ex in exchanges.split(",")]
+
+            # Validate exchanges
+            # 验证交易所代码
+            invalid_exchanges = [ex for ex in exchanges if ex not in self.future_exchanges]
+            if invalid_exchanges:
+                raise ValueError(
+                    f"Invalid exchanges: {invalid_exchanges}. Supported exchanges: {self.future_exchanges}"
+                )
+
+            # Normalize symbols
+            # 标准化合约代码
+            if isinstance(symbols, str):
+                symbols = [sym.strip() for sym in symbols.split(",")]
+
+            # Normalize dates
+            # 标准化日期
+            try:
+                if cursor_date:
+                    cursor_date = pd.Timestamp(str(cursor_date))
+                if start_date:
+                    start_date = pd.Timestamp(str(start_date))
+                if end_date:
+                    end_date = pd.Timestamp(str(end_date))
+            except (ValueError, TypeError) as e:
+                raise ValueError(f"Invalid date format: {str(e)}")
+
+            # Validate date range
+            # 验证日期范围
+            if start_date and end_date and start_date > end_date:
+                raise ValueError(f"Start date ({start_date}) must be before end date ({end_date})")
+
+            results = []
+            for exchange in exchanges:
+                try:
+                    if start_date is None:
+                        # Single date query
+                        # 单日查询
+                        query_date = cursor_date or pd.Timestamp.today()
+                        trade_date = self._get_latest_trade_date(exchange, query_date)
+                        
+                        # Get symbols if not provided
+                        # 如果未提供合约代码，则获取当前可交易的合约
+                        if symbols is None:
+                            symbols = self._get_active_symbols(exchange, trade_date)
+                        
+                        for symbol in symbols:
+                            try:
+                                # Fetch holdings data
+                                # 获取持仓数据
+                                data = self.pro.fut_holding(
+                                    trade_date=trade_date.strftime("%Y%m%d"),
+                                    symbol=symbol,
+                                    exchange=exchange,
+                                )
+                                
+                                if not data.empty:
+                                    # Add exchange and datestamp
+                                    # 添加交易所和日期戳
+                                    data["exchange"] = exchange
+                                    data["datestamp"] = data["trade_date"].apply(
+                                        lambda x: util_make_date_stamp(str(x))
+                                    )
+                                    results.append(data)
+                            
+                            except Exception as e:
+                                self._handle_error(
+                                    e, f"Failed to fetch holdings for symbol {symbol} on {trade_date}"
+                                )
+                    else:
+                        # Date range query
+                        # 日期范围查询
+                        end_date = end_date or pd.Timestamp.today()
+                        current_date = start_date
+                        
+                        while current_date <= end_date:
+                            try:
+                                trade_date = self._get_latest_trade_date(exchange, current_date)
+                                
+                                # Get symbols if not provided
+                                # 如果未提供合约代码，则获取当前可交易的合约
+                                if symbols is None:
+                                    current_symbols = self._get_active_symbols(exchange, trade_date)
+                                else:
+                                    current_symbols = symbols
+                                
+                                for symbol in current_symbols:
+                                    try:
+                                        # Fetch holdings data
+                                        # 获取持仓数据
+                                        data = self.pro.fut_holding(
+                                            trade_date=trade_date.strftime("%Y%m%d"),
+                                            symbol=symbol,
+                                            exchange=exchange,
+                                        )
+                                        
+                                        if not data.empty:
+                                            # Add exchange and datestamp
+                                            # 添加交易所和日期戳
+                                            data["exchange"] = exchange
+                                            data["datestamp"] = data["trade_date"].apply(
+                                                lambda x: util_make_date_stamp(str(x))
+                                            )
+                                            results.append(data)
+                                    
+                                    except Exception as e:
+                                        self._handle_error(
+                                            e,
+                                            f"Failed to fetch holdings for symbol {symbol} on {trade_date}"
+                                        )
+                            
+                            except Exception as e:
+                                self._handle_error(
+                                    e, f"Failed to process date {current_date} for exchange {exchange}"
+                                )
+                            
+                            current_date += pd.Timedelta(days=1)
+
+                except Exception as e:
+                    self._handle_error(e, f"Failed to fetch holdings for exchange {exchange}")
+
+            if not results:
+                return pd.DataFrame(
+                    columns=["trade_date", "symbol", "exchange", "vol", "amount", "datestamp"]
+                )
+
+            # Combine results and format dates
+            # 合并结果并格式化日期
+            result_df = pd.concat(results, axis=0)
+            result_df["trade_date"] = pd.to_datetime(result_df["trade_date"]).dt.strftime("%Y-%m-%d")
+            
+            # Ensure column order
+            # 确保列顺序
+            return result_df[["trade_date", "symbol", "exchange", "vol", "amount", "datestamp"]]
+
+        except Exception as e:
+            self._handle_error(e, "fetch_get_holdings")
+
+    def _get_latest_trade_date(self, exchange: str, reference_date: pd.Timestamp) -> pd.Timestamp:
+        """
+        Get the latest trading date for an exchange, including the reference date.
+        获取交易所的最近交易日期（包含参考日期）。
+
+        Args:
+            exchange: Exchange code
+            reference_date: Reference date
+
+        Returns:
+            Latest trading date
+        """
+        try:
+            calendar = self.pro.trade_cal(
+                exchange=exchange,
+                start_date=reference_date.strftime("%Y%m%d"),
+                end_date=reference_date.strftime("%Y%m%d"),
             )
-            total_holdings["trade_date"] = pd.to_datetime(
-                total_holdings["trade_date"]
-            ).dt.strftime("%Y-%m-%d")
-            total_holdings["exchange"] = exchange
-        return total_holdings
+            
+            if calendar.empty or calendar.iloc[0]["is_open"] == 0:
+                # If reference date is not a trading day, get the previous trading day
+                # 如果参考日期不是交易日，获取前一个交易日
+                calendar = self.pro.trade_cal(
+                    exchange=exchange,
+                    end_date=reference_date.strftime("%Y%m%d"),
+                    is_open=1,
+                )
+                if calendar.empty:
+                    raise ValueError(f"No trading days found for exchange {exchange}")
+                return pd.Timestamp(str(calendar.iloc[-1]["cal_date"]))
+            
+            return reference_date
+
+        except Exception as e:
+            raise RuntimeError(f"Failed to get latest trade date: {str(e)}")
+
+    def _get_active_symbols(self, exchange: str, trade_date: pd.Timestamp) -> List[str]:
+        """
+        Get active trading symbols for an exchange on a specific date.
+        获取指定日期交易所的活跃合约代码。
+
+        Args:
+            exchange: Exchange code
+            trade_date: Trading date
+
+        Returns:
+            List of active symbols
+        """
+        try:
+            contracts = self.fetch_get_future_contracts(
+                exchange=exchange,
+                cursor_date=trade_date.strftime("%Y-%m-%d"),
+            )
+            return contracts["symbol"].tolist()
+
+        except Exception as e:
+            raise RuntimeError(f"Failed to get active symbols: {str(e)}")
 
     def fetch_get_future_daily(
         self,

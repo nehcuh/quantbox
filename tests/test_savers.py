@@ -3,8 +3,8 @@ from unittest.mock import patch, MagicMock
 import pandas as pd
 import datetime
 from quantbox.savers.data_saver import TSSaver
-from quantbox.fetchers.remote_fetch_tushare import TSFetcher
-from quantbox.fetchers.remote_fetch_gm import GMFetcher
+from quantbox.fetchers.fetcher_tushare import TSFetcher
+from quantbox.fetchers.fetcher_goldminer import GMFetcher
 from pymongo.collection import Collection
 
 class TestTSSaver(unittest.TestCase):
@@ -20,7 +20,7 @@ class TestTSSaver(unittest.TestCase):
             'short_hld': [50]
         })
 
-    @patch('quantbox.fetchers.remote_fetch_tushare.TSFetcher')
+    @patch('quantbox.fetchers.fetcher_tushare.TSFetcher')
     def test_save_holdings_tushare(self, mock_ts_fetcher):
         """Test saving future holdings data using Tushare engine"""
         # Setup mock
@@ -50,7 +50,7 @@ class TestTSSaver(unittest.TestCase):
         self.assertEqual(len(inserted_data), 1)
         self.assertEqual(inserted_data[0]['symbol'], 'IF2401')
 
-    @patch('quantbox.fetchers.remote_fetch_gm.GMFetcher')
+    @patch('quantbox.fetchers.fetcher_goldminer.GMFetcher')
     def test_save_holdings_gm(self, mock_gm_fetcher):
         """Test saving future holdings data using GM engine"""
         # Setup mock
@@ -96,7 +96,7 @@ class TestTSSaver(unittest.TestCase):
                 engine='invalid_engine'
             )
 
-    @patch('quantbox.fetchers.remote_fetch_tushare.TSFetcher')
+    @patch('quantbox.fetchers.fetcher_tushare.TSFetcher')
     def test_save_holdings_with_dates(self, mock_ts_fetcher):
         """Test saving future holdings data with date range"""
         # Setup mock
@@ -124,7 +124,7 @@ class TestTSSaver(unittest.TestCase):
             end_date=end_date
         )
 
-    @patch('quantbox.fetchers.remote_fetch_tushare.TSFetcher')
+    @patch('quantbox.fetchers.fetcher_tushare.TSFetcher')
     def test_save_holdings_empty_data(self, mock_ts_fetcher):
         """Test handling empty data from fetcher"""
         # Setup mock to return empty DataFrame

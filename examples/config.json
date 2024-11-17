@@ -1,0 +1,24 @@
+{
+    "cache_type": "local",
+    "cache_dir": ".data_cache",
+    "cache_expire_hours": 48,
+    "redis_host": null,
+    "redis_port": null,
+    "redis_db": null,
+    "max_retries": 5,
+    "retry_delay": 2.0,
+    "retry_backoff": 1.5,
+    "validate_data": true,
+    "schema_dir": "schemas",
+    "required_fields": {
+        "trade_dates": ["date", "exchange"],
+        "future_contracts": ["symbol", "exchange"],
+        "holdings": ["symbol", "exchange", "date"],
+        "future_daily": ["symbol", "date", "open", "high", "low", "close"]
+    },
+    "enable_monitoring": true,
+    "slow_query_threshold": 5.0,
+    "log_performance_stats": true,
+    "rate_limit_enabled": true,
+    "requests_per_minute": 60
+}
