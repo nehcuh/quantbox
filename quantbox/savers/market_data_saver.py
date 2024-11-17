@@ -17,7 +17,15 @@ from quantbox.util.tools import (
 )
 
 
-class TSSaver:
+class MarketDataSaver:
+    """
+    市场数据保存器，支持从多个数据源（Tushare、掘金等）获取并保存市场数据，包括：
+    - 交易日期数据
+    - 期货合约信息
+    - 期货持仓数据
+    - 期货日线数据
+    - 股票列表数据
+    """
     def __init__(self):
         self.ts_fetcher = TSFetcher()
         self.gm_fetcher = GMFetcher()
@@ -236,7 +244,7 @@ class TSSaver:
 
 
 if __name__ == "__main__":
-    saver = TSSaver()
+    saver = MarketDataSaver()
     # saver.save_trade_dates()
     # saver.save_future_contracts()
     # saver.save_future_holdings(exchanges=["DCE"])
