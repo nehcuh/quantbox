@@ -9,6 +9,7 @@ install_requires = [
     "toml",
     "numpy",
     "pyinstaller",  # For creating executables
+    "PyQt6",  # For GUI
 ]
 
 # Only add typing for Python < 3.5
@@ -24,6 +25,7 @@ setup(
     entry_points={
         "console_scripts": [
             "quantbox-save=quantbox.savers.data_saver:main",  # Updated entry point
+            "quantbox-gui=scripts.run_gui:main",  # GUI entry point
         ]
     },
     install_requires=install_requires,
