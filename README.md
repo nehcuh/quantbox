@@ -4,7 +4,7 @@ Quantbox 是一个用于金融数据获取、存储和分析的框架，支持�
 
 ## 功能特性
 
-- **数据获取**：支持从不同数据源（如 Tushare）获取股票和期货数据。
+- **数据获取**：支持从多个数据源（如 Tushare、掘金等）获取股票和期货数据。
 - **数据存储**：支持将获取的数据存储到本地 MongoDB 数据库。
 - **数据查询**：提供便捷的接口查询存储在本地数据库中的数据。
 - **命令行工具**：提供 CLI 命令行工具，方便用户执行数据获取和存储操作。
@@ -30,6 +30,9 @@ pip install -e .
 ```toml
 [TSPRO]
 token = "your tushare token"
+
+[GMAPI]
+token = "your gm token"
 
 [MONGODB]
 uri = "mongodb://localhost:27017"
@@ -162,74 +165,3 @@ print(local_holdings)
 ## 许可证
 
 本项目基于 MIT 许可证，请参阅 [LICENSE](LICENSE) 文件了解更多细节。
-```
-
-### `CONTRIBUTING.md` 示例
-
-```md
-# 贡献指南
-
-非常欢迎你对 Quantbox 作出贡献！在提交代码之前，请确保阅读以下内容。
-
-## 环境准备
-
-1. Fork 本仓库并克隆到本地：
-
-    ```bash
-    git clone https://github.com/your_username/quantbox.git
-    cd quantbox
-    ```
-
-2. 创建虚拟环境并安装依赖：
-
-    ```bash
-    python -m venv env
-    source env/bin/activate
-    pip install -r requirements.txt
-    ```
-
-## 提交代码
-
-1. 在本地新建一个分支：
-
-    ```bash
-    git checkout -b your-feature-branch
-    ```
-
-2. 提交你的修改：
-
-    ```bash
-    git add .
-    git commit -m "添加了新的功能"
-    git push origin your-feature-branch
-    ```
-
-3. 在 GitHub 上创建一个 Pull Request。
-
-## 代码规范
-
-请确保你的代码符合项目的代码规范，包括但不限于：
-
-- 遵循 PEP 8 编码规范
-- 添加必要的文档和注释
-- 添加相应的单元测试
-
-感谢你的贡献！
-```
-
-### `FAQ.md` 示例
-
-```md
-# 常见问题
-
-## 如何获取 Tushare 的 Token？
-
-你需要在 Tushare 官网注册并申请 API Token，然后将其配置在 `~/.quantbox/settings/config.toml` 文件中。
-
-## 如何配置 MongoDB？
-
-你可以参考 MongoDB 官方文档，安装并运行 MongoDB，然后在 `~/.quantbox/settings/config.toml` 文件中配置连接 URI。
-
-## 如何添加新的数据源？
-
-你可以通过继承 `remote_fetch` 或 `local_fetch` 模块中的类，并实现相应的数据获取和存储方法。
