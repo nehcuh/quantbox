@@ -3,7 +3,7 @@
 import cmd
 import sys
 
-from quantbox.savers.market_data_saver import MarketDataSaver
+from quantbox.savers.data_saver import MarketDataSaver
 
 
 class QuantboxShell(cmd.Cmd):
