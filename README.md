@@ -48,6 +48,51 @@ pip install -r requirements.txt
 pip install -e .
 ```
 
+### 安装 MongoDB
+
+你可以选择以下两种方式安装 MongoDB：
+
+#### 1. 使用 Docker（推荐）
+
+这是最简单的安装方式，只需要按照以下步骤操作：
+
+1. **安装 Docker**
+   
+   如果你还没有安装 Docker，请先从 [Docker 官网](https://www.docker.com/get-started) 下载并安装。
+
+2. **创建数据卷**
+   ```bash
+   docker volume create qbmg
+   ```
+
+3. **启动 MongoDB 容器**
+   ```bash
+   cd docker/qb-base
+   docker-compose -f database.yaml up -d
+   ```
+
+   这将启动一个 MongoDB 容器，具有以下特性：
+   - 容器名称：qbmongo
+   - 端口映射：27018:27017（外部访问端口为 27018）
+   - 数据持久化：使用 qbmg 数据卷
+   - 时区设置：Asia/Shanghai
+   - 自动重启：容器会在系统重启后自动启动
+
+4. **验证安装**
+   ```bash
+   docker ps
+   ```
+   你应该能看到名为 "qbmongo" 的容器正在运行。
+
+#### 2. 手动安装
+
+如果你不想使用 Docker，也可以直接从 [MongoDB 官网](https://www.mongodb.com/try/download/community) 下载并安装 MongoDB。
+
+安装完成后，需要：
+1. 启动 MongoDB 服务
+2. 确保服务在默认端口（27017）运行
+3. 创建一个名为 "quantbox" 的数据库
+
 ## 配置
 
 在使用之前，你需要配置 `config.toml` 文件，放置在 `~/.quantbox/settings/` 目录下：
@@ -57,19 +102,41 @@ pip install -e .
    mkdir -p ~/.quantbox/settings
    ```
 
-2. **创建并编辑配置文件**
-   ```toml
-   [mongodb]
-   host = "localhost"
-   port = 27017
-   database = "quantbox"
-
-   [tushare]
-   token = "your_tushare_token"
-
-   [gm]
-   token = "your_gm_token"
+2. **复制配置模板**
+   ```bash
+   cp templates/config.toml ~/.quantbox/settings/
    ```
+
+3. **编辑配置文件**
+   
+   编辑 `~/.quantbox/settings/config.toml` 文件，填入你的配置信息：
+
+   ```toml
+   [TSPRO]
+   token = "your tushare token"  # 从 https://tushare.pro 获取
+
+   [GMAPI]
+   token = "your gm token"  # 从 https://www.myquant.cn 获取
+
+   [MONGODB]
+   uri = "mongodb://localhost:27017"  # 如果使用默认的手动安装 MongoDB
+   # uri = "mongodb://localhost:27018"  # 如果使用 Docker 安装的 MongoDB
+   ```
+
+   配置项说明：
+   - **TSPRO.token**: Tushare API 的访问令牌，可以从 [Tushare Pro](https://tushare.pro) 官网注册获取
+   - **GMAPI.token**: 掘金量化 API 的访问令牌，可以从[掘金量化](https://www.myquant.cn)官网注册获取
+   - **MONGODB.uri**: MongoDB 数据库的连接 URI
+     * 如果是手动安装的 MongoDB，通常使用 "mongodb://localhost:27017"
+     * 如果是使用 Docker 安装的 MongoDB，需要使用 "mongodb://localhost:27018"，因为我们将容器的 27017 端口映射到了主机的 27018 端口
+
+4. **验证配置**
+   
+   运行以下命令验证配置是否正确：
+   ```bash
+   python cli.py save-trade-dates
+   ```
+   如果配置正确，将会开始下载交易日期数据。
 
 ## 使用示例
 
