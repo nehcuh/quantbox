@@ -1,14 +1,26 @@
+"""
+Local fetcher module for retrieving data from local database.
+"""
 from itertools import batched
 import pandas as pd
 import datetime
 import pymongo
 from typing import Union, List, Dict, Optional
 
+from quantbox.fetchers.base_fetcher import BaseFetcher
 from quantbox.util.basic import DATABASE, DEFAULT_START, EXCHANGES, FUTURE_EXCHANGES, STOCK_EXCHANGES
 from quantbox.util.tools import util_make_date_stamp, util_format_future_symbols
 
-class Queryer:
+
+class LocalFetcher(BaseFetcher):
+    """
+    Local database fetcher for retrieving market data.
+    
+    This class provides methods to fetch various types of market data from the local MongoDB database,
+    including trading dates, future contracts, holdings, and more.
+    """
     def __init__(self):
+        super().__init__()
         """
          本地数据库查询器
         """
@@ -734,28 +746,28 @@ class Queryer:
 
 # 添加全局函数
 def fetch_trade_dates(exchanges=None, start_date=None, end_date=None):
-    queryer = Queryer()
+    queryer = LocalFetcher()
     return queryer.fetch_trade_dates(exchanges, start_date, end_date)
 
 def fetch_pre_trade_date(exchange="SSE", cursor_date=None, n=1, include=False):
-    queryer = Queryer()
+    queryer = LocalFetcher()
     return queryer.fetch_pre_trade_date(exchange, cursor_date, n, include)
 
 def fetch_next_trade_date(exchange="SSE", cursor_date=None, n=1, include=False):
-    queryer = Queryer()
+    queryer = LocalFetcher()
     return queryer.fetch_next_trade_date(exchange, cursor_date, n, include)
 
 def fetch_future_contracts(symbol=None, exchanges=None, spec_name=None, cursor_date=None, fields=None):
-    queryer = Queryer()
+    queryer = LocalFetcher()
     return queryer.fetch_future_contracts(symbol, exchanges, spec_name, cursor_date, fields)
 
 def fetch_future_holdings(symbol=None, exchanges=None, spec_names=None, cursor_date=None, start_date=None, end_date=None, fields=None):
-    queryer = Queryer()
+    queryer = LocalFetcher()
     return queryer.fetch_future_holdings(symbol, exchanges, spec_names, cursor_date, start_date, end_date, fields)
 
 
 if __name__ == "__main__":
-    local_fetcher = Queryer()
+    local_fetcher = LocalFetcher()
     # print(local_fetcher.fetch_pre_trade_date())
     # print(local_fetcher.fetch_pre_trade_date(n=2, include=True))
     # print(local_fetcher.fetch_pre_trade_date(n=2, include=False))

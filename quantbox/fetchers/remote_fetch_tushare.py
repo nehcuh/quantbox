@@ -4,7 +4,7 @@ from typing import List, Optional, Union
 
 import pandas as pd
 
-from quantbox.fetchers.local_fetch import Queryer
+from quantbox.fetchers.local_fetch import LocalFetcher
 from quantbox.util.basic import (
     DATABASE,
     DEFAULT_START,
@@ -31,7 +31,7 @@ class TSFetcher:
         self.future_exchanges = FUTURE_EXCHANGES
         self.client = DATABASE
         self.default_start = DEFAULT_START
-        self.local_queryer = Queryer()
+        self.local_queryer = LocalFetcher()
 
     def fetch_get_trade_dates(
         self,

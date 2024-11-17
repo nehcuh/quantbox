@@ -5,7 +5,7 @@ import math
 import pandas as pd
 from gm.api import *
 
-from quantbox.fetchers.local_fetch import Queryer
+from quantbox.fetchers.local_fetch import LocalFetcher
 from quantbox.util.basic import (
     DATABASE,
     DEFAULT_START,
@@ -31,7 +31,7 @@ class GMFetcher:
         self.future_exchanges = FUTURE_EXCHANGES
         self.client = DATABASE
         self.default_start = DEFAULT_START
-        self.local_queryer = Queryer()
+        self.local_queryer = LocalFetcher()
         
         # Initialize GM token
         token = QUANTCONFIG.gm_token

@@ -5,7 +5,7 @@ import time
 import pandas as pd
 import pymongo
 
-from quantbox.fetchers.local_fetch import Queryer, fetch_next_trade_date
+from quantbox.fetchers.local_fetch import LocalFetcher, fetch_next_trade_date
 from quantbox.fetchers.remote_fetch_gm import GMFetcher
 from quantbox.fetchers.remote_fetch_tushare import TSFetcher
 from quantbox.util.basic import DATABASE, EXCHANGES, FUTURE_EXCHANGES, STOCK_EXCHANGES
@@ -29,7 +29,7 @@ class MarketDataSaver:
     def __init__(self):
         self.ts_fetcher = TSFetcher()
         self.gm_fetcher = GMFetcher()
-        self.queryer = Queryer()
+        self.queryer = LocalFetcher()
         self.client = DATABASE
         self.exchanges = EXCHANGES
         self.future_exchanges = FUTURE_EXCHANGES
