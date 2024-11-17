@@ -43,7 +43,7 @@ import pymongo
 
 from quantbox.fetchers.fetcher_goldminer import GMFetcher
 from quantbox.fetchers.fetcher_tushare import TSFetcher
-from quantbox.fetchers.local_fetch import LocalFetcher, fetch_next_trade_date
+from quantbox.fetchers.local_fetcher import LocalFetcher, fetch_next_trade_date
 from quantbox.util.basic import DATABASE, EXCHANGES, FUTURE_EXCHANGES, STOCK_EXCHANGES
 from quantbox.util.tools import (
     util_format_stock_symbols,
@@ -164,33 +164,33 @@ class MarketDataSaver:
         logger.info("开始保存交易日期数据")
         collections = self.client.trade_date
         
-        try：
+        try:
             # 创建索引
             collections.create_index(
                 [("exchange", pymongo.ASCENDING), ("datestamp", pymongo.DESCENDING)],
                 background=True
             )
             logger.debug("成功创建/更新索引")
-        except Exception as e：
+        except Exception as e:
             logger.error(f"创建索引失败: {str(e)}")
             raise
             
-        if start_date is None：
+        if start_date is None:
             start_date = self.config['saver'].get('default_start_date', '1990-12-19')
             
         total_inserted = 0
-        for exchange in self.exchanges：
-            try：
+        for exchange in self.exchanges:
+            try:
                 # 获取最新日期
                 count = collections.count_documents({"exchange": exchange})
-                if count > 0：
+                if count > 0:
                     first_doc = collections.find_one(
                         {"exchange": exchange},
                         sort=[("datestamp", pymongo.DESCENDING)]
                     )
                     latest_date = first_doc["trade_date"]
                     logger.info(f"交易所 {exchange} 最新数据日期: {latest_date}")
-                else：
+                else:
                     latest_date = start_date
                     logger.info(f"交易所 {exchange} 无历史数据，从 {start_date} 开始获取")
 
@@ -200,19 +200,19 @@ class MarketDataSaver:
                     start_date=latest_date
                 )
                 
-                if df is None or df.empty：
+                if df is None or df.empty:
                     logger.warning(f"交易所 {exchange} 没有新的交易日期数据")
                     continue
                     
                 # 转换为 JSON 并保存
                 data = util_to_json_from_pandas(df)
-                if data：
+                if data:
                     result = collections.insert_many(data)
                     inserted_count = len(result.inserted_ids)
                     total_inserted += inserted_count
                     logger.info(f"交易所 {exchange} 新增 {inserted_count} 条交易日期数据")
                     
-            except Exception as e：
+            except Exception as e:
                 logger.error(f"处理交易所 {exchange} 数据时出错: {str(e)}")
                 raise
                 
@@ -254,7 +254,7 @@ class MarketDataSaver:
         logger.info("开始保存期货合约信息")
         collections = self.client.future_contracts
         
-        try：
+        try:
             # 创建索引
             collections.create_index(
                 [
@@ -265,23 +265,23 @@ class MarketDataSaver:
                 background=True
             )
             logger.debug("成功创建/更新索引")
-        except Exception as e：
+        except Exception as e:
             logger.error(f"创建索引失败: {str(e)}")
             raise
             
-        if batch_size is None：
+        if batch_size is None:
             batch_size = self.config['saver'].get('batch_size', 10000)
             
         total_inserted = 0
-        for exchange in self.future_exchanges：
-            try：
+        for exchange in self.future_exchanges:
+            try:
                 logger.info(f"开始处理交易所 {exchange} 的合约信息")
                 
                 # 获取所有合约信息
                 total_contracts = self.ts_fetcher.fetch_get_future_contracts(
                     exchange=exchange
                 )
-                if total_contracts is None or total_contracts.empty：
+                if total_contracts is None or total_contracts.empty:
                     logger.warning(f"交易所 {exchange} 未获取到合约信息")
                     continue
                     
@@ -293,7 +293,7 @@ class MarketDataSaver:
                     {"exchange": exchange, "symbol": {"$in": symbols}}
                 )
                 
-                if count > 0：
+                if count > 0:
                     # 查询当前已有的合约信息
                     logger.info(f"交易所 {exchange} 已有 {count} 个合约记录，检查新增合约")
                     cursor = collections.find(
@@ -306,7 +306,7 @@ class MarketDataSaver:
                     local_symbols = {doc["symbol"] for doc in cursor}
                     new_symbols = set(symbols) - local_symbols
                     
-                    if new_symbols：
+                    if new_symbols:
                         # 只插入新的合约信息
                         new_contracts = total_contracts.loc[
                             total_contracts["symbol"].isin(list(new_symbols))
@@ -316,9 +316,9 @@ class MarketDataSaver:
                         inserted_count = len(result.inserted_ids)
                         total_inserted += inserted_count
                         logger.info(f"交易所 {exchange} 新增 {inserted_count} 个合约信息")
-                    else：
+                    else:
                         logger.info(f"交易所 {exchange} 没有新的合约信息需要添加")
-                else：
+                else:
                     # 全部是新合约，直接插入
                     data = util_to_json_from_pandas(total_contracts)
                     result = collections.insert_many(data)
@@ -326,7 +326,7 @@ class MarketDataSaver:
                     total_inserted += inserted_count
                     logger.info(f"交易所 {exchange} 新增 {inserted_count} 个合约信息")
                     
-            except Exception as e：
+            except Exception as e:
                 logger.error(f"处理交易所 {exchange} 数据时出错: {str(e)}")
                 raise
                 
@@ -396,7 +396,7 @@ class MarketDataSaver:
         logger.info("开始保存期货持仓数据")
         collections = self.client.future_holdings
         
-        try：
+        try:
             # 创建索引
             collections.create_index(
                 [
@@ -416,43 +416,43 @@ class MarketDataSaver:
                 background=True
             )
             logger.debug("成功创建/更新索引")
-        except Exception as e：
+        except Exception as e:
             logger.error(f"创建索引失败: {str(e)}")
             raise
             
         # 处理配置参数
-        if offset is None：
+        if offset is None:
             offset = self.config['saver'].get('offset', 365)
-        if max_workers is None：
+        if max_workers is None:
             max_workers = self.config['saver'].get('max_workers', 4)
         trading_end_hour = self.config['saver'].get('trading_end_hour', 16)
             
         # 处理交易所参数
-        if exchanges is None：
+        if exchanges is None:
             exchanges = self.future_exchanges
-        if isinstance(exchanges, str)：
+        if isinstance(exchanges, str):
             exchanges = exchanges.split(",")
         # 股票交易所不考虑
         exchanges = [x for x in exchanges if x not in self.stock_exchanges]
         
         # FIXME：上海能源交易所在 tushare 的接口上获取相应持仓数据为空
-        if "INE" in exchanges：
+        if "INE" in exchanges:
             exchanges.remove("INE")
             logger.warning("上海能源交易所(INE)暂不支持获取持仓数据")
                 
         # 处理日期参数
-        if end_date is None：
+        if end_date is None:
             end_date = datetime.date.today()
-            if start_date is None：
+            if start_date is None:
                 start_date = end_date - datetime.timedelta(days=offset)
-        else：
-            if start_date is None：
+        else:
+            if start_date is None:
                 start_date = pd.Timestamp(end_date) - pd.Timedelta(days=offset)
                 
         # 如果是当天且未到收盘时间，使用前一天数据
         if (is_trade_date(end_date, exchanges[0]) and 
             pd.Timestamp(end_date) == pd.Timestamp(datetime.date.today()) and 
-            datetime.datetime.now().hour < trading_end_hour)：
+            datetime.datetime.now().hour < trading_end_hour):
             end_date = pd.Timestamp(end_date) - pd.Timedelta(days=1)
             logger.info(f"当前未到收盘时间，使用前一天 {end_date} 的数据")
             
@@ -460,38 +460,38 @@ class MarketDataSaver:
         
         from concurrent.futures import ThreadPoolExecutor, as_completed
         
-        def process_exchange_date(exchange: str, trade_date: str) -> int：
+        def process_exchange_date(exchange: str, trade_date: str) -> int:
             """处理单个交易所的单个交易日数据"""
-            try：
+            try:
                 count = collections.count_documents({
                     "datestamp": util_make_date_stamp(trade_date),
                     "exchange": exchange,
                 })
                 
-                if count == 0：
+                if count == 0:
                     logger.info(f"获取交易所 {exchange} 在交易日 {trade_date} 的持仓排名")
                     
                     # 根据不同引擎调用不同的数据获取方法
-                    if engine == 'ts'：
+                    if engine == 'ts':
                         results = self.ts_fetcher.fetch_get_holdings(
                             exchanges=exchange, cursor_date=trade_date
                         )
-                    elif engine == 'gm'：
+                    elif engine == 'gm':
                         results = self.gm_fetcher.fetch_get_holdings(
                             exchanges=exchange, cursor_date=trade_date
                         )
-                    else：
+                    else:
                         raise ValueError(f"不支持的数据引擎: {engine}，请使用 'ts' 或 'gm'")
                         
-                    if results is not None and not results.empty：
+                    if results is not None and not results.empty:
                         # 检查重复记录
                         duplicates = results.duplicated(subset=['trade_date', 'broker', 'symbol'], keep='last')
-                        if duplicates.any()：
+                        if duplicates.any():
                             logger.warning(f"发现 {duplicates.sum()} 条重复记录，将保留最新的记录")
                             results = results[~duplicates]
                         
                         # 使用 upsert 操作保存数据
-                        for _, row in results.iterrows()：
+                        for _, row in results.iterrows():
                             data = util_to_json_from_pandas(pd.DataFrame([row]))
                             collections.update_one(
                                 {
@@ -506,25 +506,25 @@ class MarketDataSaver:
                         inserted_count = len(results)
                         logger.info(f"交易所 {exchange} 在交易日 {trade_date} 新增/更新 {inserted_count} 条持仓数据")
                         return inserted_count
-                    else：
+                    else:
                         logger.warning(f"交易所 {exchange} 在交易日 {trade_date} 未获取到持仓数据")
-                else：
+                else:
                     logger.debug(f"交易所 {exchange} 在交易日 {trade_date} 的持仓数据已存在")
                     
-            except pymongo.errors.DuplicateKeyError as e：
+            except pymongo.errors.DuplicateKeyError as e:
                 logger.warning(f"处理重复数据: {str(e)}")
-            except Exception as e：
+            except Exception as e:
                 logger.error(f"处理交易所 {exchange} 在交易日 {trade_date} 的数据时出错: {str(e)}")
                 raise
                 
             return 0
             
         total_inserted = 0
-        with ThreadPoolExecutor(max_workers=max_workers) as executor：
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
             future_to_params = {}
             
-            for exchange in exchanges：
-                try：
+            for exchange in exchanges:
+                try:
                     # 获取交易日列表
                     trade_dates = self.queryer.fetch_trade_dates(
                         exchanges=exchange,
@@ -532,12 +532,12 @@ class MarketDataSaver:
                         end_date=end_date
                     )
                     
-                    if trade_dates is None or trade_dates.empty：
+                    if trade_dates is None or trade_dates.empty:
                         logger.warning(f"交易所 {exchange} 在指定日期范围内没有交易日")
                         continue
                         
                     # 提交所有任务
-                    for trade_date in trade_dates.trade_date.tolist()：
+                    for trade_date in trade_dates.trade_date.tolist():
                         future = executor.submit(
                             process_exchange_date,
                             exchange,
@@ -545,17 +545,17 @@ class MarketDataSaver:
                         )
                         future_to_params[future] = (exchange, trade_date)
                         
-                except Exception as e：
+                except Exception as e:
                     logger.error(f"处理交易所 {exchange} 的交易日列表时出错: {str(e)}")
                     raise
                     
             # 收集结果
-            for future in as_completed(future_to_params)：
+            for future in as_completed(future_to_params):
                 exchange, trade_date = future_to_params[future]
-                try：
+                try:
                     inserted_count = future.result()
                     total_inserted += inserted_count
-                except Exception as e：
+                except Exception as e:
                     logger.error(
                         f"处理交易所 {exchange} 在交易日 {trade_date} 的任务失败: {str(e)}"
                     )
@@ -599,23 +599,23 @@ class MarketDataSaver:
         logger.info("开始保存股票列表数据")
         collections = self.client.stock_list
         
-        try：
+        try:
             # 创建索引
             collections.create_index(
                 [("symbol", pymongo.ASCENDING), ("list_datestamp", pymongo.ASCENDING)],
                 background=True
             )
             logger.debug("成功创建/更新索引")
-        except Exception as e：
+        except Exception as e:
             logger.error(f"创建索引失败: {str(e)}")
             raise
             
-        try：
+        try:
             # 获取股票列表数据
             logger.info("从数据源获取股票列表数据")
             data = self.ts_fetcher.fetch_get_stock_list(list_status=list_status)
             
-            if data is None or data.empty：
+            if data is None or data.empty:
                 logger.warning("未获取到股票列表数据")
                 return
                 
@@ -626,7 +626,7 @@ class MarketDataSaver:
             
             # 移除不需要的列
             columns = data.columns.tolist()
-            if "ts_code" in columns：
+            if "ts_code" in columns:
                 columns.remove("ts_code")
                 
             # 添加上市日期时间戳
@@ -645,13 +645,13 @@ class MarketDataSaver:
             
             # 验证数据完整性
             count = collections.count_documents({})
-            if count != len(data)：
+            if count != len(data):
                 raise ValueError(
                     f"数据完整性检查失败：期望保存 {len(data)} 条记录，"
                     f"实际保存 {count} 条记录"
                 )
                 
-        except Exception as e：
+        except Exception as e:
             logger.error(f"保存股票列表数据时出错: {str(e)}")
             raise
 
@@ -707,22 +707,22 @@ class MarketDataSaver:
             [("symbol", pymongo.ASCENDING), ("datestamp", pymongo.DESCENDING)]
         )
         cursor_date = datetime.date.today()
-        for exchange in self.future_exchanges：
+        for exchange in self.future_exchanges:
             contracts = self.queryer.fetch_future_contracts(exchanges=exchange)
-            for _, contract_info in contracts.iterrows()：
+            for _, contract_info in contracts.iterrows():
                 list_date = contract_info["list_date"]
                 delist_date = contract_info["delist_date"]
                 symbol = contract_info["symbol"]
                 count = collections.count_documents(
                     {"symbol": symbol, "datestamp": util_make_date_stamp(cursor_date)}
                 )
-                if count > 0：
+                if count > 0:
                     first_doc = collections.find_one(
                         {"symbol": symbol}, sort=[("datestamp", pymongo.DESCENDING)]
                     )
                     latest_date = first_doc["trade_date"]
                     print(f"当前保存合约 {symbol} 从 {latest_date} 到 {delist_date} 日线行情")
-                    if (pd.Timestamp(latest_date) < pd.Timestamp(delist_date)) and (self.queryer.fetch_next_trade_date(latest_date)['trade_date'] < datetime.date.today().strftime("%Y-%m-%d"))：
+                    if (pd.Timestamp(latest_date) < pd.Timestamp(delist_date)) and (self.queryer.fetch_next_trade_date(latest_date)['trade_date'] < datetime.date.today().strftime("%Y-%m-%d")):
                         data = self.ts_fetcher.fetch_get_future_daily(
                             symbols=symbol,
                             start_date=self.queryer.fetch_next_trade_date(latest_date)['trade_date'],
@@ -731,14 +731,14 @@ class MarketDataSaver:
                         collections.insert_many(
                             util_to_json_from_pandas(data[columns])
                         )
-                else：
+                else:
                     print(f"当前保存合约 {symbol} 从 {list_date} 到 {delist_date} 日线行情")
                     data = self.ts_fetcher.fetch_get_future_daily(
                         symbols=symbol,
                         start_date=list_date,
                         end_date=delist_date,
                     )
-                    if data is None or data.empty：
+                    if data is None or data.empty:
                         print(
                             f"当前合约 {symbol}, 上市时间 {list_date}, 下市时间 {delist_date}, 没有查询到数据"
                         )
@@ -746,7 +746,7 @@ class MarketDataSaver:
                     collections.insert_many(util_to_json_from_pandas(data))
 
 
-if __name__ == "__main__"：
+if __name__ == "__main__":
     saver = MarketDataSaver()
     # saver.save_trade_dates()
     # saver.save_future_contracts()
