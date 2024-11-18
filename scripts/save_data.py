@@ -6,12 +6,51 @@
 """
 import os
 import sys
+import platform
+import warnings
+import importlib.util
 
 # 添加项目根目录到Python路径
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, project_root)
 
 from quantbox.savers.data_saver import MarketDataSaver
+
+
+def check_gm_sdk():
+    """
+    检查是否安装了掘金量化SDK
+    
+    Returns:
+        bool: 是否存在掘金SDK
+    """
+    return importlib.util.find_spec("gm") is not None
+
+
+def get_default_engine():
+    """
+    根据系统环境确定默认的数据引擎
+    
+    Returns:
+        str: 数据引擎名称 ('ts' 或 'gm')
+    """
+    # 检查操作系统
+    is_macos = platform.system().lower() == 'darwin'
+    
+    if is_macos:
+        return 'ts'  # macOS 默认使用 Tushare
+    
+    # 非 macOS 系统，检查掘金SDK
+    has_gm = check_gm_sdk()
+    if not has_gm:
+        warnings.warn(
+            "未检测到掘金量化SDK，将使用Tushare作为数据源。"
+            "如需使用掘金数据源，请先安装掘金SDK。",
+            RuntimeWarning
+        )
+        return 'ts'
+    
+    return 'gm'  # 使用掘金数据源
 
 
 def main():
@@ -22,6 +61,10 @@ def main():
     """
     # 初始化数据保存器
     saver = MarketDataSaver()
+    
+    # 获取默认数据引擎
+    engine = get_default_engine()
+    print(f"使用数据源: {'Tushare' if engine == 'ts' else '掘金量化'}")
 
     # 保存交易日期数据
     print("正在保存交易日期数据...")
@@ -33,7 +76,7 @@ def main():
     
     # 保存期货持仓数据
     print("正在保存期货持仓数据...")
-    saver.save_future_holdings()
+    saver.save_future_holdings(engine=engine)
 
     # 保存期货日线数据
     print("正在保存期货日线数据...")

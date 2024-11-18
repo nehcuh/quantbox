@@ -130,15 +130,16 @@ class MarketDataSaver:
         self.stock_exchanges = STOCK_EXCHANGES
 
     @retry(max_attempts=3, delay=60)
-    def save_trade_dates(self, start_date: str = None):
+    def save_trade_dates(self, start_date: str = None, engine: str = "ts"):
         """
         保存交易日期数据到本地数据库。
 
-        从 Tushare 获取交易日期数据并保存到本地 MongoDB 数据库的 'trade_date' 集合中。
+        从指定的数据源获取交易日期数据并保存到本地 MongoDB 数据库的 'trade_date' 集合中。
 
         参数：
             start_date: 开始日期，默认为 None。
                        如果为 None，则使用配置文件中指定的默认起始日期。
+            engine: 数据源引擎，可选 'ts' (Tushare) 或 'gm' (掘金)，默认为 'ts'。
 
         注意：
             - 会自动创建必要的数据库索引
@@ -149,19 +150,21 @@ class MarketDataSaver:
         ---------------
         Save trading dates data to local database.
 
-        Fetches trading dates from Tushare and saves them to the 'trade_date'
-        collection in the local MongoDB database.
+        Fetches trading dates from the specified data source and saves them to the
+        'trade_date' collection in the local MongoDB database.
 
         Args：
             start_date: Start date for fetching trading dates, defaults to None.
                        If None, uses the default start date from configuration.
+            engine: Data source engine, can be 'ts' (Tushare) or 'gm' (GoldMiner),
+                   defaults to 'ts'.
 
         Note：
             - Automatically creates necessary database indexes
             - Includes error retry mechanism
             - Maintains complete operation logs
         """
-        logger.info("开始保存交易日期数据")
+        logger.info(f"开始保存交易日期数据 (数据源: {'Tushare' if engine == 'ts' else '掘金量化'})")
         collections = self.client.trade_date
         
         try:
@@ -194,11 +197,17 @@ class MarketDataSaver:
                     latest_date = start_date
                     logger.info(f"交易所 {exchange} 无历史数据，从 {start_date} 开始获取")
 
-                # 获取并验证数据
-                df = self.ts_fetcher.fetch_get_trade_dates(
-                    exchanges=exchange,
-                    start_date=latest_date
-                )
+                # 根据数据源获取数据
+                if engine == "ts":
+                    df = self.ts_fetcher.fetch_get_trade_dates(
+                        exchanges=exchange,
+                        start_date=latest_date
+                    )
+                else:  # engine == "gm"
+                    df = self.gm_fetcher.fetch_get_trade_dates(
+                        exchanges=exchange,
+                        start_date=latest_date
+                    )
                 
                 if df is None or df.empty:
                     logger.warning(f"交易所 {exchange} 没有新的交易日期数据")
