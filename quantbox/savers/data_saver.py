@@ -655,6 +655,8 @@ class MarketDataSaver:
             logger.error(f"保存股票列表数据时出错: {str(e)}")
             raise
 
+    @retry(max_attempts=3, delay=60)
+    @validate_dataframe(collection_name='future_daily')
     def save_future_daily(
         self,
         exchanges: Union[str, List[str], None] = None,
@@ -702,53 +704,171 @@ class MarketDataSaver:
             - Includes error retry mechanism
             - Maintains complete operation logs
         """
+        logger.info("开始保存期货日线数据")
         collections = self.client.future_daily
-        collections.create_index(
-            [("symbol", pymongo.ASCENDING), ("datestamp", pymongo.DESCENDING)]
-        )
-        cursor_date = datetime.date.today()
-        for exchange in self.future_exchanges:
-            contracts = self.queryer.fetch_future_contracts(exchanges=exchange)
-            for _, contract_info in contracts.iterrows():
-                list_date = contract_info["list_date"]
-                delist_date = contract_info["delist_date"]
-                symbol = contract_info["symbol"]
-                count = collections.count_documents(
-                    {"symbol": symbol, "datestamp": util_make_date_stamp(cursor_date)}
-                )
-                if count > 0:
-                    first_doc = collections.find_one(
-                        {"symbol": symbol}, sort=[("datestamp", pymongo.DESCENDING)]
-                    )
-                    latest_date = first_doc["trade_date"]
-                    print(f"当前保存合约 {symbol} 从 {latest_date} 到 {delist_date} 日线行情")
-                    if (pd.Timestamp(latest_date) < pd.Timestamp(delist_date)) and (self.queryer.fetch_next_trade_date(latest_date)['trade_date'] < datetime.date.today().strftime("%Y-%m-%d")):
+        
+        try:
+            # 创建索引
+            collections.create_index(
+                [("symbol", pymongo.ASCENDING), ("datestamp", pymongo.DESCENDING)],
+                background=True
+            )
+            logger.debug("成功创建/更新索引")
+        except Exception as e:
+            logger.error(f"创建索引失败: {str(e)}")
+            raise
+            
+        # 处理交易所参数
+        if exchanges is None:
+            exchanges = self.future_exchanges
+        elif isinstance(exchanges, str):
+            exchanges = [exchanges]
+            
+        # 处理日期参数
+        if start_date is None:
+            start_date = self.config['saver'].get('default_start_date', '1990-12-19')
+        if end_date is None:
+            end_date = datetime.date.today().strftime("%Y-%m-%d")
+            
+        logger.info(f"处理日期范围: {start_date} 到 {end_date}")
+        
+        total_inserted = 0
+        for exchange in exchanges:
+            try:
+                # 获取该交易所的所有合约
+                logger.info(f"获取交易所 {exchange} 的合约列表")
+                contracts = self.queryer.fetch_future_contracts(exchanges=exchange)
+                
+                if contracts is None or contracts.empty:
+                    logger.warning(f"交易所 {exchange} 未获取到合约信息")
+                    continue
+                    
+                for _, contract_info in contracts.iterrows():
+                    try:
+                        symbol = contract_info["symbol"]
+                        list_date = contract_info["list_date"]
+                        delist_date = contract_info["delist_date"]
+                        
+                        # 检查是否已存在数据
+                        latest_doc = collections.find_one(
+                            {"symbol": symbol},
+                            sort=[("datestamp", pymongo.DESCENDING)]
+                        )
+                        
+                        if latest_doc:
+                            latest_date = latest_doc["trade_date"]
+                            next_date = self.queryer.fetch_next_trade_date(latest_date)
+                            
+                            if next_date is None:
+                                logger.debug(f"合约 {symbol} 数据已是最新")
+                                continue
+                                
+                            start = next_date['trade_date']
+                            logger.info(f"更新合约 {symbol} 从 {start} 到 {delist_date} 的日线数据")
+                            
+                            # 如果已经到了退市日期，跳过
+                            if pd.Timestamp(start) >= pd.Timestamp(delist_date):
+                                logger.debug(f"合约 {symbol} 已到退市日期")
+                                continue
+                        else:
+                            start = list_date
+                            logger.info(f"获取合约 {symbol} 从 {start} 到 {delist_date} 的日线数据")
+                            
+                        # 获取日线数据
                         data = self.ts_fetcher.fetch_get_future_daily(
                             symbols=symbol,
-                            start_date=self.queryer.fetch_next_trade_date(latest_date)['trade_date'],
-                            end_date=delist_date,
+                            start_date=start,
+                            end_date=delist_date
                         )
-                        collections.insert_many(
-                            util_to_json_from_pandas(data[columns])
+                        
+                        if data is None or data.empty:
+                            logger.warning(f"合约 {symbol} 在 {start} 到 {delist_date} 期间无数据")
+                            continue
+                            
+                        # 标准化日线数据
+                        data = self.standardize_future_daily_data(data, source='ts')
+                        
+                        # 添加日期时间戳
+                        data["datestamp"] = data["trade_date"].map(str).apply(
+                            lambda x: util_make_date_stamp(x)
                         )
-                else:
-                    print(f"当前保存合约 {symbol} 从 {list_date} 到 {delist_date} 日线行情")
-                    data = self.ts_fetcher.fetch_get_future_daily(
-                        symbols=symbol,
-                        start_date=list_date,
-                        end_date=delist_date,
-                    )
-                    if data is None or data.empty:
-                        print(
-                            f"当前合约 {symbol}, 上市时间 {list_date}, 下市时间 {delist_date}, 没有查询到数据"
-                        )
+                        
+                        # 保存数据
+                        result = collections.insert_many(util_to_json_from_pandas(data))
+                        inserted_count = len(result.inserted_ids)
+                        total_inserted += inserted_count
+                        logger.info(f"合约 {symbol} 新增 {inserted_count} 条日线数据")
+                        
+                    except Exception as e:
+                        logger.error(f"处理合约 {symbol} 数据时出错: {str(e)}")
                         continue
-                    collections.insert_many(util_to_json_from_pandas(data))
+                        
+            except Exception as e:
+                logger.error(f"处理交易所 {exchange} 数据时出错: {str(e)}")
+                continue
+                
+        logger.info(f"期货日线数据保存完成，总共新增 {total_inserted} 条数据")
+
+    def standardize_future_daily_data(self, df: pd.DataFrame, source: str = 'gm') -> pd.DataFrame:
+        """
+        Standardize futures daily data format from different sources.
+        
+        Args:
+            df: DataFrame containing futures daily data
+            source: Data source ('gm' or 'tushare')
+        
+        Returns:
+            Standardized DataFrame with columns:
+            - symbol: Contract symbol with exchange prefix in uppercase (e.g., SHFE.RB2011)
+            - trade_date: Trading date in YYYY-MM-DD format
+            - open: Opening price
+            - high: Highest price
+            - low: Lowest price
+            - close: Closing price
+            - volume: Trading volume
+            - amount: Trading amount
+            - datestamp: Date timestamp
+        """
+        result = df.copy()
+        
+        if source.lower() == 'tushare':
+            # Rename volume column
+            if 'vol' in result.columns:
+                result = result.rename(columns={'vol': 'volume'})
+            
+            # Convert ts_code to symbol with exchange prefix in uppercase
+            if 'ts_code' in result.columns:
+                result['symbol'] = result['ts_code'].apply(
+                    lambda x: (x.split('.')[1] + '.' + x.split('.')[0]).upper()
+                )
+                result = result.drop('ts_code', axis=1)
+                logger.debug("Converted Tushare ts_code to uppercase symbol format")
+            
+            # Format trade_date
+            if 'trade_date' in result.columns and not isinstance(result['trade_date'].iloc[0], str):
+                result['trade_date'] = pd.to_datetime(result['trade_date'].astype(str)).dt.strftime('%Y-%m-%d')
+            
+        elif source.lower() == 'gm':
+            # Convert GoldMiner symbol to uppercase
+            if 'symbol' in result.columns:
+                result['symbol'] = result['symbol'].str.upper()
+                logger.debug("Converted GoldMiner symbol to uppercase format")
+            
+            # Add datestamp if not present
+            if 'datestamp' not in result.columns and 'trade_date' in result.columns:
+                result['datestamp'] = result['trade_date'].apply(lambda x: pd.Timestamp(x).timestamp())
+        
+        # Ensure consistent column order
+        desired_columns = ['symbol', 'trade_date', 'open', 'high', 'low', 'close', 'volume', 'amount', 'datestamp']
+        available_columns = [col for col in desired_columns if col in result.columns]
+        result = result[available_columns]
+        
+        return result
 
 
 if __name__ == "__main__":
     saver = MarketDataSaver()
-    # saver.save_trade_dates()
+    saver.save_trade_dates()
     # saver.save_future_contracts()
     # saver.save_future_holdings(exchanges=["DCE"])
     saver.save_future_holdings(engine="gm")

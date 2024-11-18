@@ -33,6 +33,20 @@ class Config:
         self.stock_exchanges = ["SHSE", "SZSE"]
         self.future_exchanges = ["SHFE", "DCE", "CFFEX", "CZCE", "INE"]
         self.default_start = "1990-12-19"
+        
+        # 初始化MongoDB客户端
+        self._init_mongodb()
+
+    def _init_mongodb(self):
+        """初始化MongoDB客户端连接"""
+        if 'MONGODB' not in self.config:
+            # 使用默认设置
+            uri = 'mongodb://localhost:27017'
+        else:
+            # 从配置文件读取uri
+            uri = self.config['MONGODB'].get('uri', 'mongodb://localhost:27017')
+            
+        self._client = pymongo.MongoClient(uri)
 
     @property
     def ts_token(self):
@@ -88,7 +102,7 @@ class Config:
         explanation:
             获取 MONGODB 配置
         """
-        return pymongo.MongoClient(self.mongo_uri)
+        return self._client
 
     def _load_ini_config(self):
         """

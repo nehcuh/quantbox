@@ -181,7 +181,7 @@ def load_contract_exchange_mapper() -> Dict:
 
 def is_trade_date(
     cursor_date: Union[str, int, datetime.date, None] = None,
-    exchange: str='SSE'
+    exchange: str='SHSE'
 ) -> bool:
     """
     explanation:
