@@ -7,13 +7,14 @@ import platform
 import warnings
 
 if platform.system() != 'Darwin':  # Not macOS
-    from gm.api import get_symbol_infos, set_token, fut_get_transaction_rankings, history_n
+    from gm.api import get_symbol_infos, set_token, fut_get_transaction_rankings, history_n, get_trading_dates
 else:
     warnings.warn("GoldMiner API is not supported on macOS")
     get_symbol_infos = None
     set_token = None
     fut_get_transaction_rankings = None
     history_n = None
+    get_trading_dates = None
 
 from quantbox.fetchers.base import BaseFetcher
 from quantbox.fetchers.local_fetcher import LocalFetcher
@@ -64,6 +65,7 @@ class GMFetcher(BaseFetcher):
         self.future_exchanges = FUTURE_EXCHANGES
         self.client = DATABASE
         self.default_start = DEFAULT_START
+        self.initialize()
 
     def initialize(self):
         """
@@ -71,7 +73,7 @@ class GMFetcher(BaseFetcher):
         使用必要的凭证和设置初始化获取器。
         """
         if platform.system() != 'Darwin':  # Not macOS
-            set_token(QUANTCONFIG.get('goldminer', {}).get('token', ''))
+            set_token(QUANTCONFIG.gm_token)
 
     def _format_symbol(self, symbol: str) -> str:
         """
@@ -190,7 +192,6 @@ class GMFetcher(BaseFetcher):
             start_date, end_date = self.validator.validate_dates(
                 start_date, end_date, cursor_date
             )
-            symbols = self.validator.validate_symbols(symbols)
             
             if exchanges is None:
                 exchanges = self.future_exchanges
@@ -206,18 +207,33 @@ class GMFetcher(BaseFetcher):
                     # Get symbols for this exchange if not provided
                     exchange_symbols = symbols
                     if not exchange_symbols:
-                        contracts = self.fetch_get_future_contracts([exchange])
+                        # 使用本地数据库获取合约信息
+                        local_fetcher = LocalFetcher()
+                        contracts = local_fetcher.fetch_future_contracts(
+                            exchanges=exchange,
+                            cursor_date=cursor_date or end_date
+                        )
                         if not contracts.empty:
                             exchange_symbols = contracts['symbol'].tolist()
                     
                     if not exchange_symbols:
                         continue
                         
-                    # Format symbols for API
-                    formatted_symbols = [
-                        self._format_symbol(symbol) 
-                        for symbol in exchange_symbols
-                    ]
+                    # Format symbols for API - ensure proper case for each exchange
+                    formatted_symbols = []
+                    for symbol in exchange_symbols:
+                        # Remove any existing exchange suffix
+                        base_symbol = symbol.split('.')[0] if '.' in symbol else symbol
+                        
+                        # Format based on exchange rules
+                        if exchange == 'CZCE':
+                            # CZCE uses uppercase
+                            formatted_symbol = f"{exchange}.{base_symbol.upper()}"
+                        else:
+                            # Other exchanges use lowercase
+                            formatted_symbol = f"{exchange}.{base_symbol.lower()}"
+                        
+                        formatted_symbols.append(formatted_symbol)
                     
                     # Fetch data in batches to avoid API limits
                     batch_size = 50  # Adjust based on API limits
@@ -383,97 +399,11 @@ class GMFetcher(BaseFetcher):
     ) -> pd.DataFrame:
         """
         获取期货合约信息。
-
-        参数:
-            exchange: str, 默认为 "DCE"
-                交易所代码，支持 ["SHFE", "DCE", "CFFEX", "CZCE", "INE"]
-            spec_name: Union[str, List[str], None], 默认为 None
-                期货品种名称，如 "豆粕"、"棕榈油" 等。可以是单个品种名称或品种名称列表。
-                如果为 None，则获取所有品种。
-            cursor_date: Optional[str], 默认为 None
-                指定日期，格式为 "YYYY-MM-DD"。如果指定，则只返回该日期存续的合约。
-            fields: Optional[List[str]], 默认为 None
-                需要返回的字段列表。如果为 None，则返回所有字段。
-
-        返回:
-            pd.DataFrame: 包含以下字段的数据框
-                - symbol: 合约代码（统一为大写）
-                - name: 合约名称
-                - chinese_name: 品种中文名称
-                - list_date: 上市日期
-                - delist_date: 退市日期
-                - list_datestamp: 上市日期时间戳
-                - delist_datestamp: 退市日期时间戳
-                - 其他可选字段
-
-        注意:
-            为了保持与 Tushare 的一致性，所有合约代码都会被转换为大写形式。
+        
+        注意：掘金量化API不支持获取历史合约信息，此方法将返回空DataFrame。
+        请使用Tushare API获取合约信息。
         """
-        # 确保交易所代码大写
-        exchange = exchange.upper()
-        if exchange not in self.future_exchanges:
-            raise ValueError(f"不支持的交易所: {exchange}")
-
-        # 准备获取数据的类型列表
-        # 104001: 股指期货, 104003: 商品期货
-        sec_types = []
-        if exchange == "CFFEX":
-            sec_types.append("104001")  # 股指期货
-        sec_types.append("104003")  # 商品期货
-
-        all_contracts = []
-        for sec_type in sec_types:
-            # 获取该类型的所有合约
-            contracts = self.client.get_symbol_infos(
-                sec_type=sec_type,
-                exchange=exchange
-            )
-            if contracts:
-                all_contracts.extend(contracts)
-
-        if not all_contracts:
-            return pd.DataFrame()
-
-        # 转换为 DataFrame
-        df = pd.DataFrame(all_contracts)
-        
-        # 将合约代码转换为大写
-        df['symbol'] = df['symbol'].str.upper()
-        
-        # 添加必要的字段
-        df['list_date'] = pd.to_datetime(df['listed_date']).dt.strftime('%Y-%m-%d')
-        df['delist_date'] = pd.to_datetime(df['delisted_date']).dt.strftime('%Y-%m-%d')
-        df['list_datestamp'] = df['listed_date'].apply(lambda x: util_make_date_stamp(x))
-        df['delist_datestamp'] = df['delisted_date'].apply(lambda x: util_make_date_stamp(x))
-        
-        # 提取品种中文名称
-        pattern = r"(.*?)\d+\s*"
-        df['chinese_name'] = df['sec_name'].apply(lambda x: re.findall(pattern, x)[0])
-
-        # 根据品种名称筛选
-        if spec_name:
-            if isinstance(spec_name, str):
-                spec_name = spec_name.split(',')
-            df = df[df['chinese_name'].isin(spec_name)]
-
-        # 字段筛选
-        if fields:
-            # 确保必要字段存在
-            required_fields = ['list_date', 'delist_date', 'sec_name', 'symbol']
-            for field in required_fields:
-                if field not in fields:
-                    fields.append(field)
-            df = df[fields]
-
-        # 根据日期筛选
-        if cursor_date:
-            cursor_date = pd.Timestamp(str(cursor_date)).strftime('%Y-%m-%d')
-            df = df[
-                (df['list_date'] <= cursor_date) & 
-                (df['delist_date'] > cursor_date)
-            ]
-
-        return df
+        return pd.DataFrame()
 
     def get_gm_data(
         self,

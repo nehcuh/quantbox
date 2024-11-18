@@ -3,7 +3,7 @@
 token = ""  # 你的 Tushare token，从 https://tushare.pro 获取
 
 # 掘金 API 配置
-[GMAPI]
+[GM]
 token = ""  # 你的掘金 token，从 https://www.myquant.cn 获取
 
 # MongoDB 数据库配置

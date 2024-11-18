@@ -68,7 +68,7 @@ def main():
 
     # 保存交易日期数据
     print("正在保存交易日期数据...")
-    saver.save_trade_dates()
+    saver.save_trade_dates(engine=engine)
     
     # 保存期货合约信息
     print("正在保存期货合约信息...")
