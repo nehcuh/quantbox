@@ -7,13 +7,13 @@ import platform
 import warnings
 
 if platform.system() != 'Darwin':  # Not macOS
-    from gm.api import get_symbol_infos, set_token, fut_get_transaction_rankings, history_bars
+    from gm.api import get_symbol_infos, set_token, fut_get_transaction_rankings, history_n
 else:
     warnings.warn("GoldMiner API is not supported on macOS")
     get_symbol_infos = None
     set_token = None
     fut_get_transaction_rankings = None
-    history_bars = None
+    history_n = None
 
 from quantbox.fetchers.base import BaseFetcher
 from quantbox.fetchers.local_fetcher import LocalFetcher
@@ -541,7 +541,7 @@ class GMFetcher(BaseFetcher):
             fields_str = ','.join(fields) if fields else None
 
             # Call GoldMiner API history function
-            data = history_bars(
+            data = history_n(
                 symbol=symbol,
                 frequency=frequency,
                 start_time=start_time,

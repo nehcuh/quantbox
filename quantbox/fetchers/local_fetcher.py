@@ -4,13 +4,32 @@ Local fetcher module for retrieving data from local database.
 import datetime
 import pandas as pd
 from typing import List, Optional, Union, Dict
+from abc import ABC
 
 from quantbox.fetchers.base import BaseFetcher
 from quantbox.util.basic import DATABASE, DEFAULT_START, EXCHANGES, FUTURE_EXCHANGES, STOCK_EXCHANGES
 from quantbox.util.tools import util_make_date_stamp, util_format_future_symbols
 
 
-class LocalFetcher(BaseFetcher):
+class LocalBaseFetcher(ABC):
+    """
+    Base class for local data fetchers that do not require external data fetching methods.
+    """
+    def __init__(self):
+        self.exchanges = EXCHANGES
+        self.stock_exchanges = STOCK_EXCHANGES
+        self.future_exchanges = FUTURE_EXCHANGES
+        self.client = DATABASE
+        self.default_start = DEFAULT_START
+
+    def initialize(self) -> None:
+        """
+        Initialize the fetcher with necessary credentials and settings
+        """
+        pass
+
+
+class LocalFetcher(LocalBaseFetcher):
     """
     Local database fetcher for retrieving market data.
     
@@ -36,7 +55,7 @@ class LocalFetcher(BaseFetcher):
     ) -> pd.DataFrame:
         """
         explanation:
-            本地获取 时间范围内的交易日历 (闭区间，如果起讫时间为交易日，会包括在内)
+            本地获取 时间范围内的交易日历 (闭区间，如果起讫时间为交易日，会包括在内）
 
         params:
             * exchanges ->
@@ -77,6 +96,9 @@ class LocalFetcher(BaseFetcher):
         )
         "获取交易日期"
         return pd.DataFrame([item for item in cursor])
+
+    def initialize(self):
+        pass
 
 
     def fetch_pre_trade_date(

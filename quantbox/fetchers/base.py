@@ -85,7 +85,6 @@ class BaseFetcher(ABC):
         """
         self.validator = DataValidator()
         
-    @abstractmethod
     def initialize(self) -> None:
         """
         Initialize the fetcher with necessary credentials and settings
@@ -93,7 +92,6 @@ class BaseFetcher(ABC):
         """
         pass
         
-    @abstractmethod
     def fetch_get_holdings(
         self,
         exchanges: Union[List[str], str, None] = None,
@@ -116,9 +114,8 @@ class BaseFetcher(ABC):
         Returns:
             DataFrame containing holdings data / 包含持仓数据的DataFrame
         """
-        pass
-        
-    @abstractmethod
+        raise NotImplementedError("This method should be implemented by subclasses that fetch data from external sources.")
+
     def fetch_get_future_contracts(
         self,
         exchanges: Union[List[str], str, None] = None,
@@ -135,7 +132,7 @@ class BaseFetcher(ABC):
         Returns:
             DataFrame containing future contracts data / 包含期货合约数据的DataFrame
         """
-        pass
+        raise NotImplementedError("This method should be implemented by subclasses that fetch data from external sources.")
         
     def _format_response(
         self,
