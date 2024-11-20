@@ -766,24 +766,24 @@ class LocalFetcher(LocalBaseFetcher):
 
 # 添加全局函数
 def fetch_trade_dates(exchanges=None, start_date=None, end_date=None):
-    queryer = LocalFetcher()
-    return queryer.fetch_trade_dates(exchanges, start_date, end_date)
+    local_fetcher = LocalFetcher()
+    return local_fetcher.fetch_trade_dates(exchanges, start_date, end_date)
 
 def fetch_pre_trade_date(exchange="SSE", cursor_date=None, n=1, include=False):
-    queryer = LocalFetcher()
-    return queryer.fetch_pre_trade_date(exchange, cursor_date, n, include)
+    local_fetcher = LocalFetcher()
+    return local_fetcher.fetch_pre_trade_date(exchange, cursor_date, n, include)
 
 def fetch_next_trade_date(exchange="SSE", cursor_date=None, n=1, include=False):
-    queryer = LocalFetcher()
-    return queryer.fetch_next_trade_date(exchange, cursor_date, n, include)
+    local_fetcher = LocalFetcher()
+    return local_fetcher.fetch_next_trade_date(exchange, cursor_date, n, include)
 
 def fetch_future_contracts(symbol=None, exchanges=None, spec_name=None, cursor_date=None, fields=None):
-    queryer = LocalFetcher()
-    return queryer.fetch_future_contracts(symbol, exchanges, spec_name, cursor_date, fields)
+    local_fetcher = LocalFetcher()
+    return local_fetcher.fetch_future_contracts(symbol, exchanges, spec_name, cursor_date, fields)
 
 def fetch_future_holdings(symbol=None, exchanges=None, spec_names=None, cursor_date=None, start_date=None, end_date=None, fields=None):
-    queryer = LocalFetcher()
-    return queryer.fetch_future_holdings(symbol, exchanges, spec_names, cursor_date, start_date, end_date, fields)
+    local_fetcher = LocalFetcher()
+    return local_fetcher.fetch_future_holdings(symbol, exchanges, spec_names, cursor_date, start_date, end_date, fields)
 
 
 if __name__ == "__main__":

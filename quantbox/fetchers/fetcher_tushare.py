@@ -5,6 +5,7 @@ from typing import List, Optional, Union
 import pandas as pd
 
 from quantbox.fetchers.base import BaseFetcher
+from quantbox.fetchers.local_fetcher import LocalFetcher
 from quantbox.util.basic import (
     DATABASE,
     DEFAULT_START,
@@ -55,6 +56,7 @@ class TSFetcher(BaseFetcher):
         self.future_exchanges = FUTURE_EXCHANGES
         self.client = DATABASE
         self.default_start = DEFAULT_START
+        self.local_fetcher = LocalFetcher()
 
     def initialize(self):
         """
@@ -110,7 +112,7 @@ class TSFetcher(BaseFetcher):
                 exchanges = self.exchanges
             elif isinstance(exchanges, str):
                 exchanges = [ex.strip() for ex in exchanges.split(",")]
-            
+
             # Validate exchanges
             # 验证交易所代码
             invalid_exchanges = [ex for ex in exchanges if ex not in self.exchanges]
@@ -142,7 +144,7 @@ class TSFetcher(BaseFetcher):
                         start_date=start_date.strftime("%Y%m%d"),
                         end_date=end_date.strftime("%Y%m%d")
                     )
-                    
+
                     if data.empty:
                         continue
 
@@ -151,24 +153,24 @@ class TSFetcher(BaseFetcher):
                     data = data.loc[data["is_open"] == 1].copy()
                     data["exchange"] = "SHSE" if ts_exchange == "SSE" else ts_exchange
                     data["datestamp"] = data["cal_date"].map(str).apply(util_make_date_stamp)
-                    
+
                     # Format dates
                     # 格式化日期
-                    data = data.rename(columns={"cal_date": "trade_date"})
+                    data = data.rename(columns={"cal_date": "trade_date", "pretrade_date": "pre_trade_date"})
                     data['trade_date'] = pd.to_datetime(data['trade_date']).dt.strftime('%Y-%m-%d')
-                    data['pretrade_date'] = data['trade_date'].shift(1)
-                    
+                    data['pre_trade_date'] = pd.to_datetime(data['pre_trade_date']).dt.strftime("%Y-%m-%d")
+
                     results.append(data)
 
                 except Exception as e:
                     self._handle_error(e, f"Failed to fetch trading dates for exchange {exchange}")
 
             if not results:
-                return pd.DataFrame(columns=["exchange", "trade_date", "pretrade_date", "datestamp"])
+                return pd.DataFrame(columns=["exchange", "trade_date", "pre_trade_date", "datestamp"])
 
             # Combine results and ensure column order
             # 合并结果并确保列顺序
-            return pd.concat(results, axis=0)[["exchange", "trade_date", "pretrade_date", "datestamp"]]
+            return pd.concat(results, axis=0)[["exchange", "trade_date", "pre_trade_date", "datestamp"]]
 
         except Exception as e:
             self._handle_error(e, "fetch_get_trade_dates")
@@ -512,12 +514,12 @@ class TSFetcher(BaseFetcher):
                         # 单日查询
                         query_date = cursor_date or pd.Timestamp.today()
                         trade_date = self._get_latest_trade_date(exchange, query_date)
-                        
+
                         # Get symbols if not provided
                         # 如果未提供合约代码，则获取当前可交易的合约
                         if symbols is None:
                             symbols = self._get_active_symbols(exchange, trade_date)
-                        
+
                         for symbol in symbols:
                             try:
                                 # Fetch holdings data
@@ -527,7 +529,7 @@ class TSFetcher(BaseFetcher):
                                     symbol=symbol,
                                     exchange=exchange,
                                 )
-                                
+
                                 if not data.empty:
                                     # Add exchange and datestamp
                                     # 添加交易所和日期戳
@@ -536,7 +538,7 @@ class TSFetcher(BaseFetcher):
                                         lambda x: util_make_date_stamp(str(x))
                                     )
                                     results.append(data)
-                            
+
                             except Exception as e:
                                 self._handle_error(
                                     e, f"Failed to fetch holdings for symbol {symbol} on {trade_date}"
@@ -546,18 +548,18 @@ class TSFetcher(BaseFetcher):
                         # 日期范围查询
                         end_date = end_date or pd.Timestamp.today()
                         current_date = start_date
-                        
+
                         while current_date <= end_date:
                             try:
                                 trade_date = self._get_latest_trade_date(exchange, current_date)
-                                
+
                                 # Get symbols if not provided
                                 # 如果未提供合约代码，则获取当前可交易的合约
                                 if symbols is None:
                                     current_symbols = self._get_active_symbols(exchange, trade_date)
                                 else:
                                     current_symbols = symbols
-                                
+
                                 for symbol in current_symbols:
                                     try:
                                         # Fetch holdings data
@@ -567,7 +569,7 @@ class TSFetcher(BaseFetcher):
                                             symbol=symbol,
                                             exchange=exchange,
                                         )
-                                        
+
                                         if not data.empty:
                                             # Add exchange and datestamp
                                             # 添加交易所和日期戳
@@ -576,18 +578,18 @@ class TSFetcher(BaseFetcher):
                                                 lambda x: util_make_date_stamp(str(x))
                                             )
                                             results.append(data)
-                                    
+
                                     except Exception as e:
                                         self._handle_error(
                                             e,
                                             f"Failed to fetch holdings for symbol {symbol} on {trade_date}"
                                         )
-                            
+
                             except Exception as e:
                                 self._handle_error(
                                     e, f"Failed to process date {current_date} for exchange {exchange}"
                                 )
-                            
+
                             current_date += pd.Timedelta(days=1)
 
                 except Exception as e:
@@ -602,7 +604,7 @@ class TSFetcher(BaseFetcher):
             # 合并结果并格式化日期
             result_df = pd.concat(results, axis=0)
             result_df["trade_date"] = pd.to_datetime(result_df["trade_date"]).dt.strftime("%Y-%m-%d")
-            
+
             # Ensure column order
             # 确保列顺序
             return result_df[["trade_date", "symbol", "exchange", "vol", "amount", "datestamp"]]
@@ -628,7 +630,7 @@ class TSFetcher(BaseFetcher):
                 start_date=reference_date.strftime("%Y%m%d"),
                 end_date=reference_date.strftime("%Y%m%d"),
             )
-            
+
             if calendar.empty or calendar.iloc[0]["is_open"] == 0:
                 # If reference date is not a trading day, get the previous trading day
                 # 如果参考日期不是交易日，获取前一个交易日
@@ -640,7 +642,7 @@ class TSFetcher(BaseFetcher):
                 if calendar.empty:
                     raise ValueError(f"No trading days found for exchange {exchange}")
                 return pd.Timestamp(str(calendar.iloc[-1]["cal_date"]))
-            
+
             return reference_date
 
         except Exception as e:
@@ -750,7 +752,7 @@ class TSFetcher(BaseFetcher):
         else:
             if cursor_date is None:
                 cursor_date = datetime.date.today()
-            latest_trade_date = self.local_queryer.fetch_pre_trade_date(
+            latest_trade_date = self.local_fetcher.fetch_pre_trade_date(
                 cursor_date=cursor_date, include=True
             )["trade_date"]
             if symbols:

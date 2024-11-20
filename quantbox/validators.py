@@ -104,15 +104,15 @@ def validate_dataframe(collection_name: str) -> Callable:
         def wrapper(*args, **kwargs) -> Optional[pd.DataFrame]:
             # 获取函数返回的 DataFrame
             df = func(*args, **kwargs)
-            
+
             if df is None or df.empty:
                 logger.warning(f"{func.__name__} 返回空数据")
                 return df
-            
+
             # 获取必需字段配置
             config = load_config()
             required_fields = config['validation']['required_fields'].get(collection_name, [])
-            
+
             # 验证必需字段
             missing_fields = [field for field in required_fields if field not in df.columns]
             if missing_fields:
@@ -120,7 +120,7 @@ def validate_dataframe(collection_name: str) -> Callable:
                     f"{func.__name__} 缺少必需字段: {missing_fields}"
                 )
                 return None
-            
+
             # 验证和转换数据类型
             try:
                 if 'trade_date' in df.columns:
@@ -134,7 +134,7 @@ def validate_dataframe(collection_name: str) -> Callable:
             except Exception as e:
                 logger.error(f"{func.__name__} 日期字段转换失败: {str(e)}")
                 return None
-            
+
             return df
         return wrapper
     return decorator
@@ -164,35 +164,12 @@ def retry(
         - 实现指数退避延迟
         - 记录每次重试尝试和最终失败
         - 保留原函数的签名和文档字符串
-
-    English Version:
-    ---------------
-    Decorator for implementing retry logic.
-
-    This decorator adds automatic retry capability to functions that might fail
-    due to temporary issues (e.g., network problems, rate limits). It supports
-    configurable retry attempts, delay between attempts, and specific exception
-    types to retry on.
-
-    Args:
-        max_attempts: Maximum number of retry attempts, defaults to 3
-        delay: Delay between attempts in seconds, defaults to 60
-        exceptions: Tuple of exception types to retry on, defaults to (Exception,)
-
-    Returns:
-        Callable: Decorator function that wraps the original function
-
-    Note:
-        - Retries only on specified exception types
-        - Implements exponential backoff delay
-        - Logs each retry attempt and final failure
-        - Preserves the original function's signature and docstring
     """
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
         def wrapper(*args, **kwargs) -> Any:
             last_exception = None
-            
+
             for attempt in range(max_attempts):
                 try:
                     return func(*args, **kwargs)
@@ -209,8 +186,8 @@ def retry(
                         logger.error(
                             f"{func.__name__} failed after {max_attempts} attempts: {str(e)}"
                         )
-            
+
             raise last_exception
-            
+
         return wrapper
     return decorator

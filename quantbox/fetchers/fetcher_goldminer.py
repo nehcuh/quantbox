@@ -36,18 +36,18 @@ from quantbox.util.tools import (
 class GMFetcher(BaseFetcher):
     """
     GMFetcher implements data fetching from GoldMiner API.
-    
+
     This class handles all interactions with the GoldMiner API, including:
     - Future contracts data
     - Holdings data
     - Market data
-    
+
     Attributes:
         exchanges: List of supported exchanges
         stock_exchanges: List of supported stock exchanges
         future_exchanges: List of supported future exchanges
     """
-    
+
     def __init__(self):
         if platform.system() == 'Darwin':
             raise NotImplementedError(
@@ -82,7 +82,7 @@ class GMFetcher(BaseFetcher):
 
         Supports the following formats:
         支持以下格式：
-        1. Regular contracts (普通合约): 
+        1. Regular contracts (普通合约):
            - With exchange (带交易所): SHFE.rb2011
            - Without exchange (不带交易所): rb2011
         2. Virtual contracts (虚拟合约):
@@ -118,12 +118,12 @@ class GMFetcher(BaseFetcher):
                 'SC': 'INE',  # INE products
                 'LC': 'GFEX'  # GFEX products
             }
-            
+
             # Extract product code (e.g., 'RB' from 'RB00')
             product = symbol[:2] if any(c.isdigit() for c in symbol[2:]) else symbol
             exchange = exchange_map.get(product, 'SHFE')  # Default to SHFE if unknown
             return f"{exchange}.{symbol}"
-            
+
         # Handle regular contracts (lowercase symbols)
         exchange_map = {
             # CFFEX
@@ -161,14 +161,14 @@ class GMFetcher(BaseFetcher):
     ) -> pd.DataFrame:
         """
         Fetch future holdings data from GoldMiner API.
-        
+
         Args:
             exchanges: List of exchanges to fetch data from
             cursor_date: Single date to fetch data for
             start_date: Start date for date range
             end_date: End date for date range
             symbols: List of symbols to fetch data for
-            
+
         Returns:
             DataFrame containing holdings data with columns:
             - trade_date: Trading date
@@ -177,7 +177,7 @@ class GMFetcher(BaseFetcher):
             - datestamp: Date stamp
             - volume: Trading volume
             - amount: Trading amount
-            
+
         Raises:
             ValueError: If date parameters are invalid
             RuntimeError: If API call fails
@@ -192,15 +192,15 @@ class GMFetcher(BaseFetcher):
             start_date, end_date = self.validator.validate_dates(
                 start_date, end_date, cursor_date
             )
-            
+
             if exchanges is None:
                 exchanges = self.future_exchanges
             if isinstance(exchanges, str):
                 exchanges = exchanges.split(",")
-                
+
             # Initialize result container
             total_holdings = pd.DataFrame()
-            
+
             # Process each exchange
             for exchange in exchanges:
                 try:
@@ -215,16 +215,16 @@ class GMFetcher(BaseFetcher):
                         )
                         if not contracts.empty:
                             exchange_symbols = contracts['symbol'].tolist()
-                    
+
                     if not exchange_symbols:
                         continue
-                        
+
                     # Format symbols for API - ensure proper case for each exchange
                     formatted_symbols = []
                     for symbol in exchange_symbols:
                         # Remove any existing exchange suffix
                         base_symbol = symbol.split('.')[0] if '.' in symbol else symbol
-                        
+
                         # Format based on exchange rules
                         if exchange == 'CZCE':
                             # CZCE uses uppercase
@@ -232,20 +232,20 @@ class GMFetcher(BaseFetcher):
                         else:
                             # Other exchanges use lowercase
                             formatted_symbol = f"{exchange}.{base_symbol.lower()}"
-                        
+
                         formatted_symbols.append(formatted_symbol)
-                    
+
                     # Fetch data in batches to avoid API limits
                     batch_size = 50  # Adjust based on API limits
                     for i in range(0, len(formatted_symbols), batch_size):
                         batch_symbols = formatted_symbols[i:i + batch_size]
-                        
+
                         holdings = fut_get_transaction_rankings(
                             symbols=batch_symbols,
                             trade_date=cursor_date or end_date,
                             indicators="volume,long,short"
                         )
-                        
+
                         if not holdings.empty:
                             # Add exchange information
                             holdings['exchange'] = exchange
@@ -256,20 +256,20 @@ class GMFetcher(BaseFetcher):
                                 [total_holdings, holdings],
                                 ignore_index=True
                             )
-                            
+
                 except Exception as e:
                     self._handle_error(
-                        e, 
+                        e,
                         f"fetching holdings for exchange {exchange}"
                     )
-                    
+
             # Validate and format final response
             required_columns = [
-                'trade_date', 'symbol', 'exchange', 
+                'trade_date', 'symbol', 'exchange',
                 'datestamp', 'volume', 'long', 'short'
             ]
             return self._format_response(total_holdings, required_columns)
-            
+
         except Exception as e:
             self._handle_error(e, "fetch_get_holdings")
 
@@ -318,7 +318,7 @@ class GMFetcher(BaseFetcher):
                 exchanges = self.exchanges
             elif isinstance(exchanges, str):
                 exchanges = [ex.strip() for ex in exchanges.split(",")]
-            
+
             # Validate exchanges
             # 验证交易所代码
             invalid_exchanges = [ex for ex in exchanges if ex not in self.exchanges]
@@ -345,36 +345,32 @@ class GMFetcher(BaseFetcher):
                 try:
                     # Fetch trading dates for the entire period at once
                     # 一次性获取整个时期的交易日
-                    dates = get_trading_dates(
+                    dates = get_trading_dates_by_year(
                         exchange=gm_exchange,
-                        start_date=start_date.strftime("%Y-%m-%d"),
-                        end_date=end_date.strftime("%Y-%m-%d")
+                        start_year=start_date.year,
+                        end_year=end_date.year
                     )
-                    
+
                     if not dates:
                         continue
 
                     # Create DataFrame with all required information
                     # 创建包含所有必需信息的DataFrame
-                    df = pd.DataFrame({
-                        'trade_date': pd.to_datetime(dates),
-                        'exchange': gm_exchange
-                    })
-
+                    dates["exchange"] = gm_exchange
                     # Sort and calculate previous trading date
+                    df = dates[["exchange", "trade_date", "pre_trade_date"]]
                     # 排序并计算前一交易日
                     df = df.sort_values('trade_date')
-                    df['pretrade_date'] = df['trade_date'].shift(1)
-                    
+
                     # Add datestamp
                     # 添加日期戳
                     df["datestamp"] = df['trade_date'].apply(lambda x: util_make_date_stamp(x))
-                    
+
                     # Format dates
                     # 格式化日期
                     df['trade_date'] = df['trade_date'].dt.strftime('%Y-%m-%d')
-                    df['pretrade_date'] = df['pretrade_date'].dt.strftime('%Y-%m-%d')
-                    
+                    df['pre_trade_date'] = df['pre_trade_date'].dt.strftime('%Y-%m-%d')
+
                     results.append(df)
 
                 except Exception as e:
@@ -399,7 +395,7 @@ class GMFetcher(BaseFetcher):
     ) -> pd.DataFrame:
         """
         获取期货合约信息。
-        
+
         注意：掘金量化API不支持获取历史合约信息，此方法将返回空DataFrame。
         请使用Tushare API获取合约信息。
         """
@@ -553,15 +549,15 @@ class GMFetcher(BaseFetcher):
                 start_date, end_date, cursor_date
             )
             symbols = self.validator.validate_symbols(symbols)
-            
+
             if exchanges is None:
                 exchanges = self.future_exchanges
             if isinstance(exchanges, str):
                 exchanges = exchanges.split(",")
-                
+
             # Initialize result container
             total_data = pd.DataFrame()
-            
+
             # Process each exchange
             for exchange in exchanges:
                 try:
@@ -571,21 +567,21 @@ class GMFetcher(BaseFetcher):
                         contracts = self.fetch_get_future_contracts([exchange])
                         if not contracts.empty:
                             exchange_symbols = contracts['symbol'].tolist()
-                
+
                     if not exchange_symbols:
                         continue
-                        
+
                     # Format symbols for API
                     formatted_symbols = [
-                        self._format_symbol(symbol) 
+                        self._format_symbol(symbol)
                         for symbol in exchange_symbols
                     ]
-                    
+
                     # Fetch data in batches to avoid API limits
                     batch_size = 50  # Adjust based on API limits
                     for i in range(0, len(formatted_symbols), batch_size):
                         batch_symbols = formatted_symbols[i:i + batch_size]
-                        
+
                         # Use GoldMiner's history_bars API for each symbol
                         for symbol in batch_symbols:
                             try:
@@ -612,31 +608,31 @@ class GMFetcher(BaseFetcher):
                                         adjust=0,
                                         df=True
                                     )
-                                
+
                                 if not data.empty:
                                     # Add symbol and exchange info
                                     data['symbol'] = symbol.split('.')[-1]  # Remove exchange prefix
                                     data['exchange'] = exchange
-                                    
+
                                     # Format dates
                                     data['trade_date'] = pd.to_datetime(data.index).strftime('%Y-%m-%d')
                                     data['datestamp'] = data['trade_date'].apply(util_make_date_stamp)
-                                    
+
                                     # Append to total data
                                     total_data = pd.concat([total_data, data], ignore_index=True)
-                                    
+
                             except Exception as e:
                                 self._handle_error(e, f"fetching daily data for symbol {symbol}")
-                                
+
                 except Exception as e:
                     self._handle_error(e, f"fetching daily data for exchange {exchange}")
-                    
+
             # Validate and format final response
             required_columns = [
-                'symbol', 'trade_date', 'open', 'high', 'low', 
+                'symbol', 'trade_date', 'open', 'high', 'low',
                 'close', 'volume', 'amount', 'datestamp'
             ]
             return self._format_response(total_data, required_columns)
-            
+
         except Exception as e:
             self._handle_error(e, "fetch_get_future_daily")
