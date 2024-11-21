@@ -201,6 +201,10 @@ class GMFetcher(BaseFetcher):
             # Initialize result container
             total_holdings = pd.DataFrame()
 
+            # 增加参数兼容性
+            if isinstance(symbols, str):
+                symbols = symbols.split(",")
+
             # Process each exchange
             for exchange in exchanges:
                 try:
@@ -262,14 +266,109 @@ class GMFetcher(BaseFetcher):
                     )
 
             # Validate and format final response
-            required_columns = [
-                'trade_date', 'symbol', 'exchange',
-                'datestamp', 'volume', 'long', 'short'
-            ]
-            return self._format_response(total_holdings, required_columns)
+            # required_columns = [
+            #     'trade_date', 'symbol', 'exchange',
+            #     'datestamp', 'volume', 'long', 'short'
+            # ]
+            return self._convert_gm_holdings_to_tushare_format(total_holdings)
+            # return self._format_response(total_holdings, required_columns)
 
         except Exception as e:
             self._handle_error(e, "fetch_get_holdings")
+
+    def _convert_gm_holdings_to_tushare_format(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Convert GoldMiner holdings data format to match Tushare format.
+        将掘金量化持仓数据格式转换为与Tushare一致的格式。
+
+        Args:
+            df: GoldMiner holdings DataFrame with columns:
+                - symbol: Contract symbol with exchange prefix (e.g., 'DCE.m2501')
+                - trade_date: Trading date
+                - member_name: Broker name
+                - indicator_number: Position volume
+                - indicator_change: Volume change
+                - ranking: Ranking
+                - indicator: Type of indicator (volume/long/short)
+                - ranking_change: Ranking change
+                - exchange: Exchange code
+                - datestamp: Date timestamp
+
+        Returns:
+            DataFrame with Tushare format:
+                - trade_date: Trading date
+                - symbol: Contract symbol without exchange prefix
+                - broker: Broker name without '（代客）' suffix
+                - vol: Trading volume
+                - vol_chg: Volume change
+                - long_hld: Long position
+                - long_chg: Long position change
+                - short_hld: Short position
+                - short_chg: Short position change
+                - exchange: Exchange code
+                - datestamp: Date timestamp
+        """
+        # Remove exchange prefix from symbol and '（代客）' from broker names
+        df['symbol'] = df['symbol'].str.split('.').str[1].str.upper()
+        df['broker'] = df['member_name'].str.replace('（代客）', '')
+    
+        # Create separate dataframes for volume, long and short positions
+        vol_df = df[df['indicator'] == 'volume'].copy()
+        long_df = df[df['indicator'] == 'long'].copy()
+        short_df = df[df['indicator'] == 'short'].copy()
+    
+        # Rename columns for volume data
+        vol_df = vol_df.rename(columns={
+            'indicator_number': 'vol',
+            'indicator_change': 'vol_chg'
+        })[['trade_date', 'symbol', 'broker', 'vol', 'vol_chg', 'exchange', 'datestamp']]
+    
+        # Rename columns for long position data
+        long_df = long_df.rename(columns={
+            'indicator_number': 'long_hld',
+            'indicator_change': 'long_chg'
+        })[['trade_date', 'symbol', 'broker', 'long_hld', 'long_chg']]
+    
+        # Rename columns for short position data
+        short_df = short_df.rename(columns={
+            'indicator_number': 'short_hld',
+            'indicator_change': 'short_chg'
+        })[['trade_date', 'symbol', 'broker', 'short_hld', 'short_chg']]
+    
+        # Merge all dataframes
+        result = pd.merge(
+            vol_df,
+            long_df,
+            on=['trade_date', 'symbol', 'broker'],
+            how='outer'
+        )
+    
+        result = pd.merge(
+            result,
+            short_df,
+            on=['trade_date', 'symbol', 'broker'],
+            how='outer'
+        )
+    
+        # Ensure all numeric columns are float type
+        numeric_columns = ['vol', 'vol_chg', 'long_hld', 'long_chg', 'short_hld', 'short_chg']
+        for col in numeric_columns:
+            if col in result.columns:
+                result[col] = result[col].astype(float)
+
+        # Sort by volume (descending) and fill any missing values with NaN
+        result = result.sort_values(['trade_date', 'symbol', 'vol'], ascending=[True, True, False])
+    
+        # Reorder columns to match Tushare format
+        columns = [
+            'trade_date', 'symbol', 'broker', 'vol', 'vol_chg',
+            'long_hld', 'long_chg', 'short_hld', 'short_chg',
+            'exchange', 'datestamp'
+        ]
+        result.loc[:, 'exchange'] = result['exchange'].ffill()
+        result.loc[:, 'datestamp'] = result['datestamp'].ffill()
+    
+        return result[columns] 
 
     def fetch_get_trade_dates(
         self,
@@ -634,3 +733,7 @@ class GMFetcher(BaseFetcher):
 
         except Exception as e:
             self._handle_error(e, "fetch_get_future_daily")
+
+if __name__ == "__main__":
+    gm_fetcher = GMFetcher()
+    df2 = gm_fetcher.fetch_get_holdings(cursor_date="2024-11-21", symbols="M2501")

@@ -599,9 +599,7 @@ class TSFetcher(BaseFetcher):
                     self._handle_error(e, f"Failed to fetch holdings for exchange {exchange}")
 
             if not results:
-                return pd.DataFrame(
-                    columns=["trade_date", "symbol", "exchange", "vol", "amount", "datestamp"]
-                )
+                return pd.DataFrame(columns=["trade_date", "exchange", "symbol", "broker", "vol", "vol_chg", "long_hld", "long_chg", "short_hld", "short_chg", "datestamp"])
 
             # Combine results and format dates
             # 合并结果并格式化日期
@@ -610,7 +608,7 @@ class TSFetcher(BaseFetcher):
 
             # Ensure column order
             # 确保列顺序
-            return result_df[["trade_date", "symbol", "exchange", "vol", "amount", "datestamp"]]
+            return result_df
 
         except Exception as e:
             self._handle_error(e, "fetch_get_holdings")
