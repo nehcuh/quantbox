@@ -29,13 +29,13 @@ def get_future_contracts(fetcher, exchange, spec_name=None):
             'list_date',  # 上市日期
             'delist_date'  # 退市日期
         }
-        
+
         # 检查并选择可用的列
         available_columns = set(df.columns)
         if not required_columns.issubset(available_columns):
             print(f"警告: 数据源缺少必需的列。可用列: {available_columns}")
             return pd.DataFrame()
-            
+
         return df[list(required_columns)]
     return pd.DataFrame()
 
@@ -43,13 +43,13 @@ def get_future_contracts(fetcher, exchange, spec_name=None):
 def check_future_contracts(exchange, spec_name=None):
     """检查期货合约数据的完整性"""
     ts_fetcher = TSFetcher()
-    
+
     # 获取数据
     ts_data = get_future_contracts(ts_fetcher, exchange, spec_name)
-    
+
     # 计算基本统计信息
     ts_count = len(ts_data)
-    
+
     # 检查数据完整性
     if ts_data.empty:
         print(f"\n{'='*80}")
@@ -59,7 +59,7 @@ def check_future_contracts(exchange, spec_name=None):
         print(f"{'='*80}")
         print("警告: 未能获取到任何合约数据")
         return
-    
+
     # 检查日期格式
     date_columns = ['list_date', 'delist_date']
     for col in date_columns:
@@ -68,13 +68,13 @@ def check_future_contracts(exchange, spec_name=None):
             if not invalid_dates.empty:
                 print(f"\n无效的{col}格式:")
                 print(invalid_dates.to_string())
-    
+
     # 检查必需字段的空值
     for col in ts_data.columns:
         null_count = ts_data[col].isna().sum()
         if null_count > 0:
             print(f"\n字段 '{col}' 有 {null_count} 个空值")
-    
+
     # 输出结果
     print(f"\n{'='*80}")
     print(f"交易所: {exchange}")
@@ -92,15 +92,15 @@ def main():
         {'exchange': exchange, 'spec_name': None}
         for exchange in FUTURE_EXCHANGES
     ]
-    
+
     # 测试特定品种的合约
     specific_cases = [
-        {'exchange': 'SHFE', 'spec_name': 'cu'},  # 上期所铜期货
-        {'exchange': 'DCE', 'spec_name': 'm'},    # 大商所豆粕期货
-        {'exchange': 'CZCE', 'spec_name': 'CF'},  # 郑商所棉花期货
+        {'exchange': 'SHFE', 'spec_name': '沪铜'},  # 上期所铜期货
+        {'exchange': 'DCE', 'spec_name': '豆粕'},    # 大商所豆粕期货
+        {'exchange': 'CZCE', 'spec_name': '郑棉'},  # 郑商所棉花期货
     ]
     test_cases.extend(specific_cases)
-    
+
     # 执行测试
     for case in test_cases:
         check_future_contracts(**case)

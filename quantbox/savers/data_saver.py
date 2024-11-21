@@ -183,22 +183,6 @@ class MarketDataSaver:
             - 会自动创建必要的数据库索引
             - 包含错误重试机制
             - 保存完整的操作日志
-
-        English Version：
-        ---------------
-        Save future contracts data to local database.
-
-        Fetches future contracts from Tushare and saves them to the 'future_contracts'
-        collection in the local MongoDB database.
-
-        Args：
-            batch_size: Batch size for inserting data, defaults to None.
-                       If None, uses the default batch size from configuration.
-
-        Note：
-            - Automatically creates necessary database indexes
-            - Includes error retry mechanism
-            - Maintains complete operation logs
         """
         logger.info("开始保存期货合约信息")
         collections = self.client.future_contracts

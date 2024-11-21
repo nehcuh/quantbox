@@ -46,7 +46,6 @@ class TSFetcher(BaseFetcher):
 
     def __init__(self):
         """
-        Initialize TuShare fetcher with API client and configuration.
         初始化 Tushare 数据获取器，设置 API 客户端和配置。
         """
         super().__init__()
@@ -57,15 +56,6 @@ class TSFetcher(BaseFetcher):
         self.client = DATABASE
         self.default_start = DEFAULT_START
         self.local_fetcher = LocalFetcher()
-
-    def initialize(self):
-        """
-        Initialize the fetcher with necessary credentials and settings.
-        使用必要的凭证和设置初始化获取器。
-        """
-        # TuShare API client is already initialized in __init__
-        # Tushare API 客户端已经在 __init__ 中初始化
-        pass
 
     def fetch_get_trade_dates(
         self,
@@ -80,8 +70,8 @@ class TSFetcher(BaseFetcher):
         Args:
             exchanges: Exchange(s) to fetch data from, defaults to all exchanges
                      要获取数据的交易所，默认为所有交易所
-                Supported: ['SSE', 'SZSE', 'SHFE', 'DCE', 'CFFEX', 'CZCE', 'INE']
-                支持: ['SSE', 'SZSE', 'SHFE', 'DCE', 'CFFEX', 'CZCE', 'INE']
+                Supported: ['SHSE/SSE', 'SZSE', 'SHFE', 'DCE', 'CFFEX', 'CZCE', 'INE']
+                支持: ['SSE/SHSE', 'SZSE', 'SHFE', 'DCE', 'CFFEX', 'CZCE', 'INE']
             start_date: Start date, defaults to DEFAULT_START
                        起始时间，默认从 DEFAULT_START 开始
                 Formats: [19910906, '1992-03-02', datetime.date(2024, 9, 16)]
@@ -183,29 +173,36 @@ class TSFetcher(BaseFetcher):
         fields: Optional[List[str]] = None,
     ) -> pd.DataFrame:
         """
-        explanation:
-            Tushare 获取交易期货合约接口封装，可以基于品种中文名，日期进行筛选
+        Fetch future contract information from TuShare.
+        从 Tushare 获取期货合约信息。
 
-        params:
-            * exchange ->
-                含义: 交易所, 默认为大商所 DCE
-                类型: str
-                参数支持: ['SHFE', 'DCE', 'CFFEX', 'CZCE', 'INE']
-            * spec_name ->
-                含义：合约中文名称，默认为 None, 取所有品种
-                参数：str
-                参数支持：["豆粕", "棕榈油", ...]
-            * cursor_date ->
-                含义: 指定时间, 默认为 None, 即获取所有合约
-                类型: int, str, datetime
-                参数支持: [19910906, '1992-03-02', datetime.date(2024, 9, 16)]
-            * fields ->
-                含义：自定义字段，默认为 None, 获取合约所有字段
-                类型: List[str]
-                参数支持: ['symbol', 'name', 'list_date', 'delist_date']
-        returns:
-            pd.DataFrame ->
-                合约信息
+        Args:
+            exchange: Exchange to fetch data from, defaults to DCE
+                    要获取数据的交易所，默认为大商所
+                Supported: ['SHFE', 'DCE', 'CFFEX', 'CZCE', 'INE']
+                支持: ['SHFE', 'DCE', 'CFFEX', 'CZCE', 'INE']
+            spec_name: Chinese name of contract, defaults to None to fetch all
+                     合约中文名称，默认为 None 获取所有品种
+                Examples: ["豆粕", "棕榈油", ...]
+                示例: ["豆粕", "棕榈油", ...]
+            cursor_date: Reference date for filtering contracts, defaults to None to fetch all
+                       过滤合约的参考日期，默认为 None 获取所有合约
+                Formats: [19910906, '1992-03-02', datetime.date(2024, 9, 16)]
+                支持格式: [19910906, '1992-03-02', datetime.date(2024, 9, 16)]
+            fields: Custom fields to return, defaults to None to return all fields
+                   自定义返回字段，默认为 None 返回所有字段
+                Examples: ['symbol', 'name', 'list_date', 'delist_date']
+                示例: ['symbol', 'name', 'list_date', 'delist_date']
+
+        Returns:
+            DataFrame containing contract information
+            包含合约信息的DataFrame
+
+        Raises:
+            ValueError: If invalid exchange or date format is provided
+                      当提供的交易所或日期格式无效时
+            RuntimeError: If API call fails
+                        当API调用失败时
         """
         if fields:
             if "list_date" not in fields:
@@ -228,9 +225,15 @@ class TSFetcher(BaseFetcher):
         data["delist_datestamp"] = (
             data["delist_date"].map(str).apply(lambda x: util_make_date_stamp(x))
         )
-        pattern = r"(.*?)\d+\s*"
+        # 1. 使用 `(?=\d{3,})` 作为正向预查，表示只在遇到3位及以上数字时才进行匹配
+        # 2. `.+?` 使用非贪婪模式匹配前面的所有字符
+        # items = ["原油2306TAS", "国际铜2309", "20号胶2510", "原油2005"]
+        # ['原油', '国际铜', '20号胶', '原油']
+        pattern = r'(.+?)(?=\d{3,})'
         data["chinese_name"] = data["name"].apply(lambda x: re.findall(pattern, x)[0])
         if exchange == "CZCE":
+            # 郑商所的合约规则与其他交易所不一致，譬如，郑商所的苹果合约命名为 AP107
+            # 为了与其他交易所保持一致，这里使用 ts_code 中的规则，即 AP2107
             data["symbol"] = data["ts_code"].map(str).apply(lambda x: x.split(".")[0])
 
         if spec_name:

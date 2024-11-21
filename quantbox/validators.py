@@ -20,31 +20,6 @@
     - functools
     - quantbox.config
     - quantbox.logger
-
-English Version:
----------------
-Data Validation Decorators Module
-
-This module provides decorator functions for data validation and error handling.
-It includes decorators for DataFrame validation and automatic retry mechanisms
-to ensure data integrity and operation reliability.
-
-Features:
-- DataFrame field validation
-- Data type validation
-- Automatic retry on failure
-- Configurable validation rules
-- Comprehensive error logging
-
-Decorators:
-    validate_dataframe: Validate DataFrame structure and content
-    retry: Implement retry logic for failed operations
-
-Dependencies:
-    - pandas
-    - functools
-    - quantbox.config
-    - quantbox.logger
 """
 
 import functools
@@ -77,27 +52,6 @@ def validate_dataframe(collection_name: str) -> Callable:
         - 验证所有必需字段的存在性
         - 自动进行日期字段类型转换
         - 验证失败时返回 None
-
-    English Version:
-    ---------------
-    Decorator for validating DataFrame data.
-
-    This decorator performs validation checks on DataFrame objects returned by
-    the decorated function. It verifies the presence of required fields and
-    performs basic data type validation.
-
-    Args:
-        collection_name: Name of the collection to determine required fields
-            from configuration
-
-    Returns:
-        Callable: Decorator function that wraps the original function
-
-    Note:
-        - Required fields are determined from the configuration file
-        - Validates presence of all required fields
-        - Performs automatic type conversion for date fields
-        - Returns None if validation fails
     """
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
@@ -124,13 +78,11 @@ def validate_dataframe(collection_name: str) -> Callable:
             # 验证和转换数据类型
             try:
                 if 'trade_date' in df.columns:
-                    df['trade_date'] = pd.to_datetime(df['trade_date'])
-                if 'datestamp' in df.columns:
-                    df['datestamp'] = pd.to_datetime(df['datestamp'])
+                    df['trade_date'] = pd.to_datetime(df['trade_date']).dt.strftime("%Y-%m-%d")
                 if 'list_date' in df.columns:
-                    df['list_date'] = pd.to_datetime(df['list_date'])
+                    df['list_date'] = pd.to_datetime(df['list_date']).dt.strftime("%Y-%m-%d")
                 if 'delist_date' in df.columns:
-                    df['delist_date'] = pd.to_datetime(df['delist_date'])
+                    df['delist_date'] = pd.to_datetime(df['delist_date']).dt.strftime("%Y-%m-%d")
             except Exception as e:
                 logger.error(f"{func.__name__} 日期字段转换失败: {str(e)}")
                 return None
@@ -168,7 +120,7 @@ def retry(
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
         def wrapper(*args, **kwargs) -> Any:
-            last_exception = None
+            last_exception = Exception("No error occurred")
 
             for attempt in range(max_attempts):
                 try:

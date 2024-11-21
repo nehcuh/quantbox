@@ -21,7 +21,7 @@ class DataValidator:
     Data validation utility class
     数据验证工具类
     """
-    
+
     @staticmethod
     def validate_dates(
         start_date: Optional[str] = None,
@@ -47,7 +47,7 @@ class DataValidator:
         """
         if cursor_date and (start_date or end_date):
             raise ValueError("Cannot specify both cursor_date and start_date/end_date")
-            
+
         if cursor_date:
             return cursor_date, cursor_date
         return start_date, end_date
@@ -77,63 +77,14 @@ class BaseFetcher(ABC):
     This class defines the standard interface that all data fetchers must implement.
     本类定义了所有数据获取器必须实现的标准接口。
     """
-    
+
     def __init__(self):
         """
         Initialize base fetcher
         初始化基础获取器
         """
         self.validator = DataValidator()
-        
-    def initialize(self) -> None:
-        """
-        Initialize the fetcher with necessary credentials and settings
-        使用必要的凭证和设置初始化获取器
-        """
-        pass
-        
-    def fetch_get_holdings(
-        self,
-        exchanges: Union[List[str], str, None] = None,
-        cursor_date: Optional[str] = None,
-        start_date: Optional[str] = None,
-        end_date: Optional[str] = None,
-        symbols: Optional[List[str]] = None,
-    ) -> pd.DataFrame:
-        """
-        Fetch holdings data
-        获取持仓数据
 
-        Args:
-            exchanges: List of exchanges or single exchange / 交易所列表或单个交易所
-            cursor_date: Single reference date / 单个参考日期
-            start_date: Start date for range query / 范围查询的开始日期
-            end_date: End date for range query / 范围查询的结束日期
-            symbols: List of symbols to query / 要查询的交易代码列表
-
-        Returns:
-            DataFrame containing holdings data / 包含持仓数据的DataFrame
-        """
-        raise NotImplementedError("This method should be implemented by subclasses that fetch data from external sources.")
-
-    def fetch_get_future_contracts(
-        self,
-        exchanges: Union[List[str], str, None] = None,
-        symbols: Optional[List[str]] = None
-    ) -> pd.DataFrame:
-        """
-        Fetch future contracts information
-        获取期货合约信息
-
-        Args:
-            exchanges: List of exchanges or single exchange / 交易所列表或单个交易所
-            symbols: List of symbols to query / 要查询的交易代码列表
-
-        Returns:
-            DataFrame containing future contracts data / 包含期货合约数据的DataFrame
-        """
-        raise NotImplementedError("This method should be implemented by subclasses that fetch data from external sources.")
-        
     def _format_response(
         self,
         data: pd.DataFrame,
@@ -155,12 +106,12 @@ class BaseFetcher(ABC):
         """
         if data.empty:
             return pd.DataFrame(columns=required_columns)
-            
+
         # Ensure all required columns exist / 确保所有必需列都存在
         missing_cols = set(required_columns) - set(data.columns)
         if missing_cols:
             raise ValueError(f"Missing required columns: {missing_cols}")
-            
+
         return data[required_columns]
 
     def _handle_error(self, error: Exception, context: str) -> None:
