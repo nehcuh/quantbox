@@ -79,8 +79,8 @@ def main():
     saver.save_future_holdings(engine=engine)
 
     # 保存期货日线数据
-    print("正在保存期货日线数据...")
-    saver.save_future_daily()
+    # print("正在保存期货日线数据...")
+    # saver.save_future_daily()
 
     print("数据保存完成！")
 
