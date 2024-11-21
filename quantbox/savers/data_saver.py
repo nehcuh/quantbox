@@ -136,6 +136,10 @@ class MarketDataSaver:
                 else:
                     latest_date = start_date
                     logger.info(f"交易所 {exchange} 无历史数据，从 {start_date} 开始获取")
+                
+                if pd.Timestamp(latest_date) >= pd.Timestamp.today():
+                    logger.info(f"交易所 {exchange} 已经保存当年度交易日期数据，跳过")
+                    continue
 
                 # 根据数据源获取数据
                 if engine == "ts":

@@ -7,7 +7,7 @@ import platform
 import warnings
 
 if platform.system() != 'Darwin':  # Not macOS
-    from gm.api import get_symbol_infos, set_token, fut_get_transaction_rankings, history_n, get_trading_dates
+    from gm.api import get_symbol_infos, set_token, fut_get_transaction_rankings, history_n, get_trading_dates_by_year
 else:
     warnings.warn("GoldMiner API is not supported on macOS")
     get_symbol_infos = None
@@ -249,9 +249,7 @@ class GMFetcher(BaseFetcher):
                         if not holdings.empty:
                             # Add exchange information
                             holdings['exchange'] = exchange
-                            holdings['datestamp'] = util_make_date_stamp(
-                                holdings['trade_date']
-                            )
+                            holdings['datestamp'] = holdings['trade_date'].map(str).apply(lambda x: util_make_date_stamp(x))
                             total_holdings = pd.concat(
                                 [total_holdings, holdings],
                                 ignore_index=True
