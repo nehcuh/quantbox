@@ -104,52 +104,32 @@ class GMFetcher(BaseFetcher):
         """
         # If already has exchange prefix, return as is
         if '.' in symbol:
-            return symbol.upper()
-
-        # Handle virtual contracts (uppercase symbols)
-        if symbol.isupper():
-            # Map common product codes to exchanges
-            exchange_map = {
-                'IF': 'CFFEX', 'IC': 'CFFEX', 'IH': 'CFFEX', 'IM': 'CFFEX',  # Stock index
-                'T': 'CFFEX', 'TF': 'CFFEX', 'TS': 'CFFEX',  # Treasury
-                'RB': 'SHFE', 'CU': 'SHFE', 'AL': 'SHFE', 'ZN': 'SHFE',  # SHFE products
-                'M': 'DCE', 'C': 'DCE', 'Y': 'DCE', 'P': 'DCE',  # DCE products
-                'SR': 'CZCE', 'CF': 'CZCE', 'CY': 'CZCE', 'TA': 'CZCE',  # CZCE products
-                'SC': 'INE',  # INE products
-                'LC': 'GFEX'  # GFEX products
-            }
-
-            # Extract product code (e.g., 'RB' from 'RB00')
-            product = symbol[:2] if any(c.isdigit() for c in symbol[2:]) else symbol
-            exchange = exchange_map.get(product, 'SHFE')  # Default to SHFE if unknown
-            return f"{exchange}.{symbol}"
+            exchange = symbol.split(".")[0]
+            contract = symbol.split(".")[1]
+            if exchange == "CZCE":
+                if len(contract) > 4 and contract[2:6].isdigit():
+                    contract = contract[:2] + contract[3:]
+                    return f"{exchange}.{contract}".upper()
+                else:
+                    return f"{exchange}.{contract}".upper()
+            else:
+                return exchange + "." + contract.lower()
 
         # Handle regular contracts (lowercase symbols)
-        exchange_map = {
-            # CFFEX
-            ('IF', 'IC', 'IH', 'IM', 'T', 'TF', 'TS'): 'CFFEX',
-            # SHFE
-            ('cu', 'al', 'zn', 'pb', 'ni', 'sn', 'au', 'ag', 'rb', 'wr', 'hc', 'ss', 'bu', 'ru', 'nr', 'sp'): 'SHFE',
-            # DCE
-            ('c', 'm', 'y', 'p', 'l', 'v', 'pp', 'j', 'jm', 'i', 'eg', 'rr', 'eb', 'pg'): 'DCE',
-            # CZCE - Note: CZCE contracts usually use uppercase
-            ('SR', 'CF', 'CY', 'TA', 'OI', 'MA', 'FG', 'RM', 'ZC', 'SF', 'SM'): 'CZCE',
-            # INE
-            ('sc', 'lu', 'nr', 'bc'): 'INE',
-            # GFEX
-            ('lc',): 'GFEX'
-        }
-
-        # Find matching exchange based on symbol prefix
-        for products, exchange in exchange_map.items():
-            if any(symbol.lower().startswith(prod.lower()) for prod in products):
-                # CZCE contracts should be uppercase
-                if exchange == 'CZCE':
-                    symbol = symbol.upper()
-                return f"{exchange}.{symbol}"
-
-        # Default to SHFE if no match found
-        return f"SHFE.{symbol}"
+        fut_code = re.match(r'([A-Za-z]+)', symbol).group(1).upper()
+        coll = DATABASE.future_contracts
+        result = coll.find_one({'fut_code': fut_code})
+        if result is None:
+            raise ValueError(f"{symbol} 找不到相应交易所")
+        exchange = result["exchange"]
+        if exchange == "CZCE":
+            if len(symbol) > 4 and symbol[2:6].isdigit():
+                contract = symbol[:2] + symbol[3:]
+                return f"{exchange}.{contract}".upper()
+            else:
+                return f"{exchange}.{symbol}".upper()
+        else:
+            return exchange + "." + symbol.lower()
 
     def fetch_get_holdings(
         self,
@@ -205,12 +185,30 @@ class GMFetcher(BaseFetcher):
             if isinstance(symbols, str):
                 symbols = symbols.split(",")
 
-            # Process each exchange
-            for exchange in exchanges:
-                try:
-                    # Get symbols for this exchange if not provided
-                    exchange_symbols = symbols
-                    if not exchange_symbols:
+            if symbols is not None:
+                formatted_symbols = [self._format_symbol(symbol) for symbol in symbols]
+                batch_size = 50  # Adjust based on API limits
+                for i in range(0, len(formatted_symbols), batch_size):
+                    batch_symbols = formatted_symbols[i:i + batch_size]
+
+                    holdings = fut_get_transaction_rankings(
+                        symbols=batch_symbols,
+                        trade_date=cursor_date or end_date,
+                        indicators="volume,long,short"
+                    )
+
+                    if not holdings.empty:
+                        # Add exchange information
+                        holdings['exchange'] = holdings.symbol.apply(lambda x: x.split(".")[0])
+                        holdings['datestamp'] = holdings['trade_date'].map(str).apply(lambda x: util_make_date_stamp(x))
+                        total_holdings = pd.concat(
+                            [total_holdings, holdings],
+                            ignore_index=True
+                        )
+            else:
+                # Process each exchange
+                for exchange in exchanges:
+                    try:
                         # 使用本地数据库获取合约信息
                         local_fetcher = LocalFetcher()
                         contracts = local_fetcher.fetch_future_contracts(
@@ -218,60 +216,37 @@ class GMFetcher(BaseFetcher):
                             cursor_date=cursor_date or end_date
                         )
                         if not contracts.empty:
-                            exchange_symbols = contracts['symbol'].tolist()
+                            exchange_symbols = (contracts['exchange'] + '.' + contracts['symbol']).tolist()
 
-                    if not exchange_symbols:
-                        continue
+                        # Format symbols for API - ensure proper case for each exchange
+                        formatted_symbols = [self._format_symbol(symbol) for symbol in exchange_symbols]
 
-                    # Format symbols for API - ensure proper case for each exchange
-                    formatted_symbols = []
-                    for symbol in exchange_symbols:
-                        # Remove any existing exchange suffix
-                        base_symbol = symbol.split('.')[0] if '.' in symbol else symbol
+                        # Fetch data in batches to avoid API limits
+                        batch_size = 50  # Adjust based on API limits
+                        for i in range(0, len(formatted_symbols), batch_size):
+                            batch_symbols = formatted_symbols[i:i + batch_size]
 
-                        # Format based on exchange rules
-                        if exchange == 'CZCE':
-                            # CZCE uses uppercase
-                            formatted_symbol = f"{exchange}.{base_symbol.upper()}"
-                        else:
-                            # Other exchanges use lowercase
-                            formatted_symbol = f"{exchange}.{base_symbol.lower()}"
-
-                        formatted_symbols.append(formatted_symbol)
-
-                    # Fetch data in batches to avoid API limits
-                    batch_size = 50  # Adjust based on API limits
-                    for i in range(0, len(formatted_symbols), batch_size):
-                        batch_symbols = formatted_symbols[i:i + batch_size]
-
-                        holdings = fut_get_transaction_rankings(
-                            symbols=batch_symbols,
-                            trade_date=cursor_date or end_date,
-                            indicators="volume,long,short"
-                        )
-
-                        if not holdings.empty:
-                            # Add exchange information
-                            holdings['exchange'] = exchange
-                            holdings['datestamp'] = holdings['trade_date'].map(str).apply(lambda x: util_make_date_stamp(x))
-                            total_holdings = pd.concat(
-                                [total_holdings, holdings],
-                                ignore_index=True
+                            holdings = fut_get_transaction_rankings(
+                                symbols=batch_symbols,
+                                trade_date=cursor_date or end_date,
+                                indicators="volume,long,short"
                             )
 
-                except Exception as e:
-                    self._handle_error(
-                        e,
-                        f"fetching holdings for exchange {exchange}"
-                    )
+                            if not holdings.empty:
+                                # Add exchange information
+                                holdings['exchange'] = holdings.symbol.apply(lambda x: x.split(".")[0])
+                                holdings['datestamp'] = holdings['trade_date'].map(str).apply(lambda x: util_make_date_stamp(x))
+                                total_holdings = pd.concat(
+                                    [total_holdings, holdings],
+                                    ignore_index=True
+                                )
 
-            # Validate and format final response
-            # required_columns = [
-            #     'trade_date', 'symbol', 'exchange',
-            #     'datestamp', 'volume', 'long', 'short'
-            # ]
+                    except Exception as e:
+                        self._handle_error(
+                            e,
+                            f"fetching holdings for exchange {exchange}"
+                        )
             return self._convert_gm_holdings_to_tushare_format(total_holdings)
-            # return self._format_response(total_holdings, required_columns)
 
         except Exception as e:
             self._handle_error(e, "fetch_get_holdings")
@@ -311,30 +286,30 @@ class GMFetcher(BaseFetcher):
         # Remove exchange prefix from symbol and '（代客）' from broker names
         df['symbol'] = df['symbol'].str.split('.').str[1].str.upper()
         df['broker'] = df['member_name'].str.replace('（代客）', '')
-    
+
         # Create separate dataframes for volume, long and short positions
         vol_df = df[df['indicator'] == 'volume'].copy()
         long_df = df[df['indicator'] == 'long'].copy()
         short_df = df[df['indicator'] == 'short'].copy()
-    
+
         # Rename columns for volume data
         vol_df = vol_df.rename(columns={
             'indicator_number': 'vol',
             'indicator_change': 'vol_chg'
         })[['trade_date', 'symbol', 'broker', 'vol', 'vol_chg', 'exchange', 'datestamp']]
-    
+
         # Rename columns for long position data
         long_df = long_df.rename(columns={
             'indicator_number': 'long_hld',
             'indicator_change': 'long_chg'
         })[['trade_date', 'symbol', 'broker', 'long_hld', 'long_chg']]
-    
+
         # Rename columns for short position data
         short_df = short_df.rename(columns={
             'indicator_number': 'short_hld',
             'indicator_change': 'short_chg'
         })[['trade_date', 'symbol', 'broker', 'short_hld', 'short_chg']]
-    
+
         # Merge all dataframes
         result = pd.merge(
             vol_df,
@@ -342,14 +317,14 @@ class GMFetcher(BaseFetcher):
             on=['trade_date', 'symbol', 'broker'],
             how='outer'
         )
-    
+
         result = pd.merge(
             result,
             short_df,
             on=['trade_date', 'symbol', 'broker'],
             how='outer'
         )
-    
+
         # Ensure all numeric columns are float type
         numeric_columns = ['vol', 'vol_chg', 'long_hld', 'long_chg', 'short_hld', 'short_chg']
         for col in numeric_columns:
@@ -358,7 +333,7 @@ class GMFetcher(BaseFetcher):
 
         # Sort by volume (descending) and fill any missing values with NaN
         result = result.sort_values(['trade_date', 'symbol', 'vol'], ascending=[True, True, False])
-    
+
         # Reorder columns to match Tushare format
         columns = [
             'trade_date', 'symbol', 'broker', 'vol', 'vol_chg',
@@ -367,8 +342,8 @@ class GMFetcher(BaseFetcher):
         ]
         result.loc[:, 'exchange'] = result['exchange'].ffill()
         result.loc[:, 'datestamp'] = result['datestamp'].ffill()
-    
-        return result[columns] 
+
+        return result[columns]
 
     def fetch_get_trade_dates(
         self,
@@ -736,4 +711,5 @@ class GMFetcher(BaseFetcher):
 
 if __name__ == "__main__":
     gm_fetcher = GMFetcher()
-    df2 = gm_fetcher.fetch_get_holdings(cursor_date="2024-11-21", symbols="M2501")
+    # df2 = gm_fetcher.fetch_get_holdings(cursor_date="2024-11-21", symbols="M2501")
+    df = gm_fetcher.fetch_get_holdings(cursor_date="2024-11-21", symbols="AP2501")
