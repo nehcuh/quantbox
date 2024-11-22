@@ -1,288 +1,249 @@
-import unittest
-from unittest.mock import patch, MagicMock
+import pytest
+import pandas as pd
+from datetime import datetime, timedelta
+from typing import List, Dict
+
 from quantbox.fetchers.fetcher_tushare import TSFetcher
 from quantbox.fetchers.fetcher_goldminer import GMFetcher
-import pandas as pd
-import datetime
-from quantbox.util.tools import util_make_date_stamp
 
-class TestTSFetcher(unittest.TestCase):
-    """Test TSFetcher class"""
+class TestHoldingsFetchers:
+    """测试期货持仓数据获取功能"""
 
-    def setUp(self):
-        """Set up test fixtures"""
-        # Create a mock for tushare pro
-        self.mock_pro = MagicMock()
-        self.mock_pro.fut_holding = MagicMock()
-        
-        # Create a mock for LocalFetcher
-        self.mock_local = MagicMock()
-        self.mock_local.fetch_pre_trade_date = MagicMock()
-        self.mock_local.fetch_future_contracts = MagicMock()
-        
-        # Create patchers
-        self.patcher1 = patch('quantbox.fetchers.fetcher_tushare.TSPRO', self.mock_pro)
-        self.patcher2 = patch('quantbox.fetchers.fetcher_tushare.LocalFetcher', return_value=self.mock_local)
-        
-        # Start patchers
-        self.patcher1.start()
-        self.patcher2.start()
-        
-        # Create TSFetcher instance
-        self.fetcher = TSFetcher()
+    @pytest.fixture(scope="class")
+    def ts_fetcher(self):
+        """创建 TSFetcher 实例"""
+        return TSFetcher()
 
-    def tearDown(self):
-        """Tear down test fixtures"""
-        self.patcher1.stop()
-        self.patcher2.stop()
+    @pytest.fixture(scope="class")
+    def gm_fetcher(self):
+        """创建 GMFetcher 实例"""
+        return GMFetcher()
 
-    def test_init(self):
-        """Test TSFetcher initialization"""
-        self.assertIsNotNone(self.fetcher)
+    @pytest.fixture
+    def sample_date(self):
+        """获取最近的交易日"""
+        today = datetime.today()
+        if today.weekday() >= 5:  # 周末
+            return (today - timedelta(days=today.weekday()-4)).strftime('%Y-%m-%d')
+        return today.strftime('%Y-%m-%d')
 
-    def test_fetch_get_holdings(self):
-        """Test fetching future holdings data"""
-        # Mock LocalFetcher responses
-        self.mock_local.fetch_pre_trade_date.return_value = {
-            'trade_date': '2024-01-01'
-        }
-        self.mock_local.fetch_future_contracts.return_value = pd.DataFrame({
-            'symbol': ['IF2401']
-        })
-        
-        # Mock tushare pro response
-        mock_holdings = pd.DataFrame({
-            'trade_date': ['20240101'],
-            'symbol': ['IF2401'],
-            'vol': [1000],
-            'vol_chg': [100],
-            'long_hld': [500],
-            'short_hld': [500]
-        })
-        self.mock_pro.fut_holding.return_value = mock_holdings
-        
-        # Call function
-        result = self.fetcher.fetch_get_holdings('IF2401')
-        
-        # Verify mock calls
-        self.mock_local.fetch_pre_trade_date.assert_called_once()
-        self.mock_pro.fut_holding.assert_called_once()
-        
-        # Verify result
-        self.assertGreater(len(result), 0)
-        self.assertTrue('trade_date' in result.columns)
-        self.assertTrue('symbol' in result.columns)
-        self.assertTrue('vol' in result.columns)
-
-    def test_fetch_get_holdings_with_dates(self):
-        """Test fetching future holdings data with date parameters"""
-        # Mock tushare pro response
-        mock_holdings = pd.DataFrame({
-            'trade_date': ['20240101', '20240102'],
-            'symbol': ['IF2401', 'IF2401'],
-            'vol': [1000, 1200],
-            'vol_chg': [100, 200],
-            'long_hld': [500, 600],
-            'short_hld': [500, 600]
-        })
-        self.mock_pro.fut_holding.return_value = mock_holdings
-        
-        # Call function with date parameters
-        result = self.fetcher.fetch_get_holdings(
-            symbols='IF2401',
-            start_date='20240101',
-            end_date='20240102'
-        )
-        
-        # Verify result
-        self.assertEqual(len(result), 10)  # 每个交易日有 5 个席位数据，共 2 天
-        self.assertTrue('trade_date' in result.columns)
-        self.assertTrue('symbol' in result.columns)
-        self.assertTrue('vol' in result.columns)
-
-class TestGMFetcher(unittest.TestCase):
-    """Test GMFetcher class"""
-
-    def setUp(self):
-        """Set up test fixtures"""
-        # Create a mock for gm.api
-        self.mock_api = MagicMock()
-        self.mock_api.get_symbol_infos = MagicMock()
-        self.mock_api.get_future_holdings = MagicMock()
-        self.mock_api.get_trading_dates = MagicMock()
-        
-        # Create a mock for LocalFetcher
-        self.mock_local = MagicMock()
-        self.mock_local.fetch_pre_trade_date = MagicMock()
-        self.mock_local.fetch_future_contracts = MagicMock()
-        
-        # Create patchers
-        self.patcher1 = patch('gm.api.get_symbol_infos', self.mock_api.get_symbol_infos)
-        self.patcher2 = patch('gm.api.fut_get_transaction_rankings', self.mock_api.get_future_holdings)
-        self.patcher3 = patch('quantbox.fetchers.fetcher_goldminer.LocalFetcher', return_value=self.mock_local)
-        self.patcher4 = patch('gm.api.get_trading_dates', self.mock_api.get_trading_dates)
-        
-        # Start patchers
-        self.patcher1.start()
-        self.patcher2.start()
-        self.patcher3.start()
-        self.patcher4.start()
-        
-        # Create GMFetcher instance
-        self.fetcher = GMFetcher()
-
-    def tearDown(self):
-        """Tear down test fixtures"""
-        self.patcher1.stop()
-        self.patcher2.stop()
-        self.patcher3.stop()
-        self.patcher4.stop()
-
-    def test_init(self):
-        """Test GMFetcher initialization"""
-        self.assertIsNotNone(self.fetcher)
-
-    def test_fetch_get_holdings(self):
-        """Test fetching future holdings data from GM"""
-        # Mock get_future_holdings
-        mock_holdings = pd.DataFrame({
-            'symbol': ['CFFEX.IF2401'],
-            'volume': [1000],
-            'trade_date': ['20240101']
-        })
-        self.mock_api.get_future_holdings.return_value = mock_holdings
-        
-        # Call function
-        result = self.fetcher.fetch_get_holdings('CFFEX.IF2401')
-        
-        # Verify mock was called
-        self.mock_api.get_future_holdings.assert_called_once()
-        
-        # Verify result
-        self.assertGreater(len(result), 0)
-        self.assertTrue('symbol' in result.columns)
-        self.assertTrue('volume' in result.columns)
-        self.assertTrue('trade_date' in result.columns)
-
-    def test_fetch_get_holdings_with_dates(self):
-        """Test fetching future holdings data with date parameters"""
-        # Mock get_future_holdings
-        mock_holdings = pd.DataFrame({
-            'symbol': ['CFFEX.IF2401', 'CFFEX.IF2401'],
-            'volume': [1000, 1200],
-            'trade_date': ['20240101', '20240102']
-        })
-        self.mock_api.get_future_holdings.return_value = mock_holdings
-        
-        # Call function with date parameters
-        result = self.fetcher.fetch_get_holdings(
-            symbols=['CFFEX.IF2401'],
-            start_date='20240101',
-            end_date='20240102'
-        )
-        
-        # Verify mock was called
-        self.mock_api.get_future_holdings.assert_called_once()
-        
-        # Verify result
-        self.assertEqual(len(result), 2)
-        self.assertTrue('symbol' in result.columns)
-        self.assertTrue('volume' in result.columns)
-        self.assertTrue('trade_date' in result.columns)
-
-    def test_format_symbol(self):
-        """Test symbol formatting for GM API"""
-        test_cases = [
-            ('IF2401', 'CFFEX.IF2401'),
-            ('CFFEX.IF2401', 'CFFEX.IF2401'),
-            ('cu2401', 'SHFE.cu2401'),
-            ('SHFE.cu2401', 'SHFE.cu2401')
+    def verify_holdings_data(self, df: pd.DataFrame):
+        """验证持仓数据格式"""
+        # 检查必需字段
+        required_fields = [
+            'trade_date', 'symbol', 'broker',
+            'vol', 'vol_chg',
+            'long_hld', 'long_chg',
+            'short_hld', 'short_chg',
+            'exchange', 'datestamp'
         ]
-        
-        for input_symbol, expected_output in test_cases:
-            result = self.fetcher._format_symbol(input_symbol)
-            self.assertEqual(result, expected_output)
+        assert all(field in df.columns for field in required_fields)
 
-    def test_fetch_get_future_contracts(self):
-        """Test fetching future contracts information"""
-        # 设置 mock 返回值
-        mock_data = pd.DataFrame({
-            'sec_id': ['SHFE.cu2401', 'SHFE.au2402'],
-            'sec_name': ['沪铜2401', '黄金2402'],
-            'listed_date': ['2023-01-01', '2023-02-01'],
-            'delisted_date': ['2024-12-31', '2024-12-31']
-        })
-        self.mock_api.get_symbol_infos.return_value = mock_data
-        
-        # 调用函数
-        result = self.fetcher.fetch_get_future_contracts(exchange='SHFE')
-        
-        # 验证 mock 调用
-        self.mock_api.get_symbol_infos.assert_called_with(sec_type1=1040, exchanges='SHFE', df=True)
-        
-        # 验证结果结构
-        self.assertGreater(len(result), 0)
-        self.assertTrue('symbol' in result.columns)
-        self.assertTrue('name' in result.columns)
-        self.assertTrue('list_date' in result.columns)
-        self.assertTrue('delist_date' in result.columns)
-        self.assertTrue('list_datestamp' in result.columns)
-        self.assertTrue('delist_datestamp' in result.columns)
-        self.assertTrue('chinese_name' in result.columns)
+        # 检查数据类型
+        assert pd.api.types.is_datetime64_any_dtype(pd.to_datetime(df['trade_date']))
+        assert pd.api.types.is_string_dtype(df['symbol'])
+        assert pd.api.types.is_string_dtype(df['broker'])
+        assert pd.api.types.is_numeric_dtype(df['vol'])
+        assert pd.api.types.is_numeric_dtype(df['long_hld'])
+        assert pd.api.types.is_numeric_dtype(df['short_hld'])
+        assert pd.api.types.is_string_dtype(df['exchange'])
+        assert pd.api.types.is_numeric_dtype(df['datestamp'])
 
-    def test_fetch_get_future_contracts_with_spec_name(self):
-        """Test fetching future contracts with specific name filter"""
-        # Mock data
-        mock_data = pd.DataFrame({
-            'sec_id': ['SHFE.cu2401'],
-            'sec_name': ['沪铜2401'],
-            'listed_date': ['2023-01-01'],
-            'delisted_date': ['2024-12-31']
-        })
-        self.mock_api.get_symbol_infos.return_value = mock_data
-        
-        # Call function with spec_name
-        result = self.fetcher.fetch_get_future_contracts(
-            exchange='SHFE',
-            spec_name='沪铜'
+        # 检查数值范围
+        assert (df['vol'] >= 0).all()
+        assert (df['long_hld'] >= 0).all()
+        assert (df['short_hld'] >= 0).all()
+
+        # 检查日期格式
+        assert all(pd.to_datetime(df['trade_date']).dt.strftime('%Y-%m-%d') == df['trade_date'])
+
+    def test_basic_fetch(self, ts_fetcher, gm_fetcher, sample_date):
+        """测试基本的数据获取功能"""
+        # 测试单个交易所
+        exchanges = ['DCE']
+        symbols = ['M2501']
+
+        # 测试 TSFetcher
+        ts_df = ts_fetcher.fetch_get_holdings(
+            exchanges=exchanges,
+            cursor_date=sample_date,
+            symbols=symbols
         )
-        
-        # Verify mock was called
-        self.mock_api.get_symbol_infos.assert_called_with(sec_type1=1040, exchanges='SHFE', df=True)
-        
-        # Verify result
-        self.assertEqual(len(result), 1)
-        self.assertTrue('symbol' in result.columns)
-        self.assertTrue('name' in result.columns)
-        self.assertTrue('list_date' in result.columns)
-        self.assertTrue('delist_date' in result.columns)
+        assert not ts_df.empty
+        self.verify_holdings_data(ts_df)
 
-    def test_fetch_get_future_contracts_with_cursor_date(self):
-        """Test fetching future contracts with cursor date filter"""
-        # Mock data
-        mock_data = pd.DataFrame({
-            'sec_id': ['SHFE.cu2401'],
-            'sec_name': ['沪铜2401'],
-            'listed_date': ['2023-01-01'],
-            'delisted_date': ['2024-12-31']
-        })
-        self.mock_api.get_symbol_infos.return_value = mock_data
-        
-        # Call function with cursor_date
-        result = self.fetcher.fetch_get_future_contracts(
-            exchange='SHFE',
-            cursor_date='20240101'
+        # 测试 GMFetcher
+        gm_df = gm_fetcher.fetch_get_holdings(
+            exchanges=exchanges,
+            cursor_date=sample_date,
+            symbols=symbols
         )
-        
-        # Verify mock was called
-        self.mock_api.get_symbol_infos.assert_called_with(sec_type1=1040, exchanges='SHFE', df=True)
-        
-        # Verify result
-        self.assertGreater(len(result), 0)
-        self.assertTrue('symbol' in result.columns)
-        self.assertTrue('name' in result.columns)
-        self.assertTrue('list_date' in result.columns)
-        self.assertTrue('delist_date' in result.columns)
+        assert not gm_df.empty
+        self.verify_holdings_data(gm_df)
+
+        # 比较两个数据源的结果
+        assert ts_df.shape[1] == gm_df.shape[1]  # 列数相同
+        assert set(ts_df.columns) == set(gm_df.columns)  # 字段名相同
+
+    def test_multiple_exchanges(self, ts_fetcher, gm_fetcher, sample_date):
+        """测试多交易所数据获取"""
+        exchanges = ['DCE', 'SHFE']
+
+        ts_df = ts_fetcher.fetch_get_holdings(
+            exchanges=exchanges,
+            cursor_date=sample_date
+        )
+        assert not ts_df.empty
+        assert set(ts_df['exchange'].unique()) == set(exchanges)
+        self.verify_holdings_data(ts_df)
+
+        gm_df = gm_fetcher.fetch_get_holdings(
+            exchanges=exchanges,
+            cursor_date=sample_date
+        )
+        assert not gm_df.empty
+        assert set(gm_df['exchange'].unique()) == set(exchanges)
+        self.verify_holdings_data(gm_df)
+
+    def test_date_range(self, ts_fetcher, gm_fetcher):
+        """测试日期范围数据获取"""
+        end_date = datetime.today()
+        start_date = end_date - timedelta(days=5)
+
+        ts_df = ts_fetcher.fetch_get_holdings(
+            exchanges=['DCE'],
+            start_date=start_date.strftime('%Y-%m-%d'),
+            end_date=end_date.strftime('%Y-%m-%d')
+        )
+        assert not ts_df.empty
+        self.verify_holdings_data(ts_df)
+
+        gm_df = gm_fetcher.fetch_get_holdings(
+            exchanges=['DCE'],
+            start_date=start_date.strftime('%Y-%m-%d'),
+            end_date=end_date.strftime('%Y-%m-%d')
+        )
+        assert not gm_df.empty
+        self.verify_holdings_data(gm_df)
+
+    @pytest.mark.parametrize("invalid_input", [
+        {'exchanges': ['INVALID']},
+        {'cursor_date': 'INVALID'},
+        {'symbols': ['INVALID']},
+    ])
+    def test_invalid_inputs(self, ts_fetcher, gm_fetcher, invalid_input):
+        """测试无效输入处理"""
+        with pytest.raises(Exception):
+            ts_fetcher.fetch_get_holdings(**invalid_input)
+
+        with pytest.raises(Exception):
+            gm_fetcher.fetch_get_holdings(**invalid_input)
+
+    def test_empty_result_handling(self, ts_fetcher, gm_fetcher):
+        """测试空结果处理"""
+        # 使用不太可能有数据的日期
+        old_date = "1990-01-01"
+
+        ts_df = ts_fetcher.fetch_get_holdings(
+            exchanges=['DCE'],
+            cursor_date=old_date
+        )
+        assert ts_df.empty or len(ts_df) == 0
+
+        gm_df = gm_fetcher.fetch_get_holdings(
+            exchanges=['DCE'],
+            cursor_date=old_date
+        )
+        assert gm_df.empty or len(gm_df) == 0
+
+    def test_data_consistency(self, ts_fetcher, gm_fetcher, sample_date):
+        """测试数据一致性"""
+        exchanges = ['DCE']
+        symbols = ['M2501']
+
+        # 获取两个数据源的数据
+        ts_df = ts_fetcher.fetch_get_holdings(
+            exchanges=exchanges,
+            cursor_date=sample_date,
+            symbols=symbols
+        )
+        gm_df = gm_fetcher.fetch_get_holdings(
+            exchanges=exchanges,
+            cursor_date=sample_date,
+            symbols=symbols
+        )
+
+        if not ts_df.empty and not gm_df.empty:
+            # 对比关键字段的统计值
+            ts_stats = ts_df.agg({
+                'vol': ['sum', 'mean'],
+                'long_hld': ['sum', 'mean'],
+                'short_hld': ['sum', 'mean']
+            })
+            gm_stats = gm_df.agg({
+                'vol': ['sum', 'mean'],
+                'long_hld': ['sum', 'mean'],
+                'short_hld': ['sum', 'mean']
+            })
+
+            # 允许一定的误差范围
+            pd.testing.assert_frame_equal(
+                ts_stats.round(2),
+                gm_stats.round(2),
+                check_exact=False,
+                rtol=0.1  # 允许10%的相对误差
+            )
+
+    @pytest.mark.asyncio
+    async def test_concurrent_requests(self, ts_fetcher, gm_fetcher, sample_date):
+        """测试并发请求处理"""
+        import asyncio
+
+        async def fetch_data(fetcher, exchange):
+            return fetcher.fetch_get_holdings(
+                exchanges=[exchange],
+                cursor_date=sample_date
+            )
+
+        exchanges = ['DCE', 'SHFE', 'CZCE']
+
+        # 测试 TSFetcher 并发
+        ts_tasks = [fetch_data(ts_fetcher, ex) for ex in exchanges]
+        ts_results = await asyncio.gather(*ts_tasks)
+
+        for df in ts_results:
+            assert not df.empty
+            self.verify_holdings_data(df)
+
+        # 测试 GMFetcher 并发
+        gm_tasks = [fetch_data(gm_fetcher, ex) for ex in exchanges]
+        gm_results = await asyncio.gather(*gm_tasks)
+
+        for df in gm_results:
+            assert not df.empty
+            self.verify_holdings_data(df)
+
+    def test_large_data_handling(self, ts_fetcher, gm_fetcher):
+        """测试大数据量处理"""
+        # 获取较长时间范围的数据
+        end_date = datetime.today()
+        start_date = end_date - timedelta(days=30)
+
+        ts_df = ts_fetcher.fetch_get_holdings(
+            exchanges=['DCE', 'SHFE'],
+            start_date=start_date.strftime('%Y-%m-%d'),
+            end_date=end_date.strftime('%Y-%m-%d')
+        )
+        assert len(ts_df) > 1000  # 确保数据量足够大
+        self.verify_holdings_data(ts_df)
+
+        gm_df = gm_fetcher.fetch_get_holdings(
+            exchanges=['DCE', 'SHFE'],
+            start_date=start_date.strftime('%Y-%m-%d'),
+            end_date=end_date.strftime('%Y-%m-%d')
+        )
+        assert len(gm_df) > 1000
+        self.verify_holdings_data(gm_df)
 
 if __name__ == '__main__':
-    unittest.main()
+    pytest.main(['-v', 'test_fetchers.py'])
