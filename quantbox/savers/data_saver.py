@@ -19,17 +19,17 @@
     - quantbox.util
     - quantbox.config
     - quantbox.logger
-    - quantbox.validators
 """
 
 from typing import List, Union, Optional
 import datetime
 import time
-
+import platform
 import pandas as pd
 import pymongo
 
-from quantbox.fetchers.fetcher_goldminer import GMFetcher
+if platform.system() != 'Darwin':  # Not macOS
+    from quantbox.fetchers.fetcher_goldminer import GMFetcher
 from quantbox.fetchers.fetcher_tushare import TSFetcher
 from quantbox.fetchers.local_fetcher import LocalFetcher, fetch_next_trade_date
 from quantbox.util.basic import DATABASE, EXCHANGES, FUTURE_EXCHANGES, STOCK_EXCHANGES
@@ -41,7 +41,7 @@ from quantbox.util.tools import (
 )
 from quantbox.config import load_config
 from quantbox.logger import setup_logger
-from quantbox.validators import validate_dataframe, retry
+from quantbox.validators import retry
 
 
 logger = setup_logger(__name__)
@@ -79,13 +79,16 @@ class MarketDataSaver:
         设置数据获取器、数据库客户端和配置。
         """
         self.ts_fetcher = TSFetcher()
-        self.gm_fetcher = GMFetcher()
+        if platform.system() != 'Darwin':  # Not macOS
+            self.gm_fetcher = GMFetcher()
+        else:
+            self.gm_fetcher = None
         self.local_fetcher = LocalFetcher()
         self.client = DATABASE
         self.config = load_config()
-        self.exchanges = EXCHANGES
-        self.future_exchanges = FUTURE_EXCHANGES
-        self.stock_exchanges = STOCK_EXCHANGES
+        self.exchanges = EXCHANGES.copy()
+        self.future_exchanges = FUTURE_EXCHANGES.copy()
+        self.stock_exchanges = STOCK_EXCHANGES.copy()
 
     @retry(max_attempts=3, delay=60)
     def save_trade_dates(self, start_date: Optional[str] = None, engine: str = "ts"):
@@ -106,6 +109,10 @@ class MarketDataSaver:
         """
         logger.info(f"开始保存交易日期数据 (数据源: {'Tushare' if engine == 'ts' else '掘金量化'})")
         collections = self.client.trade_date
+
+        if engine == "gm" and platform.system() == 'Darwin':
+            logger.warning("GoldMiner API is not supported on macOS, falling back to TuShare")
+            engine = "ts"
 
         try:
             # 创建索引
@@ -172,7 +179,6 @@ class MarketDataSaver:
         logger.info(f"交易日期数据保存完成，总共新增 {total_inserted} 条数据")
 
     @retry(max_attempts=3, delay=60)
-    @validate_dataframe(collection_name='future_contracts')
     def save_future_contracts(self, batch_size: Optional[int] = None):
         """
         保存期货合约信息到本地数据库。
@@ -270,7 +276,6 @@ class MarketDataSaver:
         logger.info(f"期货合约信息保存完成，总共新增 {total_inserted} 个合约")
 
     @retry(max_attempts=3, delay=60)
-    @validate_dataframe(collection_name='future_holdings')
     def save_future_holdings(
         self,
         exchanges: Union[str, List[str], None] = None,
@@ -475,7 +480,6 @@ class MarketDataSaver:
         logger.info(f"期货持仓数据保存完成，总共新增 {total_inserted} 条数据")
 
     @retry(max_attempts=3, delay=60)
-    @validate_dataframe(collection_name='stock_list')
     def save_stock_list(self, list_status: str = None):
         """
         保存股票列表数据到本地数据库。
@@ -551,7 +555,6 @@ class MarketDataSaver:
             raise
 
     @retry(max_attempts=3, delay=60)
-    @validate_dataframe(collection_name='future_daily')
     def save_future_daily(
         self,
         exchanges: Union[str, List[str], None] = None,
@@ -742,9 +745,9 @@ class MarketDataSaver:
 
 if __name__ == "__main__":
     saver = MarketDataSaver()
-    saver.save_trade_dates()
-    # saver.save_future_contracts()
+    # saver.save_trade_dates()
+    saver.save_future_contracts()
     # saver.save_future_holdings(exchanges=["DCE"])
-    saver.save_future_holdings(engine="gm")
+    # saver.save_future_holdings(engine="gm")
     # saver.save_stock_list()
     # saver.save_future_daily()

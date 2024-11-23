@@ -41,9 +41,9 @@ class LocalFetcher(LocalBaseFetcher):
         """
          本地数据库查询器
         """
-        self.exchanges = EXCHANGES
-        self.stock_exchanges = STOCK_EXCHANGES
-        self.future_exchanges = FUTURE_EXCHANGES
+        self.exchanges = EXCHANGES.copy()
+        self.stock_exchanges = STOCK_EXCHANGES.copy()
+        self.future_exchanges = FUTURE_EXCHANGES.copy()
         self.client = DATABASE
         self.default_start = DEFAULT_START
 

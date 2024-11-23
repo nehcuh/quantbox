@@ -122,46 +122,77 @@ def util_format_stock_symbols(
         return [f"{code}.{jq_exchange_map[code[0]]}" for code in numbers]
 
 
+# Constants for format types
+FORMAT_GOLDMINER = ["gm", "goldminer", "掘金"]
+FORMAT_TUSHARE = ["ts", "tushare"]
+_FUTURE_CODE_PATTERN = re.compile(r"^[A-Za-z]+")
+
+def _normalize_exchange(exchange: str, format_type: str) -> str:
+    """Normalize exchange name based on format type."""
+    if format_type in FORMAT_GOLDMINER:
+        if exchange == "SHF":
+            return "SHFE"
+        elif exchange == "ZCE":
+            return "CZCE"
+    elif format_type in FORMAT_TUSHARE:
+        if exchange == "SHFE":
+            return "SHF"
+        elif exchange == "CZCE":
+            return "ZCE"
+    return exchange
+
+def _format_contract(exchange: str, contract: str, format_type: str) -> str:
+    """Format contract based on exchange and format type."""
+    if exchange in ["CZCE", "ZCE"]:
+        if len(contract) > 4:
+            if format_type in FORMAT_GOLDMINER and contract[2:6].isdigit():
+                contract = contract[:2] + contract[3:]
+            elif format_type in FORMAT_TUSHARE and contract[3:5].isdigit():
+                contract = contract[:2] + contract[3:]
+        return f"{exchange}.{contract.upper()}"
+    return f"{exchange}.{contract.lower()}"
+
 def util_format_future_symbols(
-    symbols: Union[str, List[str]], format: Optional[str] = None, tushare_daily_spec: bool=False
+    symbols: Union[str, List[str]],
+    format: Optional[str] = None,
+    include_exchange: Optional[bool] = False
 ) -> List[str]:
     """
-    explanation:
-        格式化期货代码，注意，无论传入是 str, 还是 List，返回都是 List
-
-    params:
-        format ->
-            含义：指定期货代码格式类型
-            类型：str
-            参数支持："standard"("M2501"), "wd/wind/ts/tushare"("M2501.DCE")
+    Format future symbols to a standardized format.
+    
+    Args:
+        symbols: Single symbol string or list of symbols
+        format: Format type ("standard", "wd/wind/ts/tushare")
+        include_exchange: Whether to include exchange in the formatted symbol
+    
+    Returns:
+        List of formatted symbols in "exchange.contract" format
+    
+    Examples:
+        >>> util_format_future_symbols("M2501")
+        ['DCE.m2501']
+        >>> util_format_future_symbols("SHFE.rb2501", format="ts")
+        ['SHF.rb2501']
     """
-    # TODO: 理论上直接硬编码应该更快，后续可以优化
-    # 这里先从数据库加载每个交易所的品种清单，然后进行匹配
+    if isinstance(symbols, str):
+        symbols = symbols.split(",")
+    
+    formatted_symbols = []
     fut_code_exchange_map = load_contract_exchange_mapper()
-    if isinstance(symbols, str):
-        symbols = symbols.split(",")
-    fut_codes = [re.match(r"^[A-Za-z]+", code).group() for code in symbols]
-    if isinstance(symbols, str):
-        symbols = symbols.split(",")
-    if format in ["tushare", "ts"]:
-        if tushare_daily_spec:
-            suffix_map = {"SHFE": "SHF", "CZCE": "ZCE"}
-            original_list = [
-                f"{symbol}.{fut_code_exchange_map[code]}"
-                for symbol, code in zip(symbols, fut_codes)
-            ]
-            return [
-                '.'.join([item.split('.')[0], suffix_map.get(item.split('.')[1], item.split('.')[1])])
-                for item in original_list
-            ]
-        else:
-            return [
-                f"{symbol}.{fut_code_exchange_map[code]}"
-                for symbol, code in zip(symbols, fut_codes)
-            ]
-    else:
-        symbols = [symbol.split(".")[0] for symbol in symbols]
-    return symbols
+    
+    for symbol in symbols:
+        if "." in symbol:  # Exchange included (e.g., SHFE.rb2501)
+            exchange, contract = symbol.split('.')
+            exchange = _normalize_exchange(exchange, format)
+            formatted_symbols.append(_format_contract(exchange, contract, format))
+        else:  # No exchange prefix
+            fut_code = _FUTURE_CODE_PATTERN.match(symbol).group()
+            exchange = fut_code_exchange_map[fut_code.upper()]
+            exchange = _normalize_exchange(exchange, format)
+            formatted_symbols.append(_format_contract(exchange, symbol, format))
+    if not include_exchange:
+        return [symbol.split('.')[1] for symbol in formatted_symbols] 
+    return formatted_symbols
 
 
 @lru_cache(maxsize=None)

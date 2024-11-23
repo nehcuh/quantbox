@@ -55,25 +55,12 @@ class GMFetcher(BaseFetcher):
                 "Please use other data sources or run on Linux/Windows."
             )
         super().__init__()
-        if platform.system() == 'Darwin':
-            raise NotImplementedError(
-                "GoldMiner API is not supported on macOS. "
-                "Please use TuShare or run on Linux/Windows."
-            )
         self.exchanges = EXCHANGES
         self.stock_exchanges = STOCK_EXCHANGES
         self.future_exchanges = FUTURE_EXCHANGES
         self.client = DATABASE
         self.default_start = DEFAULT_START
-        self.initialize()
-
-    def initialize(self):
-        """
-        Initialize the fetcher with necessary credentials and settings.
-        使用必要的凭证和设置初始化获取器。
-        """
-        if platform.system() != 'Darwin':  # Not macOS
-            set_token(QUANTCONFIG.gm_token)
+        set_token(QUANTCONFIG.gm_token)
 
     def _format_symbol(self, symbol: str) -> str:
         """

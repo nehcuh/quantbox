@@ -1,10 +1,5 @@
 """
-Base classes for data fetchers.
 基础数据获取器类。
-
-This module provides abstract base classes that define the interface for all data fetchers
-in the system. It ensures consistency across different data sources and provides common
-utility functions.
 
 本模块提供了定义所有数据获取器接口的抽象基类。它确保了不同数据源之间的一致性，
 并提供了常用的工具函数。
@@ -18,7 +13,6 @@ from datetime import datetime
 
 class DataValidator:
     """
-    Data validation utility class
     数据验证工具类
     """
 
@@ -29,21 +23,18 @@ class DataValidator:
         cursor_date: Optional[str] = None
     ) -> tuple[Optional[str], Optional[str]]:
         """
-        Validate and normalize date inputs
         验证和标准化日期输入
 
         Args:
-            start_date: Start date string / 开始日期字符串
-            end_date: End date string / 结束日期字符串
-            cursor_date: Single reference date / 单个参考日期
+            start_date: 开始日期字符串
+            end_date: 结束日期字符串
+            cursor_date: 单个参考日期
 
         Returns:
-            Tuple of validated start and end dates
             验证后的开始和结束日期元组
 
         Raises:
-            ValueError: If date parameters are invalid
-                      当日期参数无效时抛出
+            当日期参数无效时抛出
         """
         if cursor_date and (start_date or end_date):
             raise ValueError("Cannot specify both cursor_date and start_date/end_date")

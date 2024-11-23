@@ -32,6 +32,7 @@ class Config:
         self.exchanges = ["SHSE", "SZSE", "SHFE", "DCE", "CFFEX", "CZCE", "INE"]
         self.stock_exchanges = ["SHSE", "SZSE"]
         self.future_exchanges = ["SHFE", "DCE", "CFFEX", "CZCE", "INE"]
+        print(f"Config initialized with future_exchanges: {self.future_exchanges}")
         self.default_start = "1990-12-19"
         
         # 初始化MongoDB客户端
