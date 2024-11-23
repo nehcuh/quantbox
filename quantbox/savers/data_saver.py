@@ -588,6 +588,7 @@ class MarketDataSaver:
             # 创建索引
             collections.create_index(
                 [("symbol", pymongo.ASCENDING), ("datestamp", pymongo.DESCENDING)],
+                unique=True,
                 background=True
             )
             logger.debug("成功创建/更新索引")

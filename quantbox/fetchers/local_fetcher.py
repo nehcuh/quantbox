@@ -5,7 +5,7 @@ import datetime
 import pandas as pd
 from typing import List, Optional, Union, Dict
 from abc import ABC
-
+import pymongo
 from quantbox.fetchers.base import BaseFetcher
 from quantbox.util.basic import DATABASE, DEFAULT_START, EXCHANGES, FUTURE_EXCHANGES, STOCK_EXCHANGES
 from quantbox.util.tools import util_make_date_stamp, util_format_future_symbols
