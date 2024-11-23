@@ -9,6 +9,7 @@ from abc import ABC
 from quantbox.fetchers.base import BaseFetcher
 from quantbox.util.basic import DATABASE, DEFAULT_START, EXCHANGES, FUTURE_EXCHANGES, STOCK_EXCHANGES
 from quantbox.util.tools import util_make_date_stamp, util_format_future_symbols
+from quantbox.fetchers.monitoring import PerformanceMonitor, monitor_performance
 
 
 class LocalBaseFetcher(ABC):
@@ -46,7 +47,9 @@ class LocalFetcher(LocalBaseFetcher):
         self.future_exchanges = FUTURE_EXCHANGES.copy()
         self.client = DATABASE
         self.default_start = DEFAULT_START
+        self.monitor = PerformanceMonitor(slow_query_threshold=2.0)  # 设置 2 秒为慢查询阈值
 
+    @monitor_performance
     def fetch_trade_dates(
         self,
         exchanges: Union[str, List[str], None] = None,
@@ -97,10 +100,7 @@ class LocalFetcher(LocalBaseFetcher):
         "获取交易日期"
         return pd.DataFrame([item for item in cursor])
 
-    def initialize(self):
-        pass
-
-
+    @monitor_performance
     def fetch_pre_trade_date(
         self,
         exchange: str="SSE",
@@ -175,7 +175,7 @@ class LocalFetcher(LocalBaseFetcher):
         item = cursor.next()
         return item
 
-
+    @monitor_performance
     def fetch_next_trade_date(
         self,
         exchange: str="SSE",
@@ -252,6 +252,7 @@ class LocalFetcher(LocalBaseFetcher):
         item = cursor.next()
         return item
 
+    @monitor_performance
     def fetch_future_contracts(
         self,
         symbol: Optional[str] = None,
@@ -395,6 +396,7 @@ class LocalFetcher(LocalBaseFetcher):
                         )
         return pd.DataFrame([item for item in cursor])
 
+    @monitor_performance
     def fetch_future_holdings(
         self,
         symbol: Optional[str] = None,
@@ -644,6 +646,7 @@ class LocalFetcher(LocalBaseFetcher):
                     else:
                         return results
 
+    @monitor_performance
     def fetch_future_daily(
        self,
        cursor_date: Union[str, datetime.datetime, int, None] = None,

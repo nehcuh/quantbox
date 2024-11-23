@@ -22,33 +22,6 @@
     - os
     - sys
     - typing
-
-English Version:
----------------
-Logging Management Module
-
-This module provides a unified logging system for recording and tracking various
-operations and events within the system. It supports multiple log levels,
-formatted output, and flexible handler configuration.
-
-Features:
-- Unified log format
-- Multi-level logging support
-- File and console output
-- Configurable log levels
-- Automatic log rotation
-
-Configuration:
-- Log file paths
-- Log level settings
-- Format templates
-- Rotation policies
-
-Dependencies:
-    - logging
-    - os
-    - sys
-    - typing
 """
 
 import logging
@@ -92,34 +65,6 @@ def setup_logger(
         - 支持文件和控制台同时输出
         - 自动创建日志目录
         - 使用统一的日志格式
-
-    English Version:
-    ---------------
-    Set up and configure a logger.
-
-    Creates and configures a logger instance for the specified module. Supports both
-    file and console output with customizable log levels and output files.
-
-    Args:
-        name: Logger name, typically the module name
-        log_dir: Log file directory, defaults to ~/.quantbox/logs
-        level: Logging level, defaults to logging.INFO
-        max_bytes: Maximum log file size, defaults to 10MB
-        backup_count: Number of log file backups, defaults to 5
-
-    Returns:
-        logging.Logger: Configured logger instance
-
-    Example:
-        >>> logger = setup_logger(__name__)
-        >>> logger.info("Operation completed successfully")
-        >>> logger.error("An error occurred")
-
-    Note:
-        - Default configuration from config file
-        - Supports both file and console output
-        - Automatically creates log directory
-        - Uses unified log format
     """
     logger = logging.getLogger(name)
     logger.setLevel(level)

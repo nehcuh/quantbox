@@ -169,6 +169,72 @@ saver.save_future_contracts()  # 保存期货合约信息
 
 ## 开发指南
 
+### 使用性能监控
+
+项目提供了性能监控功能，可以帮助开发者追踪和优化数据获取操作的性能：
+
+#### 基本用法
+
+```python
+from quantbox.fetchers.local_fetcher import LocalFetcher
+from quantbox.fetchers.monitoring import PerformanceMonitor
+
+# 创建 fetcher 实例并添加监控器
+fetcher = LocalFetcher()
+fetcher.monitor = PerformanceMonitor(slow_query_threshold=2.0)  # 设置慢查询阈值为 2 秒
+
+# 执行数据获取操作
+data = fetcher.fetch_trade_dates()
+
+# 查看性能统计
+stats = fetcher.monitor.get_stats()
+print(f"总请求数: {stats['total_requests']}")
+print(f"成功率: {stats['success_rate']:.2%}")
+print(f"平均响应时间: {stats['avg_response_time']:.3f}秒")
+print(f"慢查询数: {stats['slow_queries']}")
+
+# 记录统计信息到日志
+fetcher.monitor.log_stats()
+```
+
+#### 可用的性能指标
+
+- `total_requests`: 总请求数
+- `successful_requests`: 成功请求数
+- `failed_requests`: 失败请求数
+- `cache_hits`: 缓存命中次数
+- `cache_misses`: 缓存未命中次数
+- `slow_queries`: 慢查询次数
+- `avg_response_time`: 平均响应时间
+- `errors_by_type`: 按类型统计的错误数
+- `success_rate`: 成功率
+- `cache_hit_rate`: 缓存命中率
+
+#### 自定义监控
+
+1. 在类中添加监控器：
+```python
+def __init__(self):
+    self.monitor = PerformanceMonitor(slow_query_threshold=2.0)
+```
+
+2. 使用装饰器监控方法：
+```python
+from quantbox.fetchers.monitoring import monitor_performance
+
+@monitor_performance
+def fetch_data(self):
+    # 数据获取代码
+    pass
+```
+
+#### 最佳实践
+
+- 为关键的数据获取操作添加性能监控
+- 定期检查性能统计，识别潜在的性能问题
+- 根据实际需求调整慢查询阈值
+- 使用日志功能记录性能数据，便于后续分析
+
 ### 添加新的数据源
 
 1. 在 `fetchers` 目录下创建新的数据获取器类，继承 `BaseFetcher`

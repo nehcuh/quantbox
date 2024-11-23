@@ -109,27 +109,31 @@ class PerformanceMonitor:
             for error_type, count in stats['errors_by_type'].items():
                 logger.info(f"  {error_type}: {count}")
 
-def monitor_performance(monitor: PerformanceMonitor) -> Callable:
-    """Decorator for monitoring function performance"""
-    def decorator(func: Callable) -> Callable:
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs) -> Any:
-            start_time = time.time()
+def monitor_performance(func):
+    """装饰器：监控函数性能
+    
+    Args:
+        func: 被装饰的函数
+    """
+    @functools.wraps(func)
+    def wrapper(self, *args, **kwargs):
+        start_time = time.time()
+        try:
+            result = func(self, *args, **kwargs)
             success = True
             error_type = None
-            try:
-                result = func(*args, **kwargs)
-                return result
-            except Exception as e:
-                success = False
-                error_type = type(e).__name__
-                raise
-            finally:
-                response_time = time.time() - start_time
-                monitor.record_request(
+        except Exception as e:
+            success = False
+            error_type = type(e).__name__
+            raise
+        finally:
+            response_time = time.time() - start_time
+            if hasattr(self, 'monitor'):
+                self.monitor.record_request(
                     success=success,
                     response_time=response_time,
-                    error_type=error_type
+                    error_type=error_type,
+                    cache_hit=False  # 目前不支持缓存
                 )
-        return wrapper
-    return decorator
+        return result
+    return wrapper
