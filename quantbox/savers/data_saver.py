@@ -136,7 +136,7 @@ class MarketDataSaver:
                 else:
                     latest_date = start_date
                     logger.info(f"交易所 {exchange} 无历史数据，从 {start_date} 开始获取")
-                
+
                 if pd.Timestamp(latest_date) >= pd.Timestamp.today():
                     logger.info(f"交易所 {exchange} 已经保存当年度交易日期数据，跳过")
                     continue
@@ -303,32 +303,6 @@ class MarketDataSaver:
             - 会自动创建必要的数据库索引
             - 包含错误重试机制
             - 保存完整的操作日志
-
-        English Version：
-        ---------------
-        Save future holdings data to local database.
-
-        Fetches future holdings from the specified data source and saves them to the
-        'future_holdings' collection in the local MongoDB database.
-
-        Args：
-            exchanges: List of exchanges to fetch data for, defaults to None.
-                       If None, uses all supported future exchanges.
-            start_date: Start date for fetching data, defaults to None.
-                       If None, uses the default start date from configuration.
-            end_date: End date for fetching data, defaults to None.
-                      If None, uses the current date.
-            offset: Offset in days for fetching data, defaults to None.
-                   If None, uses the default offset from configuration.
-            engine: Data source engine, defaults to 'ts' (Tushare).
-                   Can also be 'gm' (GoldMiner).
-            max_workers: Maximum number of worker threads, defaults to None.
-                        If None, uses the default max workers from configuration.
-
-        Note：
-            - Automatically creates necessary database indexes
-            - Includes error retry mechanism
-            - Maintains complete operation logs
         """
         logger.info("开始保存期货持仓数据")
         collections = self.client.future_holdings
@@ -516,22 +490,6 @@ class MarketDataSaver:
             - 会自动创建必要的数据库索引
             - 包含错误重试机制
             - 保存完整的操作日志
-
-        English Version：
-        ---------------
-        Save stock list data to local database.
-
-        Fetches stock list data from Tushare and saves it to the 'stock_list'
-        collection in the local MongoDB database.
-
-        Args：
-            list_status: List status, defaults to None.
-                       Can be 'L' (listed), 'D' (delisted), or 'P' (paused).
-
-        Note：
-            - Automatically creates necessary database indexes
-            - Includes error retry mechanism
-            - Maintains complete operation logs
         """
         logger.info("开始保存股票列表数据")
         collections = self.client.stock_list
@@ -619,27 +577,6 @@ class MarketDataSaver:
             - 会自动创建必要的数据库索引
             - 包含错误重试机制
             - 保存完整的操作日志
-
-        English Version：
-        ---------------
-        Save future daily data to local database.
-
-        Fetches future daily data from Tushare and saves it to the 'future_daily'
-        collection in the local MongoDB database.
-
-        Args：
-            exchanges: List of exchanges to fetch data for, defaults to None.
-                       If None, uses all supported future exchanges.
-            start_date: Start date for fetching data, defaults to None.
-                       If None, uses the default start date from configuration.
-            end_date: End date for fetching data, defaults to None.
-                      If None, uses the current date.
-            offset: Offset in days for fetching data, defaults to 365.
-
-        Note：
-            - Automatically creates necessary database indexes
-            - Includes error retry mechanism
-            - Maintains complete operation logs
         """
         logger.info("开始保存期货日线数据")
         collections = self.client.future_daily
