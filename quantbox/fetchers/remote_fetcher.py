@@ -70,18 +70,9 @@ class RemoteFetcher(BaseFetcher):
         super().__init__()
         self.engine = engine.lower()
         if self.engine == 'gm':
-            try:
-                import platform
-                if platform.system() == 'Darwin':
-                    logger.warning("GoldMiner API is not supported on macOS, falling back to TuShare")
-                    self.engine = 'ts'
-                    self._fetcher = TSFetcher()
-                else:
-                    self._fetcher = GMFetcher()
-            except ImportError:
-                logger.warning("GoldMiner API is not available, falling back to TuShare")
-                self.engine = 'ts'
-                self._fetcher = TSFetcher()
+            logger.warning("GoldMiner API does not support fetch_get_future_daily, falling back to TuShare")
+            self.engine = 'ts'
+            self._fetcher = TSFetcher()
         elif self.engine == 'ts':
             self._fetcher = TSFetcher()
         else:

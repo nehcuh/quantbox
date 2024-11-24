@@ -30,6 +30,7 @@ from quantbox.util.tools import (
     util_format_future_symbols,
     util_format_stock_symbols,
     util_make_date_stamp,
+    util_format_future_symbols
 )
 
 
@@ -546,155 +547,13 @@ class GMFetcher(BaseFetcher):
         fields: Union[List[str], None] = None,
     ) -> pd.DataFrame:
         """
-        Fetch futures daily market data from GoldMiner API.
-        从掘金量化API获取期货日线行情数据。
-
-        Args:
-            cursor_date: Reference date for fetching data, defaults to latest trading day
-                       获取数据的参考日期，默认为最近交易日
-                Formats: [20200913, '2021-03-05']
-                支持格式: [20200913, '2021-03-05']
-            symbols: Symbol(s) to fetch data for
-                    要获取数据的合约代码
-                Formats: ['IF2403', 'IF2406'] or 'IF2403,IF2406'
-                支持格式: ['IF2403', 'IF2406'] 或 'IF2403,IF2406'
-            exchanges: Exchange(s) to fetch data from
-                      要获取数据的交易所
-                Supported: ['SHFE', 'DCE', 'CFFEX', 'CZCE', 'INE']
-                支持: ['SHFE', 'DCE', 'CFFEX', 'CZCE', 'INE']
-            start_date: Start date for date range query
-                       日期范围查询的起始日期
-                Formats: [20200913, '2021-03-05']
-                支持格式: [20200913, '2021-03-05']
-            end_date: End date for date range query
-                     日期范围查询的结束日期
-                Formats: [20200913, '2021-03-05']
-                支持格式: [20200913, '2021-03-05']
-            fields: List of fields to return
-                   要返回的字段列表
-                Supported: ['symbol', 'trade_date', 'open', 'high', 'low', 'close', 'volume', 'amount']
-                支持: ['symbol', 'trade_date', 'open', 'high', 'low', 'close', 'volume', 'amount']
-
-        Returns:
-            DataFrame containing daily market data with columns:
-            包含以下字段的日线行情数据DataFrame：
-            - symbol: Contract symbol / 合约代码
-            - trade_date: Trading date / 交易日期
-            - open: Opening price / 开盘价
-            - high: Highest price / 最高价
-            - low: Lowest price / 最低价
-            - close: Closing price / 收盘价
-            - volume: Trading volume / 成交量
-            - amount: Trading amount / 成交额
-            - datestamp: Date timestamp / 日期时间戳
-
-        Raises:
-            ValueError: If invalid exchange, symbol or date format is provided
-                      当提供的交易所、合约代码或日期格式无效时
-            RuntimeError: If API call fails
-                        当API调用失败时
-            NotImplementedError: If running on macOS
-                              当在macOS上运行时
+        This method is not implemented in GoldMiner fetcher.
+        Please use TuShare fetcher for future daily data.
         """
-        if platform.system() == 'Darwin':
-            raise NotImplementedError(
-                "GoldMiner API is not supported on macOS. "
-                "Please use other data sources or run on Linux/Windows."
-            )
-
-        try:
-            # Validate inputs
-            start_date, end_date = self.validator.validate_dates(
-                start_date, end_date, cursor_date
-            )
-            symbols = self.validator.validate_symbols(symbols)
-
-            if exchanges is None:
-                exchanges = self.future_exchanges
-            if isinstance(exchanges, str):
-                exchanges = exchanges.split(",")
-
-            # Initialize result container
-            total_data = pd.DataFrame()
-
-            # Process each exchange
-            for exchange in exchanges:
-                try:
-                    # Get symbols for this exchange if not provided
-                    exchange_symbols = symbols
-                    if not exchange_symbols:
-                        contracts = self.fetch_get_future_contracts([exchange])
-                        if not contracts.empty:
-                            exchange_symbols = contracts['symbol'].tolist()
-
-                    if not exchange_symbols:
-                        continue
-
-                    # Format symbols for API
-                    formatted_symbols = [
-                        self._format_symbol(symbol)
-                        for symbol in exchange_symbols
-                    ]
-
-                    # Fetch data in batches to avoid API limits
-                    batch_size = 50  # Adjust based on API limits
-                    for i in range(0, len(formatted_symbols), batch_size):
-                        batch_symbols = formatted_symbols[i:i + batch_size]
-
-                        # Use GoldMiner's history_bars API for each symbol
-                        for symbol in batch_symbols:
-                            try:
-                                if start_date and end_date:
-                                    # Fetch data for date range
-                                    data = self.get_gm_data(
-                                        symbol=symbol,
-                                        frequency='1d',
-                                        start_time=start_date,
-                                        end_time=end_date,
-                                        fields=fields if fields else None,
-                                        adjust=0,
-                                        df=True
-                                    )
-                                else:
-                                    # Fetch data for single date
-                                    query_date = cursor_date or datetime.date.today()
-                                    data = self.get_gm_data(
-                                        symbol=symbol,
-                                        frequency='1d',
-                                        start_time=query_date,
-                                        end_time=query_date,
-                                        fields=fields if fields else None,
-                                        adjust=0,
-                                        df=True
-                                    )
-
-                                if not data.empty:
-                                    # Add symbol and exchange info
-                                    data['symbol'] = symbol.split('.')[-1]  # Remove exchange prefix
-                                    data['exchange'] = exchange
-
-                                    # Format dates
-                                    data['trade_date'] = pd.to_datetime(data.index).strftime('%Y-%m-%d')
-                                    data['datestamp'] = data['trade_date'].apply(util_make_date_stamp)
-
-                                    # Append to total data
-                                    total_data = pd.concat([total_data, data], ignore_index=True)
-
-                            except Exception as e:
-                                self._handle_error(e, f"fetching daily data for symbol {symbol}")
-
-                except Exception as e:
-                    self._handle_error(e, f"fetching daily data for exchange {exchange}")
-
-            # Validate and format final response
-            required_columns = [
-                'symbol', 'trade_date', 'open', 'high', 'low',
-                'close', 'volume', 'amount', 'datestamp'
-            ]
-            return self._format_response(total_data, required_columns)
-
-        except Exception as e:
-            self._handle_error(e, "fetch_get_future_daily")
+        raise NotImplementedError(
+            "fetch_get_future_daily is not implemented in GoldMiner fetcher. "
+            "Please use TuShare fetcher for future daily data."
+        )
 
 if __name__ == "__main__":
     gm_fetcher = GMFetcher()
