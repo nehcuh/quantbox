@@ -714,7 +714,7 @@ class TSFetcher(BaseFetcher):
             if end_date is None:
                 end_date = datetime.date.today()
             if symbols:
-                symbols = util_format_future_symbols(symbols=symbols, format="tushare", tushare_daily_spec=True)
+                symbols = util_format_future_symbols(symbols=symbols, format="ts")
                 symbols = ",".join(symbols)
                 if fields:
                     results = self.pro.fut_daily(
@@ -870,9 +870,9 @@ if __name__ == "__main__":
     # ))
 
     # print(fetcher.fetch_trade_dates(exchanges="SSE", start_date="2024-09-01", end_date="2024-09-30"))
-
-    print(fetcher.fetch_get_stock_list(symbols="000001, 600000"))
-    print(fetcher.fetch_get_stock_list(names=["招商证券", "贵州茅台"]))
-    print(fetcher.fetch_get_stock_list(names=["招商证券", "贵州茅台"]))
-    print(fetcher.fetch_get_stock_list(markets=["科创板", " 创业板"]))
-    print(fetcher.fetch_get_stock_list())
+    df = fetcher.fetch_get_future_daily(symbols="M2501", start_date="2024-11-03", end_date="2024-11-20")
+    # print(fetcher.fetch_get_stock_list(symbols="000001, 600000"))
+    # print(fetcher.fetch_get_stock_list(names=["招商证券", "贵州茅台"]))
+    # print(fetcher.fetch_get_stock_list(names=["招商证券", "贵州茅台"]))
+    # print(fetcher.fetch_get_stock_list(markets=["科创板", " 创业板"]))
+    # print(fetcher.fetch_get_stock_list())

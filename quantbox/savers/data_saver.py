@@ -635,7 +635,7 @@ class MarketDataSaver:
 
                         if latest_doc:
                             latest_date = latest_doc["trade_date"]
-                            next_date = self.local_fetcher.fetch_next_trade_date(latest_date)
+                            next_date = self.local_fetcher.fetch_next_trade_date(exchange=exchange, cursor_date=latest_date)
 
                             if next_date is None:
                                 logger.debug(f"合约 {symbol} 数据已是最新")

@@ -167,15 +167,20 @@ def _format_contract(exchange: str, contract: str, format_type: str) -> str:
         if len(contract) > 4:
             if format_type in FORMAT_GOLDMINER and contract[2:6].isdigit():
                 contract = contract[:2] + contract[3:]
+                return f"{contract.upper()}.{exchange}"
             elif format_type in FORMAT_TUSHARE and contract[3:5].isdigit():
                 contract = contract[:2] + contract[3:]
-        return f"{exchange}.{contract.upper()}"
-    return f"{exchange}.{contract.lower()}"
+                return f"{exchange}.{contract.upper()}"
+    else:
+        if format_type in FORMAT_GOLDMINER:
+            return f"{exchange}.{contract.upper()}"
+        elif format_type in FORMAT_TUSHARE:
+            return f"{contract.lower()}.{exchange}"
 
 def util_format_future_symbols(
     symbols: Union[str, List[str]],
     format: Optional[str] = None,
-    include_exchange: Optional[bool] = False
+    include_exchange: Optional[bool] = True
 ) -> List[str]:
     """格式化期货合约代码
 
@@ -215,7 +220,10 @@ def util_format_future_symbols(
             exchange = _normalize_exchange(exchange, format)
             formatted_symbols.append(_format_contract(exchange, symbol, format))
     if not include_exchange:
-        return [symbol.split('.')[1] for symbol in formatted_symbols] 
+        if format in FORMAT_GOLDMINER:
+            return [symbol.split('.')[1] for symbol in formatted_symbols] 
+        elif format in FORMAT_TUSHARE:
+            return [symbol.split('.')[0] for symbol in formatted_symbols] 
     return formatted_symbols
 
 
