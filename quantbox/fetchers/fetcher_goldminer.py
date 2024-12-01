@@ -174,7 +174,8 @@ class GMFetcher(BaseFetcher):
                 symbols = symbols.split(",")
 
             if symbols is not None:
-                formatted_symbols = [self._format_symbol(symbol) for symbol in symbols]
+                # formatted_symbols = [self._format_symbol(symbol) for symbol in symbols]
+                formatted_symbols = util_format_future_symbols(symbols=symbols, format="gm", include_exchange=True)
                 batch_size = 50  # Adjust based on API limits
                 for i in range(0, len(formatted_symbols), batch_size):
                     batch_symbols = formatted_symbols[i:i + batch_size]
@@ -558,4 +559,4 @@ class GMFetcher(BaseFetcher):
 if __name__ == "__main__":
     gm_fetcher = GMFetcher()
     # df2 = gm_fetcher.fetch_get_holdings(cursor_date="2024-11-21", symbols="M2501")
-    df = gm_fetcher.fetch_get_holdings(cursor_date="2024-11-21", symbols="AP2501")
+    df = gm_fetcher.fetch_get_holdings(cursor_date="2023-10-11", symbols="M2312")
