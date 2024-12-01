@@ -711,8 +711,8 @@ class MarketDataSaver:
 
         if source.lower() == 'tushare':
             # Rename volume column
-            if 'vol' in result.columns:
-                result = result.rename(columns={'vol': 'volume'})
+            # if 'vol' in result.columns:
+            #     result = result.rename(columns={'vol': 'volume'})
 
             # Convert ts_code to symbol with exchange prefix in uppercase
             if 'ts_code' in result.columns:
@@ -737,7 +737,7 @@ class MarketDataSaver:
                 result['datestamp'] = result['trade_date'].apply(lambda x: pd.Timestamp(x).timestamp())
 
         # Ensure consistent column order
-        desired_columns = ['symbol', 'trade_date', 'open', 'high', 'low', 'close', 'volume', 'amount', 'datestamp']
+        desired_columns = ['symbol', 'exchange', 'trade_date', 'pre_close', 'pre_settle', 'open', 'high', 'low', 'close', 'settle', 'change1', 'change2', 'vol', 'amount', 'oi', 'oi_chg']
         available_columns = [col for col in desired_columns if col in result.columns]
         result = result[available_columns]
 

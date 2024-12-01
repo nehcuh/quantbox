@@ -690,7 +690,7 @@ class LocalFetcher(LocalBaseFetcher):
             if end_date is None:
                 end_date = datetime.datetime.today()
             if symbols:
-                symbols = util_format_future_symbols(symbols=symbols)
+                symbols = util_format_future_symbols(symbols=symbols, include_exchange=False)
                 cursor = collections.find(
                     {
                         "symbol": {"$in": symbols},

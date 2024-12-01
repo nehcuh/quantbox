@@ -205,7 +205,7 @@ def util_format_future_symbols(
     """
     if isinstance(symbols, str):
         symbols = symbols.split(",")
-    
+
     formatted_symbols = []
     fut_code_exchange_map = load_contract_exchange_mapper()
     
@@ -215,15 +215,20 @@ def util_format_future_symbols(
             exchange = _normalize_exchange(exchange, format)
             formatted_symbols.append(_format_contract(exchange, contract, format))
         else:  # 不包含交易所前缀
-            fut_code = _FUTURE_CODE_PATTERN.match(symbol).group()
-            exchange = fut_code_exchange_map[fut_code.upper()]
-            exchange = _normalize_exchange(exchange, format)
-            formatted_symbols.append(_format_contract(exchange, symbol, format))
+            if not include_exchange:
+                formatted_symbols.append(symbol)
+            else:
+                fut_code = _FUTURE_CODE_PATTERN.match(symbol).group()
+                exchange = fut_code_exchange_map[fut_code.upper()]
+                exchange = _normalize_exchange(exchange, format)
+                formatted_symbols.append(_format_contract(exchange, symbol, format))
     if not include_exchange:
         if format in FORMAT_GOLDMINER:
             return [symbol.split('.')[1] for symbol in formatted_symbols] 
         elif format in FORMAT_TUSHARE:
             return [symbol.split('.')[0] for symbol in formatted_symbols] 
+        else:
+            return formatted_symbols
     return formatted_symbols
 
 
