@@ -12,29 +12,47 @@ Quantbox 是一个用于金融数据获取、存储和分析的框架，支持�
 - **数据查询**：提供便捷的接口查询存储在本地数据库中的数据
 - **命令行工具**：提供 CLI 命令行工具，方便用户执行数据获取和存储操作
 - **灵活配置**：支持通过配置文件管理多个数据源的认证信息
+- **图形界面支持**：提供 PyQt5 实现的图形界面，方便用户交互
 
 ## 项目结构
 
 ```
 quantbox/
 ├── fetchers/           # 数据获取模块
-│   ├── base_fetcher.py     # 基础数据获取器接口
-│   ├── local_fetcher.py    # 本地数据库查询器
-│   ├── remote_fetch_gm.py  # 掘金数据获取器
-│   └── remote_fetch_tushare.py  # Tushare数据获取器
+│   ├── base.py            # 基础数据获取器接口
+│   ├── config.py          # 获取器配置
+│   ├── local_fetcher.py   # 本地数据库查询器
+│   ├── remote_fetcher.py  # 远程数据获取基类
+│   ├── fetcher_goldminer.py  # 掘金数据获取器
+│   ├── fetcher_tushare.py    # Tushare数据获取器
+│   ├── monitoring.py      # 性能监控
+│   └── validation.py      # 数据验证
 ├── savers/            # 数据保存模块
 │   └── data_saver.py      # 市场数据保存器
+├── gui/              # 图形界面模块
+│   └── main_window.py     # 主窗口实现
 ├── util/              # 工具模块
 │   ├── basic.py          # 基础工具函数
 │   └── tools.py          # 通用工具函数
-└── cli.py            # 命令行接口
+├── cli.py            # 命令行接口
+├── config.py         # 配置管理
+├── logger.py         # 日志管理
+├── shell.py          # 交互式命令行
+└── validators.py     # 数据验证器
 ```
 
 ## 安装
 
 ### 环境要求
 - Python >= 3.7
-- MongoDB
+- MongoDB >= 4.0
+- 依赖包：
+  - pymongo >= 4.0
+  - pandas >= 2.0
+  - tushare
+  - toml
+  - configparser
+  - click
 
 ### 安装步骤
 
@@ -142,7 +160,7 @@ pip install -e .
 
 ### 1. 获取交易日历
 ```python
-from quantbox import LocalFetcher
+from quantbox.fetchers import LocalFetcher
 
 fetcher = LocalFetcher()
 trade_dates = fetcher.fetch_trade_dates(exchanges="SSE")
@@ -151,7 +169,7 @@ print(trade_dates)
 
 ### 2. 获取期货合约信息
 ```python
-from quantbox import TSFetcher
+from quantbox.fetchers import TSFetcher
 
 fetcher = TSFetcher()
 contracts = fetcher.fetch_future_contracts(symbol="IF")
@@ -165,6 +183,21 @@ from quantbox.savers import MarketDataSaver
 saver = MarketDataSaver()
 saver.save_trade_dates()  # 保存交易日历
 saver.save_future_contracts()  # 保存期货合约信息
+```
+
+### 4. 使用图形界面
+
+项目提供了图形界面支持，可以通过以下方式启动：
+
+```python
+from quantbox.gui import MainWindow
+from PyQt5.QtWidgets import QApplication
+import sys
+
+app = QApplication(sys.argv)
+window = MainWindow()
+window.show()
+sys.exit(app.exec_())
 ```
 
 ## 开发指南
