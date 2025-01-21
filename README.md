@@ -44,7 +44,7 @@ quantbox/
 ## 安装
 
 ### 环境要求
-- Python >= 3.7
+- Python >= 3.12
 - MongoDB >= 4.0
 - 依赖包：
   - pymongo >= 4.0
@@ -113,48 +113,33 @@ pip install -e .
 
 ## 配置
 
-在使用之前，你需要配置 `config.toml` 文件，放置在 `~/.quantbox/settings/` 目录下：
+1. **创建配置文件**
 
-1. **创建配置目录**
-   ```bash
-   mkdir -p ~/.quantbox/settings
-   ```
-
-2. **复制配置模板**
-   ```bash
-   cp templates/config.toml ~/.quantbox/settings/
-   ```
-
-3. **编辑配置文件**
-   
-   编辑 `~/.quantbox/settings/config.toml` 文件，填入你的配置信息：
-
+   在用户主目录下创建 `.quantbox/config.toml` 文件：
    ```toml
-   [TSPRO]
-   token = "your tushare token"  # 从 https://tushare.pro 获取
+   [tushare]
+   token = "your_tushare_token"
 
-   [GMAPI]
-   token = "your gm token"  # 从 https://www.myquant.cn 获取
-
-   [MONGODB]
-   uri = "mongodb://localhost:27017"  # 如果使用默认的手动安装 MongoDB
-   # uri = "mongodb://localhost:27018"  # 如果使用 Docker 安装的 MongoDB
+   [goldminer]
+   token = "your_goldminer_token"
    ```
 
-   配置项说明：
-   - **TSPRO.token**: Tushare API 的访问令牌，可以从 [Tushare Pro](https://tushare.pro) 官网注册获取
-   - **GMAPI.token**: 掘金量化 API 的访问令牌，可以从[掘金量化](https://www.myquant.cn)官网注册获取
-   - **MONGODB.uri**: MongoDB 数据库的连接 URI
-     * 如果是手动安装的 MongoDB，通常使用 "mongodb://localhost:27017"
-     * 如果是使用 Docker 安装的 MongoDB，需要使用 "mongodb://localhost:27018"，因为我们将容器的 27017 端口映射到了主机的 27018 端口
+2. **MongoDB 配置**
 
-4. **验证配置**
+   默认连接本地 MongoDB（localhost:27017）。如需修改，在配置文件中添加：
+   ```toml
+   [mongodb]
+   host = "localhost"
+   port = 27017
+   ```
+
+3. **验证配置**
    
    运行以下命令验证配置是否正确：
    ```bash
-   python cli.py save-trade-dates
+   quantbox
+   > save_trade_dates
    ```
-   如果配置正确，将会开始下载交易日期数据。
 
 ## 使用示例
 

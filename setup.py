@@ -24,6 +24,7 @@ setup(
     packages=find_packages(),
     entry_points={
         "console_scripts": [
+            "quantbox=quantbox.shell:main",
             "quantbox-save=quantbox.savers.data_saver:save_data",
             "quantbox-gui=scripts.run_gui:main",  # GUI entry point
         ]
