@@ -58,6 +58,49 @@ class TSFetcher(BaseFetcher):
         self.default_start = DEFAULT_START
         self.local_fetcher = LocalFetcher()
 
+    def _normalize_date(self, date_input: Union[str, datetime.date, int, None], default: str) -> pd.Timestamp:
+        """Normalize various date input formats to pandas Timestamp.
+
+        Args:
+            date_input: Date in various formats
+            default: Default date string if input is None
+
+        Returns:
+            Normalized pandas Timestamp
+
+        Raises:
+            ValueError: If date format is invalid
+        """
+        if date_input is None:
+            return pd.Timestamp(default)
+        try:
+            return pd.Timestamp(str(date_input))
+        except (ValueError, TypeError) as e:
+            raise ValueError(f"Invalid date format for {date_input}: {str(e)}")
+
+    def _normalize_exchanges(self, exchanges: Union[List[str], str, None]) -> List[str]:
+        """Normalize and validate exchange inputs.
+
+        Args:
+            exchanges: Exchange or list of exchanges
+
+        Returns:
+            List of normalized exchange codes
+
+        Raises:
+            ValueError: If invalid exchange is provided
+        """
+        if exchanges is None:
+            return self.exchanges
+        if isinstance(exchanges, str):
+            exchanges = [ex.strip() for ex in exchanges.split(",")]
+        
+        invalid_exchanges = [ex for ex in exchanges if ex not in self.exchanges]
+        if invalid_exchanges:
+            raise ValueError(f"Invalid exchanges: {invalid_exchanges}. Supported exchanges: {self.exchanges}")
+        
+        return exchanges
+
     def fetch_get_trade_dates(
         self,
         exchanges: Union[List[str], str, None] = None,
@@ -97,59 +140,45 @@ class TSFetcher(BaseFetcher):
                         当API调用失败时
         """
         try:
-            # Validate and normalize exchanges
-            # 验证并标准化交易所参数
-            if exchanges is None:
-                exchanges = self.exchanges
-            elif isinstance(exchanges, str):
-                exchanges = [ex.strip() for ex in exchanges.split(",")]
-
-            # Validate exchanges
-            # 验证交易所代码
-            invalid_exchanges = [ex for ex in exchanges if ex not in self.exchanges]
-            if invalid_exchanges:
-                raise ValueError(f"Invalid exchanges: {invalid_exchanges}. Supported exchanges: {self.exchanges}")
-
-            # Normalize dates
-            # 标准化日期
-            try:
-                start_date = pd.Timestamp(str(start_date)) if start_date else pd.Timestamp(self.default_start)
-                end_date = pd.Timestamp(str(end_date)) if end_date else pd.Timestamp(f"{datetime.date.today().year}-12-31")
-            except (ValueError, TypeError) as e:
-                raise ValueError(f"Invalid date format: {str(e)}")
+            # Normalize inputs
+            exchanges = self._normalize_exchanges(exchanges)
+            start_date = self._normalize_date(start_date, self.default_start)
+            end_date = self._normalize_date(end_date, f"{datetime.date.today().year}-12-31")
 
             if start_date > end_date:
                 raise ValueError(f"Start date ({start_date}) must be before end date ({end_date})")
+
+            # Prepare date strings once
+            start_str = start_date.strftime("%Y%m%d")
+            end_str = end_date.strftime("%Y%m%d")
 
             results = []
             for exchange in exchanges:
                 try:
                     # Convert exchange code for TuShare API
-                    # 转换交易所代码以适配 Tushare API
                     ts_exchange = "SSE" if exchange == "SHSE" else exchange
 
                     # Fetch trading calendar
-                    # 获取交易日历
                     data = self.pro.trade_cal(
                         exchange=ts_exchange,
-                        start_date=start_date.strftime("%Y%m%d"),
-                        end_date=end_date.strftime("%Y%m%d")
+                        start_date=start_str,
+                        end_date=end_str
                     )
 
                     if data.empty:
                         continue
 
                     # Filter trading days and add required information
-                    # 过滤交易日并添加必要信息
-                    data = data.loc[data["is_open"] == 1].copy()
+                    data = data.query("is_open == 1").copy()
                     data["exchange"] = "SHSE" if ts_exchange == "SSE" else ts_exchange
-                    data["datestamp"] = data["cal_date"].map(str).apply(util_make_date_stamp)
-
-                    # Format dates
-                    # 格式化日期
+                    
+                    # Use vectorized operations for date processing
+                    data["datestamp"] = pd.to_datetime(data["cal_date"], format="%Y%m%d").astype(np.int64) // 10**9
                     data = data.rename(columns={"cal_date": "trade_date", "pretrade_date": "pre_trade_date"})
-                    data['trade_date'] = pd.to_datetime(data['trade_date']).dt.strftime('%Y-%m-%d')
-                    data['pre_trade_date'] = pd.to_datetime(data['pre_trade_date']).dt.strftime("%Y-%m-%d")
+                    
+                    # Format dates using vectorized operations
+                    for col in ["trade_date", "pre_trade_date"]:
+                        data[col] = pd.to_datetime(data[col]).dt.strftime("%Y-%m-%d")
 
                     results.append(data)
 
@@ -160,7 +189,6 @@ class TSFetcher(BaseFetcher):
                 return pd.DataFrame(columns=["exchange", "trade_date", "pre_trade_date", "datestamp"])
 
             # Combine results and ensure column order
-            # 合并结果并确保列顺序
             return pd.concat(results, axis=0)[["exchange", "trade_date", "pre_trade_date", "datestamp"]]
 
         except Exception as e:
