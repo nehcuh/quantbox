@@ -3,13 +3,15 @@ Local fetcher module for retrieving data from local database.
 """
 import datetime
 import pandas as pd
-from typing import List, Optional, Union, Dict
+from typing import List, Optional, Union, Dict, Any
 from abc import ABC
 import pymongo
 from quantbox.fetchers.base import BaseFetcher
 from quantbox.util.basic import DATABASE, DEFAULT_START, EXCHANGES, FUTURE_EXCHANGES, STOCK_EXCHANGES
 from quantbox.util.tools import util_make_date_stamp, util_format_future_symbols
 from quantbox.fetchers.monitoring import PerformanceMonitor, monitor_performance
+from quantbox.fetchers.cache import cache_result
+from quantbox.fetchers.utils import QueryBuilder, DateRangeValidator, ExchangeValidator
 
 
 class LocalBaseFetcher(ABC):
@@ -39,9 +41,6 @@ class LocalFetcher(LocalBaseFetcher):
     """
     def __init__(self):
         super().__init__()
-        """
-         本地数据库查询器
-        """
         self.exchanges = EXCHANGES.copy()
         self.stock_exchanges = STOCK_EXCHANGES.copy()
         self.future_exchanges = FUTURE_EXCHANGES.copy()
@@ -49,6 +48,7 @@ class LocalFetcher(LocalBaseFetcher):
         self.default_start = DEFAULT_START
         self.monitor = PerformanceMonitor(slow_query_threshold=2.0)  # 设置 2 秒为慢查询阈值
 
+    @cache_result(ttl=300)  # 缓存 5 分钟
     @monitor_performance
     def fetch_trade_dates(
         self,
@@ -57,49 +57,40 @@ class LocalFetcher(LocalBaseFetcher):
         end_date: Union[str, int, datetime.datetime, None] = None,
     ) -> pd.DataFrame:
         """
-        explanation:
-            本地获取 时间范围内的交易日历 (闭区间，如果起讫时间为交易日，会包括在内）
+        获取交易日历
 
-        params:
-            * exchanges ->
-                含义: 交易所, 默认为项目常量 EXCHANGES 定义的所有交易所
-                类型: str, list
-                参数支持: ['SSE', 'SZSE', 'SHFE', 'DCE', 'CFFEX', 'CZCE', 'INE']
-            * start_date ->
-                含义: 起始时间, 默认从 "1990-12-19" 开始
-                类型: int, str, datetime
-                参数支持: [19910906, '1992-03-02', datetime.datetime(2024, 9, 16)]
-            * end_date ->
-                含义: 截止时间
-                类型: int, str, datetime, 默认截止为当前日期
-                参数支持: [19910906, '1992-03-02', datetime.datetime(2024, 9, 16)]
-        returns:
-            pd.DataFrame ->
-                符合条件的交易日
+        Args:
+            exchanges: 交易所列表或字符串，默认为所有交易所
+            start_date: 起始日期，默认为 default_start
+            end_date: 结束日期，默认为当前日期
+
+        Returns:
+            pd.DataFrame: 交易日历数据
         """
-        if exchanges is None:
-            exchanges = self.exchanges
-        if isinstance(exchanges, str):
-            exchanges = exchanges.split(",")
+        # 参数处理和验证
         if start_date is None:
             start_date = self.default_start
         if end_date is None:
             end_date = datetime.datetime.today()
-        collections = self.client.trade_date
-        cursor = collections.find(
-            {
-                "exchange": {"$in": exchanges},
-                "datestamp": {
-                    "$gte": util_make_date_stamp(start_date),
-                    "$lte": util_make_date_stamp(end_date),
-                },
-            },
-            {"_id": 0},
-            batch_size=10000,
-        )
-        "获取交易日期"
-        return pd.DataFrame([item for item in cursor])
+        DateRangeValidator.validate_date_range(start_date, end_date)
 
+        try:
+            # 构建查询条件
+            query = {}
+            query.update(QueryBuilder.build_exchange_query(exchanges))
+            query.update(QueryBuilder.build_date_range_query(start_date, end_date))
+
+            # 执行查询
+            cursor = self.client.trade_date.find(
+                query,
+                QueryBuilder.build_projection(),
+                batch_size=10000,
+            )
+            return pd.DataFrame([item for item in cursor])
+        except Exception as e:
+            raise Exception(f"获取交易日历失败: {str(e)}")
+
+    @cache_result(ttl=300)  # 缓存 5 分钟
     @monitor_performance
     def fetch_pre_trade_date(
         self,
@@ -107,74 +98,44 @@ class LocalFetcher(LocalBaseFetcher):
         cursor_date: Union[str, int, datetime.datetime, None] = None,
         n: int=1,
         include: bool=False
-    ) -> str:
+    ) -> Dict[str, Any]:
         """
-        explanation:
-            获取指定日期之前 n 个交易日的交易日
+        获取指定日期之前的交易日
 
-        params:
-            * exchange ->
-                含义: 交易所, 默认为上交所 SSE
-                类型: str
-                参数支持: 'SSE', 'SZSE', 'SHFE', 'DCE', 'CFFEX', 'CZCE', 'INE'
-            cursor_date ->
-                含义: 指定时间, 默认为当前日期
-                类型: int, str, datetime
-                参数支持: 19910906, '1992-03-02', datetime.datetime(2024, 9, 16), ...
-            int ->
-                含义：往前回溯日期，默认为 1
-                类型：int
-                参数支持：1,2,3,...
-            include ->
-                含义：如果当天为交易日，是否包含当天，默认不包含当天
-                类型：bool
-                参数支持：True, False
+        Args:
+            exchange: 交易所代码，默认为上交所
+            cursor_date: 指定日期，默认为当前日期
+            n: 往前回溯的天数，默认为 1
+            include: 是否包含当天，默认为 False
+
+        Returns:
+            Dict: 交易日信息
         """
         if cursor_date is None:
             cursor_date = datetime.datetime.today()
-        collections = self.client.trade_date
-        count = collections.count_documents({
-            "exchange": exchange,
-            "datestamp": util_make_date_stamp(cursor_date)
-        })
-        if count == 0:
-            cursor = collections.find(
-                {
-                    "exchange": exchange,
-                    "datestamp": {
-                        "$lte": util_make_date_stamp(cursor_date),
-                    },
-                },
-                {"_id": 0},
+        ExchangeValidator.validate_stock_exchange(exchange)
+
+        try:
+            # 构建查询条件
+            query = {"exchange": exchange}
+            query.update(QueryBuilder.build_single_date_query(
+                cursor_date=cursor_date,
+                include=include,
+                before=True
+            ))
+
+            # 执行查询
+            cursor = self.client.trade_date.find(
+                query,
+                QueryBuilder.build_projection(),
                 batch_size=1000,
             ).skip(n-1)
-        else:
-            if include:
-                cursor = collections.find(
-                    {
-                        "exchange": exchange,
-                        "datestamp": {
-                            "$lte": util_make_date_stamp(cursor_date),
-                        },
-                    },
-                    {"_id": 0},
-                    batch_size=1000,
-                ).skip(n-1)
-            else:
-                cursor = collections.find(
-                    {
-                        "exchange": exchange,
-                        "datestamp": {
-                            "$lt": util_make_date_stamp(cursor_date),
-                        },
-                    },
-                    {"_id": 0},
-                    batch_size=1000,
-                ).skip(n-1)
-        # 数据库中交易日默认为逆序排列
-        item = cursor.next()
-        return item
 
+            return cursor.next()
+        except Exception as e:
+            raise Exception(f"获取前一交易日失败: {str(e)}")
+
+    @cache_result(ttl=300)  # 缓存 5 分钟
     @monitor_performance
     def fetch_next_trade_date(
         self,
@@ -182,76 +143,44 @@ class LocalFetcher(LocalBaseFetcher):
         cursor_date: Union[str, int, datetime.datetime, None] = None,
         n: int=1,
         include: bool=False
-    ) -> Dict:
+    ) -> Dict[str, Any]:
         """
-        explanation:
-            获取指定日期之 后 n 个交易日的交易日
+        获取指定日期之后的交易日
 
-        params:
-            * exchange ->
-                含义: 交易所, 默认为上交所 SSE
-                类型: str
-                参数支持: 'SSE', 'SZSE', 'SHFE', 'DCE', 'CFFEX', 'CZCE', 'INE'
-            * cursor_date ->
-                含义: 指定时间, 默认为当前日期
-                类型: int, str, datetime
-                参数支持: 19910906, '1992-03-02', datetime.datetime(2024, 9, 16), ...
-            * int ->
-                含义：往后回溯日期，默认为 1
-                类型：int
-                参数支持：1,2,3,...
-            * include ->
-                含义：如果当天为交易日，是否包含当天，默认不包含当天
-                类型：bool
-                参数支持：True, False
-        returns:
-            Dict ->
-                符合条件的交易日信息
+        Args:
+            exchange: 交易所代码，默认为上交所
+            cursor_date: 指定日期，默认为当前日期
+            n: 往后回溯的天数，默认为 1
+            include: 是否包含当天，默认为 False
+
+        Returns:
+            Dict: 交易日信息
         """
         if cursor_date is None:
             cursor_date = datetime.datetime.today()
-        collections = self.client.trade_date
-        count = collections.count_documents({
-            "exchange": exchange,
-            "datestamp": util_make_date_stamp(cursor_date)
-        })
-        if count == 0:
-            cursor = collections.find(
-                {
-                    "exchange": exchange,
-                    "datestamp": {
-                        "$gte": util_make_date_stamp(cursor_date),
-                    },
-                },
-                {"_id": 0},
+        ExchangeValidator.validate_stock_exchange(exchange)
+
+        try:
+            # 构建查询条件
+            query = {"exchange": exchange}
+            query.update(QueryBuilder.build_single_date_query(
+                cursor_date=cursor_date,
+                include=include,
+                before=False
+            ))
+
+            # 执行查询
+            cursor = self.client.trade_date.find(
+                query,
+                QueryBuilder.build_projection(),
                 batch_size=1000,
             ).sort("datestamp", pymongo.ASCENDING).skip(n)
-        else:
-            if include:
-                cursor = collections.find(
-                    {
-                        "exchange": exchange,
-                        "datestamp": {
-                            "$gte": util_make_date_stamp(cursor_date),
-                        },
-                    },
-                    {"_id": 0},
-                    batch_size=1000,
-                ).sort("datestamp", pymongo.ASCENDING).skip(n)
-            else:
-                cursor = collections.find(
-                    {
-                        "exchange": exchange,
-                        "datestamp": {
-                            "$gt": util_make_date_stamp(cursor_date),
-                        },
-                    },
-                    {"_id": 0},
-                    batch_size=1000,
-                ).sort("datestamp", pymongo.ASCENDING).skip(n)
-        item = cursor.next()
-        return item
 
+            return cursor.next()
+        except Exception as e:
+            raise Exception(f"获取下一交易日失败: {str(e)}")
+
+    @cache_result(ttl=300)  # 缓存 5 分钟
     @monitor_performance
     def fetch_future_contracts(
         self,
@@ -262,139 +191,56 @@ class LocalFetcher(LocalBaseFetcher):
         fields: Union[List[str], None] = None,
     ) -> pd.DataFrame:
         """
-        explanation:
-            获取期货合约信息
+        获取期货合约信息
 
-        params:
-            * symbol ->
-                含义：合约名称，默认为空
-                类型: str,
-                参数支持: ["AO2507", "AL0511", ...]
-            * exchanges ->
-                含义: 交易所, 默认为空，包含所有交易所信息
-                类型: Union[str, List[str], None]
-                参数支持: ['SHFE', 'DCE', 'CFFEX', 'CZCE', 'INE']
-            * spec_name ->
-                含义：合约中文名称，默认为 None, 取所有品种
-                参数：Union[str, List[str], None]
-                参数支持：["豆粕", "棕榈油", ...]
-            * cursor_date ->
-                含义: 指定时间, 默认为 None, 即获取所有合约
-                类型: int, str, datetime
-                参数支持: [19910906, '1992-03-02', datetime.datetime(2024, 9, 16)]
-            * fields ->
-                含义：自定义字段，默认为 None, 获取合约所有字段
-                类型: Union[List[str], None]
-                参数支持: ['symbol', 'name', 'list_date', 'delist_date']
-        returns:
-            pd.DataFrame ->
-                合约信息
+        Args:
+            symbol: 合约代码
+            exchanges: 交易所列表或字符串
+            spec_name: 合约品种名称
+            cursor_date: 指定日期
+            fields: 需要返回的字段列表
+
+        Returns:
+            pd.DataFrame: 合约信息
         """
-        collections = self.client.future_contracts
-        if cursor_date is None:
+        try:
+            # 构建查询条件
+            query = {}
+            
+            # 处理合约代码
             if symbol:
-                cursor = collections.find(
-                    {"symbol": symbol},
-                    {"_id": 0},
-                    batch_size=1000
-                )
-            else:
-                if exchanges:
-                    if isinstance(exchanges, str):
-                        exchanges = exchanges.split(",")
-                    if spec_name:
-                        if isinstance(spec_name, str):
-                            spec_name = spec_name.split(",")
-                        cursor = collections.find(
-                            {
-                                "exchange": {"$in": exchanges},
-                                "chinese_name": {"$in": spec_name},
-                            },
-                            {"_id": 0},
-                            batch_size=1000,
-                        )
-                    else:
-                        cursor = collections.find(
-                            {"exchange": {"$in": exchanges}},
-                            {"_id": 0},
-                            batch_size=10000
-                        )
-                else:
-                    if spec_name:
-                        if isinstance(spec_name, str):
-                            spec_name = spec_name.split(",")
-                        cursor = collections.find(
-                            {"chinese_name": {"$in": spec_name}},
-                            {"_id": 0},
-                            batch_size=10000
-                        )
-                    else:
-                        cursor = collections.find(
-                            {},
-                            {"_id":0},
-                            batch_size=10000
-                        )
-        else:
-            if symbol:
-                cursor = collections.find(
-                    {
-                        "symbol": symbol,
-                        "list_datestamp": {"$lte": util_make_date_stamp(cursor_date)},
-                        "delist_datestamp": {"$gte": util_make_date_stamp(cursor_date)}
-                    },
-                    {"_id": 0},
-                    batch_size=1000
-                )
-            else:
-                if exchanges:
-                    if isinstance(exchanges, str):
-                        exchanges = exchanges.split(",")
-                    if spec_name:
-                        if isinstance(spec_name, str):
-                            spec_name = spec_name.split(",")
-                        cursor = collections.find(
-                            {
-                                "exchange": {"$in": exchanges},
-                                "chinese_name": {"$in": spec_name},
-                                "list_datestamp": {"$lte": util_make_date_stamp(cursor_date)},
-                                "delist_datestamp": {"$gte": util_make_date_stamp(cursor_date)}
-                            },
-                            {"_id": 0},
-                            batch_size=1000,
-                        )
-                    else:
-                        cursor = collections.find(
-                            {
-                                "exchange": {"$in": exchanges},
-                                "list_datestamp": {"$lte": util_make_date_stamp(cursor_date)},
-                                "delist_datestamp": {"$gte": util_make_date_stamp(cursor_date)}
-                            },
-                            {"_id": 0},
-                            batch_size=10000
-                        )
-                else:
-                    if spec_name:
-                        if isinstance(spec_name, str):
-                            spec_name = spec_name.split(",")
-                        cursor = collections.find(
-                            {
-                                "chinese_name": {"$in": spec_name},
-                                "list_datestamp": {"$lte": util_make_date_stamp(cursor_date)},
-                                "delist_datestamp": {"$gte": util_make_date_stamp(cursor_date)}
-                            },
-                            {"_id": 0},
-                            batch_size=10000
-                        )
-                    else:
-                        cursor = collections.find(
-                            {
-                                "list_datestamp": {"$lte": util_make_date_stamp(cursor_date)},
-                                "delist_datestamp": {"$gte": util_make_date_stamp(cursor_date)}
-                            },
-                            {"_id": 0},
-                            batch_size=10000
-                        )
-        return pd.DataFrame([item for item in cursor])
+                query["symbol"] = symbol
+
+            # 处理交易所
+            if exchanges:
+                exchanges = QueryBuilder.normalize_exchanges(exchanges)
+                ExchangeValidator.validate_exchanges(exchanges)
+                query.update(QueryBuilder.build_exchange_query(exchanges))
+
+            # 处理品种名称
+            if spec_name:
+                if isinstance(spec_name, str):
+                    spec_name = spec_name.split(",")
+                query["chinese_name"] = {"$in": spec_name}
+
+            # 处理日期条件
+            if cursor_date:
+                datestamp = util_make_date_stamp(cursor_date)
+                query.update({
+                    "list_datestamp": {"$lte": datestamp},
+                    "delist_datestamp": {"$gte": datestamp}
+                })
+
+            # 执行查询
+            cursor = self.client.future_contracts.find(
+                query,
+                QueryBuilder.build_projection(fields),
+                batch_size=10000
+            ).sort([("exchange", pymongo.ASCENDING), ("symbol", pymongo.ASCENDING)])
+            
+            return pd.DataFrame([item for item in cursor])
+        except Exception as e:
+            raise Exception(f"查询期货合约数据失败: {str(e)}")
 
     @monitor_performance
     def fetch_future_holdings(
@@ -408,39 +254,19 @@ class LocalFetcher(LocalBaseFetcher):
         fields: Union[List[str], None] = None,
     ) -> pd.DataFrame:
         """
-        explanation:
-            获取指定交易所指定品种持仓情况
+        获取指定交易所指定品种持仓情况
 
-        params:
-            * symbol ->
-                含义：合约，默认为 None，会查询所有合约
-                类型：str
-                参数支持: M2501
-            * exchanges ->
-                含义：交易所, 默认为 DCE
-                类型：Union[str, List[str], None]
-                参数支持：DEC, INE, SHFE, INE, CFFEX
-            * spec_names ->
-                含义：品种，默认为 None, 不限制品种
-                类型: Union[str, List[str], None]
-                参数支持：豆粕、热卷、...
-            * cursor_date ->
-                含义：指定日期，默认为 None，取离今天最近的交易日（今天包含在内）
-                类型：Union[str, int, datetime.datetime]
-                参数支持：20200913, "20210305", ...
-            * start_date ->
-                含义：起始时间，默认为 None，如果为 None，则默认使用 cursor_date
-                类型：Union[str, int, datetime.datetime]
-                参数支持：20200913, "20210305", ...
-            * end_date ->
-                含义： 结束时间，默认为 None, 当 start_date 为 None 时，参数不生效
-                类型：Union[str, int, datetime.datetime]
-                参数支持：20200913, "20210305", ...
-            * symbols ->
-                含义：指定交易品种，默认为 None, 当前交易所所有合约
-        returns:
-            pd.DataFrame ->
-                实际龙虎榜数据
+        Args:
+            symbol: 合约代码
+            exchanges: 交易所列表或字符串
+            spec_names: 合约品种名称
+            cursor_date: 指定日期
+            start_date: 开始日期
+            end_date: 结束日期
+            fields: 需要返回的字段列表
+
+        Returns:
+            pd.DataFrame: 持仓信息
         """
         collections = self.client.future_holdings
         collections_contracts = self.client.future_contracts
@@ -657,33 +483,18 @@ class LocalFetcher(LocalBaseFetcher):
        fields: Union[List[str], None] = None,
     ) -> pd.DataFrame:
         """
-        explanation:
-            获取指定交易所指定品种日线行情
+        获取指定交易所指定品种日线行情
 
-        params:
-            * cursor_date ->
-                含义：指定日期最近交易日（当前日期包括在内）, 默认为 None，如果 start_date 不指定时，将默认 cursor_date 为当前日期
-                类型：Union[str, datetime.datetime, int, None]
-                参数支持： 20240930, "20240926"
-            * symbols ->
-                含义：指定合约代码列表，默认为 None, 当指定 symbols 后，exchanges 参数失效
-                类型： Union[str, List[str]]
-                参数支持：["M2501, M2505"]
-            * exchanges ->
-                含义：交易所 列表, 默认为 None
-                类型：Union[str, List[str], None]
-                参数支持：DEC, INE, SHFE, INE, CFFEX
-            * start_date ->
-                含义：起始时间，默认为 None，当指定了 start_date 以后，cursor_date 失效
-                类型：Union[str, int, datetime.datetime]
-                参数支持：20200913, "20210305", ...
-            * end_date ->
-                含义： 结束时间，默认为 None, 当指定了 start_date 以后，end_date 如果为 None，则默认为当前日期
-                类型：Union[str, int, datetime.datetime]
-                参数支持：20200913, "20210305", ...
-            returns:
-                pd.DataFrame ->
-                    期货日线行情
+        Args:
+            cursor_date: 指定日期最近交易日（当前日期包括在内）, 默认为 None，如果 start_date 不指定时，将默认 cursor_date 为当前日期
+            symbols: 指定合约代码列表，默认为 None, 当指定 symbols 后，exchanges 参数失效
+            exchanges: 交易所列表或字符串，默认为 None
+            start_date: 开始日期，默认为 None，当指定了 start_date 以后，cursor_date 失效
+            end_date: 结束日期，默认为 None, 当指定了 start_date 以后，end_date 如果为 None，则默认为当前日期
+            fields: 需要返回的字段列表
+
+        Returns:
+            pd.DataFrame: 日线行情数据
         """
         collections = self.client.future_daily
         if start_date:
