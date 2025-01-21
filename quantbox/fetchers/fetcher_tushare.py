@@ -3,6 +3,7 @@ import re
 from typing import List, Optional, Union
 
 import pandas as pd
+import numpy as np
 
 from quantbox.fetchers.base import BaseFetcher
 from quantbox.fetchers.local_fetcher import LocalFetcher
@@ -71,7 +72,7 @@ class TSFetcher(BaseFetcher):
             exchanges: Exchange(s) to fetch data from, defaults to all exchanges
                      要获取数据的交易所，默认为所有交易所
                 Supported: ['SHSE/SSE', 'SZSE', 'SHFE', 'DCE', 'CFFEX', 'CZCE', 'INE']
-                支持: ['SSE/SHSE', 'SZSE', 'SHFE', 'DCE', 'CFFEX', 'CZCE', 'INE']
+                支持: ['SSE/SSE', 'SZSE', 'SHFE', 'DCE', 'CFFEX', 'CZCE', 'INE']
             start_date: Start date, defaults to DEFAULT_START
                        起始时间，默认从 DEFAULT_START 开始
                 Formats: [19910906, '1992-03-02', datetime.date(2024, 9, 16)]
@@ -204,62 +205,48 @@ class TSFetcher(BaseFetcher):
             RuntimeError: If API call fails
                         当API调用失败时
         """
+        # 确保必要字段存在
+        required_fields = ["list_date", "delist_date", "name", "ts_code"]
         if fields:
-            if "list_date" not in fields:
-                fields.append("list_date")
-            if "delist_date" not in fields:
-                fields.append("delist_date")
-            if "name" not in fields:
-                fields.append("name")
-            if "ts_code" not in fields:
-                fields.append("ts_code")
+            fields.extend([f for f in required_fields if f not in fields])
+            # 获取合约信息，没有必要导入主力和连续合约，压根没有 list_date 和 delist_date
             data = self.pro.fut_basic(exchange=exchange, fut_type="1", fields=fields)
         else:
-            data = self.pro.fut_basic(
-                exchange=exchange,
-                fut_type="1",
-            )
-        data["list_datestamp"] = (
-            data["list_date"].map(str).apply(lambda x: util_make_date_stamp(x))
-        )
-        data["delist_datestamp"] = (
-            data["delist_date"].map(str).apply(lambda x: util_make_date_stamp(x))
-        )
-        # 1. 使用 `(?=\d{3,})` 作为正向预查，表示只在遇到3位及以上数字时才进行匹配
-        # 2. `.+?` 使用非贪婪模式匹配前面的所有字符
-        # items = ["原油2306TAS", "国际铜2309", "20号胶2510", "原油2005"]
-        # ['原油', '国际铜', '20号胶', '原油']
-        pattern = r'(.+?)(?=\d{3,})'
-        data["chinese_name"] = data["name"].apply(lambda x: re.findall(pattern, x)[0])
-        if exchange == "CZCE":
-            # 郑商所的合约规则与其他交易所不一致，譬如，郑商所的苹果合约命名为 AP107
-            # 为了与其他交易所保持一致，这里使用 ts_code 中的规则，即 AP2107
-            data["symbol"] = data["ts_code"].map(str).apply(lambda x: x.split(".")[0])
+            data = self.pro.fut_basic(exchange=exchange, fut_type="1")
 
+        # 处理日期
+        for date_col in ["list_date", "delist_date"]:
+            data[f"{date_col}stamp"] = pd.to_datetime(data[date_col].astype(str)).astype(np.int64) // 10**9
+            data[date_col] = pd.to_datetime(data[date_col]).dt.strftime("%Y-%m-%d")
+
+        # 提取中文名称
+        data["chinese_name"] = data["name"].str.extract(r'(.+?)(?=\d{3,})')
+        
+        # 处理合约代码
+        data["qbcode"] = data["ts_code"].str.split(".").str[0]
+        if exchange not in ["CZCE", "CFFEX"]:
+            # Tushare 中 symbol 都默认使用大写了，与交易所实际不一致，做特殊处理
+            data["symbol"] = data["symbol"].str.lower()
+
+        # 按品种名称过滤
         if spec_name:
             if isinstance(spec_name, str):
                 spec_name = spec_name.split(",")
-            data = data.loc[data["chinese_name"].isin(spec_name)]
-            columns = data.columns.tolist()
-            data = data[columns]
+            data = data[data["chinese_name"].isin(spec_name)]
 
-        columns = data.columns.tolist()
-
-        data.list_date = pd.to_datetime(data.list_date).dt.strftime("%Y-%m-%d")
-        data.delist_date = pd.to_datetime(data.delist_date).dt.strftime("%Y-%m-%d")
-
-        if ("ts_code" in columns) and (fields is None):
-            columns.remove("ts_code")
-
+        # 整理列顺序
+        if "ts_code" in data.columns and fields is None:
+            columns = ["qbcode"] + [col for col in data.columns if col not in ["qbcode", "ts_code"]]
+        else:
+            columns = ["qbcode"] + [col for col in data.columns if col != "qbcode"]
         data = data[columns]
 
-        if cursor_date is None:
-            return data
-        else:
+        # 按日期过滤
+        if cursor_date is not None:
             cursor_date = pd.Timestamp(str(cursor_date)).strftime("%Y-%m-%d")
-            return data.loc[
-                (data["list_date"] <= cursor_date) & (data["delist_date"] > cursor_date)
-            ]
+            data = data[(data["list_date"] <= cursor_date) & (data["delist_date"] > cursor_date)]
+
+        return data
 
     def fetch_get_stock_list(
         self,
