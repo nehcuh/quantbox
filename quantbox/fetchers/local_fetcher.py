@@ -8,7 +8,8 @@ from abc import ABC
 import pymongo
 from quantbox.fetchers.base import BaseFetcher
 from quantbox.util.basic import DATABASE, DEFAULT_START, EXCHANGES, FUTURE_EXCHANGES, STOCK_EXCHANGES
-from quantbox.util.tools import util_make_date_stamp, util_format_future_symbols
+from quantbox.util.date_utils import util_make_date_stamp
+from quantbox.util.tools import util_format_future_symbols
 from quantbox.fetchers.monitoring import PerformanceMonitor, monitor_performance
 from quantbox.fetchers.cache import cache_result
 from quantbox.fetchers.utils import QueryBuilder, DateRangeValidator, ExchangeValidator
@@ -48,7 +49,7 @@ class LocalFetcher(LocalBaseFetcher):
         self.default_start = DEFAULT_START
         self.monitor = PerformanceMonitor(slow_query_threshold=2.0)  # 设置 2 秒为慢查询阈值
 
-    @cache_result(ttl=300)  # 缓存 5 分钟
+    @cache_result(ttl=3600)  # 缓存 1 小时，因为交易日历数据变化不频繁
     @monitor_performance
     def fetch_trade_dates(
         self,
@@ -65,7 +66,11 @@ class LocalFetcher(LocalBaseFetcher):
             end_date: 结束日期，默认为当前日期
 
         Returns:
-            pd.DataFrame: 交易日历数据
+            pd.DataFrame: 交易日历数据，包含以下字段：
+                - exchange: 交易所代码
+                - trade_date: 交易日期
+                - pretrade_date: 前一交易日
+                - datestamp: 日期时间戳
         """
         # 参数处理和验证
         if start_date is None:
@@ -80,21 +85,23 @@ class LocalFetcher(LocalBaseFetcher):
             query.update(QueryBuilder.build_exchange_query(exchanges))
             query.update(QueryBuilder.build_date_range_query(start_date, end_date))
 
-            # 执行查询
+            # 执行查询，添加适当的索引和排序
             cursor = self.client.trade_date.find(
                 query,
                 QueryBuilder.build_projection(),
-                batch_size=10000,
-            )
-            return pd.DataFrame([item for item in cursor])
+                sort=[("exchange", 1), ("datestamp", 1)],
+                hint="idx_exchange_datestamp"  # 使用复合索引
+            ).batch_size(5000)  # 根据数据量调整批次大小
+            
+            return pd.DataFrame(list(cursor))
         except Exception as e:
             raise Exception(f"获取交易日历失败: {str(e)}")
 
-    @cache_result(ttl=300)  # 缓存 5 分钟
+    @cache_result(ttl=300)  # 缓存 5 分钟，因为需要较新的数据
     @monitor_performance
     def fetch_pre_trade_date(
         self,
-        exchange: str="SSE",
+        exchange: str="SHSE",
         cursor_date: Union[str, int, datetime.datetime, None] = None,
         n: int=1,
         include: bool=False
@@ -124,22 +131,27 @@ class LocalFetcher(LocalBaseFetcher):
                 before=True
             ))
 
-            # 执行查询
+            # 优化查询性能：使用排序和限制替代 skip
             cursor = self.client.trade_date.find(
                 query,
                 QueryBuilder.build_projection(),
-                batch_size=1000,
-            ).skip(n-1)
+                sort=[("datestamp", -1)],
+                limit=n
+            ).hint("idx_exchange_datestamp")  # 使用复合索引
 
-            return cursor.next()
+            # 获取最后一个结果
+            result = None
+            for doc in cursor:
+                result = doc
+            return result
         except Exception as e:
             raise Exception(f"获取前一交易日失败: {str(e)}")
 
-    @cache_result(ttl=300)  # 缓存 5 分钟
+    @cache_result(ttl=300)  # 缓存 5 分钟，因为需要较新的数据
     @monitor_performance
     def fetch_next_trade_date(
         self,
-        exchange: str="SSE",
+        exchange: str="SHSE",
         cursor_date: Union[str, int, datetime.datetime, None] = None,
         n: int=1,
         include: bool=False
@@ -169,14 +181,19 @@ class LocalFetcher(LocalBaseFetcher):
                 before=False
             ))
 
-            # 执行查询
+            # 优化查询性能：使用排序和限制替代 skip
             cursor = self.client.trade_date.find(
                 query,
                 QueryBuilder.build_projection(),
-                batch_size=1000,
-            ).sort("datestamp", pymongo.ASCENDING).skip(n)
+                sort=[("datestamp", 1)],
+                limit=n
+            ).hint("idx_exchange_datestamp")  # 使用复合索引
 
-            return cursor.next()
+            # 获取最后一个结果
+            result = None
+            for doc in cursor:
+                result = doc
+            return result
         except Exception as e:
             raise Exception(f"获取下一交易日失败: {str(e)}")
 
@@ -576,28 +593,6 @@ class LocalFetcher(LocalBaseFetcher):
                     return results[fields]
                 else:
                     return results
-
-
-# 添加全局函数
-def fetch_trade_dates(exchanges=None, start_date=None, end_date=None):
-    local_fetcher = LocalFetcher()
-    return local_fetcher.fetch_trade_dates(exchanges, start_date, end_date)
-
-def fetch_pre_trade_date(exchange="SSE", cursor_date=None, n=1, include=False):
-    local_fetcher = LocalFetcher()
-    return local_fetcher.fetch_pre_trade_date(exchange, cursor_date, n, include)
-
-def fetch_next_trade_date(exchange="SSE", cursor_date=None, n=1, include=False):
-    local_fetcher = LocalFetcher()
-    return local_fetcher.fetch_next_trade_date(exchange, cursor_date, n, include)
-
-def fetch_future_contracts(symbol=None, exchanges=None, spec_name=None, cursor_date=None, fields=None):
-    local_fetcher = LocalFetcher()
-    return local_fetcher.fetch_future_contracts(symbol, exchanges, spec_name, cursor_date, fields)
-
-def fetch_future_holdings(symbol=None, exchanges=None, spec_names=None, cursor_date=None, start_date=None, end_date=None, fields=None):
-    local_fetcher = LocalFetcher()
-    return local_fetcher.fetch_future_holdings(symbol, exchanges, spec_names, cursor_date, start_date, end_date, fields)
 
 
 if __name__ == "__main__":

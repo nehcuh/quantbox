@@ -11,30 +11,6 @@ import pandas as pd
 from quantbox.util.basic import DATABASE, EXCHANGES
 
 
-def util_make_date_stamp(
-    cursor_date: Union[int, str, datetime.date, None] = None, format: str = "%Y-%m-%d"
-) -> float:
-    """将日期转换为时间戳
-
-    将指定格式的日期转换为 Unix 时间戳。
-
-    Args：
-        cursor_date: 需要转换的日期，支持整数、字符串或 datetime.date 对象
-                    如果为 None，则使用当前日期
-        format: 日期格式字符串，默认为 "%Y-%m-%d"
-
-    Returns：
-        float: Unix 时间戳
-    """
-    if cursor_date is None:
-        cursor_date = datetime.date.today()
-    if isinstance(cursor_date, int):
-        cursor_date = str(cursor_date)
-    return time.mktime(
-        time.strptime(pd.Timestamp(cursor_date).strftime(format), format)
-    )
-
-
 def util_to_json_from_pandas(data: pd.DataFrame) -> Dict:
     """将 pandas DataFrame 转换为 JSON 格式
 
@@ -253,42 +229,3 @@ def load_contract_exchange_mapper() -> Dict:
     collections = DATABASE.future_contracts
     results = list(collections.aggregate(pipeline))
     return {item["fut_code"]: item["exchange"] for item in results}
-
-
-def is_trade_date(
-    cursor_date: Union[str, int, datetime.date, None] = None,
-    exchange: str='SHSE'
-) -> bool:
-    """判断指定日期是否为交易日
-
-    检查指定日期在指定交易所是否为交易日。
-
-    Args：
-        cursor_date: 需要检查的日期
-                    支持格式：19981203, "20240910", datetime.date()
-                    默认为 None，表示当前日期
-        exchange: 交易所代码
-                默认为 "SHSE"（上海证券交易所）
-                支持：SHSE, SZSE, DCE, INE 等
-
-    Returns：
-        bool: 是否为交易日
-    """
-    if cursor_date is None:
-        cursor_date = datetime.date.today()
-
-    collections = DATABASE.trade_date
-
-    if exchange not in EXCHANGES:
-        raise ValueError("[ERROR]\t 不支持的交易所类型")
-
-    datestamp = util_make_date_stamp(cursor_date)
-
-    count = collections.count_documents({
-        "datestamp": datestamp,
-        "exchange": exchange
-    })
-    if count > 0:
-        return True
-    else:
-        return False

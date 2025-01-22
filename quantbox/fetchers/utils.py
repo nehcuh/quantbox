@@ -1,10 +1,10 @@
 """
-Utility functions for data fetchers
+Utility functions for fetchers
 """
 from typing import Union, List, Dict, Any, Optional
 import datetime
-from quantbox.util.basic import EXCHANGES, STOCK_EXCHANGES, FUTURE_EXCHANGES
-from quantbox.util.tools import util_make_date_stamp
+from quantbox.util.basic import DATABASE, EXCHANGES, STOCK_EXCHANGES, FUTURE_EXCHANGES
+from quantbox.util.date_utils import util_make_date_stamp
 
 
 class QueryBuilder:

@@ -2,7 +2,8 @@ import unittest
 import datetime
 import time
 import pandas as pd
-from quantbox.util.tools import util_make_date_stamp, util_to_json_from_pandas
+from quantbox.util.date_utils import util_make_date_stamp
+from quantbox.util.tools import util_to_json_from_pandas
 
 class TestUtilFunctions(unittest.TestCase):
     def test_util_make_date_stamp(self):

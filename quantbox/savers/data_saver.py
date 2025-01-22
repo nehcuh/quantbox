@@ -34,9 +34,9 @@ if platform.system() != 'Darwin':  # Not macOS
 from quantbox.fetchers.fetcher_tushare import TSFetcher
 from quantbox.fetchers.local_fetcher import LocalFetcher, fetch_next_trade_date
 from quantbox.util.basic import DATABASE, EXCHANGES, FUTURE_EXCHANGES, STOCK_EXCHANGES
+from quantbox.util.date_utils import util_make_date_stamp
 from quantbox.util.tools import (
     util_format_stock_symbols,
-    util_make_date_stamp,
     util_to_json_from_pandas,
     is_trade_date
 )
@@ -987,136 +987,88 @@ class MarketDataSaver:
         # 处理交易所参数
         if exchanges is None:
             exchanges = self.future_exchanges
-        if isinstance(exchanges, str):
-            exchanges = exchanges.split(",")
-        # 股票交易所不考虑
-        exchanges = [x for x in exchanges if x not in self.stock_exchanges]
-
-        # FIXME：上海能源交易所在 tushare 的接口上获取相应持仓数据为空
-        if "INE" in exchanges:
-            exchanges.remove("INE")
-            logger.warning("上海能源交易所(INE)暂不支持获取持仓数据")
+        elif isinstance(exchanges, str):
+            exchanges = [exchanges]
 
         # 处理日期参数
+        if start_date is None:
+            start_date = self.config['saver'].get('default_start_date', '1990-12-19')
         if end_date is None:
-            end_date = datetime.date.today()
-            if start_date is None:
-                start_date = end_date - datetime.timedelta(days=offset)
-        else:
-            if start_date is None:
-                start_date = pd.Timestamp(end_date) - pd.Timedelta(days=offset)
-
-        # 如果是当天且未到收盘时间，使用前一天数据
-        if (is_trade_date(end_date, exchanges[0]) and
-            pd.Timestamp(end_date) == pd.Timestamp(datetime.date.today()) and
-            datetime.datetime.now().hour < trading_end_hour):
-            end_date = pd.Timestamp(end_date) - pd.Timedelta(days=1)
-            logger.info(f"当前未到收盘时间，使用前一天 {end_date} 的数据")
+            end_date = datetime.date.today().strftime("%Y-%m-%d")
 
         logger.info(f"处理日期范围: {start_date} 到 {end_date}")
 
-        from concurrent.futures import ThreadPoolExecutor, as_completed
-
-        def process_exchange_date(exchange: str, trade_date: str) -> int:
-            """处理单个交易所的单个交易日数据"""
-            try:
-                count = collections.count_documents({
-                    "datestamp": util_make_date_stamp(trade_date),
-                    "exchange": exchange,
-                })
-
-                if count == 0:
-                    logger.info(f"获取交易所 {exchange} 在交易日 {trade_date} 的持仓排名")
-
-                    # 根据不同引擎调用不同的数据获取方法
-                    if engine == 'ts':
-                        results = self.ts_fetcher.fetch_get_holdings(
-                            exchanges=exchange, cursor_date=trade_date
-                        )
-                    elif engine == 'gm':
-                        results = self.gm_fetcher.fetch_get_holdings(
-                            exchanges=exchange, cursor_date=trade_date
-                        )
-                    else:
-                        raise ValueError(f"不支持的数据引擎: {engine}，请使用 'ts' 或 'gm'")
-
-                    if results is not None and not results.empty:
-                        # 检查重复记录
-                        duplicates = results.duplicated(subset=['trade_date', 'broker', 'symbol'], keep='last')
-                        if duplicates.any():
-                            logger.warning(f"发现 {duplicates.sum()} 条重复记录，将保留最新的记录")
-                            results = results[~duplicates]
-
-                        # 使用 upsert 操作保存数据
-                        for _, row in results.iterrows():
-                            data = util_to_json_from_pandas(pd.DataFrame([row]))
-                            collections.update_one(
-                                {
-                                    "trade_date": row['trade_date'],
-                                    "broker": row['broker'],
-                                    "symbol": row['symbol']
-                                },
-                                {"$set": data[0]},
-                                upsert=True
-                            )
-
-                        inserted_count = len(results)
-                        logger.info(f"交易所 {exchange} 在交易日 {trade_date} 新增/更新 {inserted_count} 条持仓数据")
-                        return inserted_count
-                    else:
-                        logger.warning(f"交易所 {exchange} 在交易日 {trade_date} 未获取到持仓数据")
-                else:
-                    logger.debug(f"交易所 {exchange} 在交易日 {trade_date} 的持仓数据已存在")
-
-            except pymongo.errors.DuplicateKeyError as e:
-                logger.warning(f"处理重复数据: {str(e)}")
-            except Exception as e:
-                logger.error(f"处理交易所 {exchange} 在交易日 {trade_date} 的数据时出错: {str(e)}")
-                raise
-
-            return 0
-
         total_inserted = 0
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            future_to_params = {}
+        for exchange in exchanges:
+            try:
+                # 获取交易日列表
+                trade_dates = self.local_fetcher.fetch_trade_dates(
+                    exchanges=exchange,
+                    start_date=start_date,
+                    end_date=end_date
+                )
 
-            for exchange in exchanges:
-                try:
-                    # 获取交易日列表
-                    trade_dates = self.local_fetcher.fetch_trade_dates(
-                        exchanges=exchange,
-                        start_date=start_date,
-                        end_date=end_date
-                    )
+                if trade_dates is None or trade_dates.empty:
+                    logger.warning(f"交易所 {exchange} 在指定日期范围内没有交易日")
+                    continue
 
-                    if trade_dates is None or trade_dates.empty:
-                        logger.warning(f"交易所 {exchange} 在指定日期范围内没有交易日")
+                # 提交所有任务
+                for trade_date in trade_dates.trade_date.tolist():
+                    try:
+                        count = collections.count_documents({
+                            "datestamp": util_make_date_stamp(trade_date),
+                            "exchange": exchange,
+                        })
+
+                        if count == 0:
+                            logger.info(f"获取交易所 {exchange} 在交易日 {trade_date} 的持仓排名")
+
+                            # 根据不同引擎调用不同的数据获取方法
+                            if engine == 'ts':
+                                results = self.ts_fetcher.fetch_get_holdings(
+                                    exchanges=exchange, cursor_date=trade_date
+                                )
+                            elif engine == 'gm':
+                                results = self.gm_fetcher.fetch_get_holdings(
+                                    exchanges=exchange, cursor_date=trade_date
+                                )
+                            else:
+                                raise ValueError(f"不支持的数据引擎: {engine}，请使用 'ts' 或 'gm'")
+
+                            if results is not None and not results.empty:
+                                # 检查重复记录
+                                duplicates = results.duplicated(subset=['trade_date', 'broker', 'symbol'], keep='last')
+                                if duplicates.any():
+                                    logger.warning(f"发现 {duplicates.sum()} 条重复记录，将保留最新的记录")
+                                    results = results[~duplicates]
+
+                                # 使用 upsert 操作保存数据
+                                for _, row in results.iterrows():
+                                    data = util_to_json_from_pandas(pd.DataFrame([row]))
+                                    collections.update_one(
+                                        {
+                                            "trade_date": row['trade_date'],
+                                            "broker": row['broker'],
+                                            "symbol": row['symbol']
+                                        },
+                                        {"$set": data[0]},
+                                        upsert=True
+                                    )
+
+                                inserted_count = len(results)
+                                logger.info(f"交易所 {exchange} 在交易日 {trade_date} 新增/更新 {inserted_count} 条持仓数据")
+                                total_inserted += inserted_count
+                            else:
+                                logger.warning(f"交易所 {exchange} 在交易日 {trade_date} 未获取到持仓数据")
+                    except pymongo.errors.DuplicateKeyError as e:
+                        logger.warning(f"处理重复数据: {str(e)}")
+                    except Exception as e:
+                        logger.error(f"处理交易所 {exchange} 在交易日 {trade_date} 的数据时出错: {str(e)}")
                         continue
 
-                    # 提交所有任务
-                    for trade_date in trade_dates.trade_date.tolist():
-                        future = executor.submit(
-                            process_exchange_date,
-                            exchange,
-                            trade_date
-                        )
-                        future_to_params[future] = (exchange, trade_date)
-
-                except Exception as e:
-                    logger.error(f"处理交易所 {exchange} 的交易日列表时出错: {str(e)}")
-                    raise
-
-            # 收集结果
-            for future in as_completed(future_to_params):
-                exchange, trade_date = future_to_params[future]
-                try:
-                    inserted_count = future.result()
-                    total_inserted += inserted_count
-                except Exception as e:
-                    logger.error(
-                        f"处理交易所 {exchange} 在交易日 {trade_date} 的任务失败: {str(e)}"
-                    )
-                    raise
+            except Exception as e:
+                logger.error(f"处理交易所 {exchange} 数据时出错: {str(e)}")
+                continue
 
         logger.info(f"期货持仓数据保存完成，总共新增 {total_inserted} 条数据")
 
