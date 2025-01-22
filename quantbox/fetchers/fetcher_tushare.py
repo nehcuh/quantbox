@@ -1,198 +1,320 @@
 import datetime
+import time
 import re
-from typing import List, Optional, Union
-
+import functools
+from typing import List, Optional, Union, Dict, Any, Tuple
 import pandas as pd
 import numpy as np
 
-from quantbox.fetchers.base import BaseFetcher
-from quantbox.fetchers.local_fetcher import LocalFetcher
-from quantbox.util.basic import (
-    DATABASE,
-    DEFAULT_START,
-    EXCHANGES,
-    FUTURE_EXCHANGES,
-    STOCK_EXCHANGES,
-    TSPRO,
-)
-from quantbox.util.tools import (
-    util_format_future_symbols,
-    util_format_stock_symbols,
-    util_make_date_stamp,
-)
+from ..util.basic import TSPRO, DATABASE, DEFAULT_START
+from ..util.exchange_utils import validate_exchanges
+from .local_fetcher import LocalFetcher
 
-
-class TSFetcher(BaseFetcher):
-    """
-    TuShare data fetcher implementation.
-    基于 Tushare 的数据获取实现。
-
-    This class provides methods to fetch various financial data from TuShare API, including:
-    提供从 Tushare API 获取各种金融数据的方法，包括：
-
-    - Trading dates / 交易日历
-    - Future contracts / 期货合约
-    - Stock listings / 股票列表
-    - Holdings data / 持仓数据
-    - Daily market data / 日线行情
-
-    Attributes:
-        pro: TuShare API client / Tushare API 客户端
-        exchanges: List of supported exchanges / 支持的交易所列表
-        stock_exchanges: List of supported stock exchanges / 支持的股票交易所列表
-        future_exchanges: List of supported future exchanges / 支持的期货交易所列表
-        client: Database client / 数据库客户端
-        default_start: Default start date / 默认起始日期
-    """
-
+class TSFetcher:
+    """TuShare数据获取器"""
+    
     def __init__(self):
-        """
-        初始化 Tushare 数据获取器，设置 API 客户端和配置。
-        """
-        super().__init__()
+        """初始化"""
         self.pro = TSPRO
-        self.exchanges = EXCHANGES.copy()
-        self.stock_exchanges = STOCK_EXCHANGES.copy()
-        self.future_exchanges = FUTURE_EXCHANGES.copy()
-        self.client = DATABASE
         self.default_start = DEFAULT_START
         self.local_fetcher = LocalFetcher()
+        
+        # 缓存设置
+        self._cache_ttl = 3600  # 缓存有效期（秒）
+        self._cache: Dict[str, Tuple[float, Any]] = {}  # {key: (timestamp, data)}
 
-    def _normalize_date(self, date_input: Union[str, datetime.date, int, None], default: str) -> pd.Timestamp:
-        """Normalize various date input formats to pandas Timestamp.
+    def _get_cache_key(self, *args, **kwargs) -> str:
+        """生成缓存键
+
+        将函数参数转换为缓存键。这个实现很简单，
+        但对于我们的用例来说足够了。
 
         Args:
-            date_input: Date in various formats
-            default: Default date string if input is None
+            *args: 位置参数
+            **kwargs: 关键字参数
 
         Returns:
-            Normalized pandas Timestamp
-
-        Raises:
-            ValueError: If date format is invalid
+            str: 缓存键
         """
-        if date_input is None:
-            return pd.Timestamp(default)
-        try:
-            return pd.Timestamp(str(date_input))
-        except (ValueError, TypeError) as e:
-            raise ValueError(f"Invalid date format for {date_input}: {str(e)}")
+        key_parts = [str(arg) for arg in args]
+        key_parts.extend(f"{k}={v}" for k, v in sorted(kwargs.items()))
+        return "|".join(key_parts)
 
-    def _normalize_exchanges(self, exchanges: Union[List[str], str, None]) -> List[str]:
-        """Normalize and validate exchange inputs.
+    def _get_from_cache(self, key: str) -> Optional[Any]:
+        """从缓存中获取数据
 
         Args:
-            exchanges: Exchange or list of exchanges
+            key: 缓存键
 
         Returns:
-            List of normalized exchange codes
-
-        Raises:
-            ValueError: If invalid exchange is provided
+            Optional[Any]: 缓存的数据，如果没有找到或已过期则返回 None
         """
-        if exchanges is None:
-            return self.exchanges
-        if isinstance(exchanges, str):
-            exchanges = [ex.strip() for ex in exchanges.split(",")]
+        if key not in self._cache:
+            return None
         
-        invalid_exchanges = [ex for ex in exchanges if ex not in self.exchanges]
-        if invalid_exchanges:
-            raise ValueError(f"Invalid exchanges: {invalid_exchanges}. Supported exchanges: {self.exchanges}")
+        timestamp, data = self._cache[key]
+        if time.time() - timestamp > self._cache_ttl:
+            # 缓存已过期
+            del self._cache[key]
+            return None
         
-        return exchanges
+        return data
+
+    def _set_cache(self, key: str, data: Any):
+        """将数据存入缓存
+
+        Args:
+            key: 缓存键
+            data: 要缓存的数据
+        """
+        self._cache[key] = (time.time(), data)
+
+    def _format_date_string(self, date_int: int) -> str:
+        """将整数日期格式化为字符串
+
+        使用更高效的字符串格式化方法。
+
+        Args:
+            date_int: 整数格式的日期 (YYYYMMDD)
+
+        Returns:
+            str: 格式化的日期字符串 (YYYY-MM-DD)
+        """
+        date_str = str(date_int)
+        return f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:]}"
+
+    def _batch_fetch_trade_dates(
+        self,
+        start_dates: List[int],
+        end_dates: List[int],
+        exchanges: Optional[List[str]] = None
+    ) -> pd.DataFrame:
+        """批量获取交易日历
+
+        将多个查询合并为一个，减少网络请求次数。
+
+        Args:
+            start_dates: 起始日期列表（整数格式）
+            end_dates: 结束日期列表（整数格式）
+            exchanges: 交易所列表
+
+        Returns:
+            pd.DataFrame: 合并后的交易日历数据
+        """
+        # 找出最早的开始日期和最晚的结束日期
+        min_start = min(start_dates)
+        max_end = max(end_dates)
+        
+        # 获取完整的日期范围数据
+        df = self.pro.trade_cal(
+            exchange='',
+            start_date=str(min_start),
+            end_date=str(max_end),
+            is_open='1'
+        )
+        
+        if df.empty:
+            return pd.DataFrame()
+        
+        # 重命名列
+        df = df.rename(columns={
+            'cal_date': 'date_int',
+            'pretrade_date': 'pretrade_date'
+        })
+        
+        # 确保日期是整数类型
+        df['date_int'] = df['date_int'].astype(int)
+        
+        # 添加交易所列
+        exchanges = validate_exchanges(exchanges)
+        
+        # 展开数据，为每个交易所创建一行
+        df_list = []
+        for exchange in exchanges:
+            df_exchange = df.copy()
+            df_exchange['exchange'] = exchange
+            df_list.append(df_exchange)
+        
+        df = pd.concat(df_list, ignore_index=True)
+        
+        # 使用更高效的方法添加日期字符串
+        df['trade_date'] = df['date_int'].apply(self._format_date_string)
+        df['pretrade_date'] = df['pretrade_date'].apply(
+            lambda x: self._format_date_string(int(x)) if pd.notna(x) else None
+        )
+        
+        # 添加时间戳（使用向量化操作）
+        df['datestamp'] = pd.to_datetime(df['trade_date']).astype(int) // 10**9
+        
+        return df[['exchange', 'trade_date', 'pretrade_date', 'datestamp', 'date_int']]
 
     def fetch_get_trade_dates(
         self,
         exchanges: Union[List[str], str, None] = None,
-        start_date: Union[str, datetime.date, int, None] = None,
-        end_date: Union[str, datetime.date, int, None] = None,
+        start_date: Union[str, int, datetime.datetime, None] = None,
+        end_date: Union[str, int, datetime.datetime, None] = None,
+        use_cache: bool = True
     ) -> pd.DataFrame:
-        """
-        Fetch trading dates for specified exchanges within a date range.
-        获取指定交易所的日期范围内的交易日。
+        """获取交易日历
 
         Args:
-            exchanges: Exchange(s) to fetch data from, defaults to all exchanges
-                     要获取数据的交易所，默认为所有交易所
-                Supported: ['SHSE/SSE', 'SZSE', 'SHFE', 'DCE', 'CFFEX', 'CZCE', 'INE']
-                支持: ['SSE/SSE', 'SZSE', 'SHFE', 'DCE', 'CFFEX', 'CZCE', 'INE']
-            start_date: Start date, defaults to DEFAULT_START
-                       起始时间，默认从 DEFAULT_START 开始
-                Formats: [19910906, '1992-03-02', datetime.date(2024, 9, 16)]
-                支持格式: [19910906, '1992-03-02', datetime.date(2024, 9, 16)]
-            end_date: End date, defaults to current year end
-                     截止时间，默认截止为当前年底
-                Formats: [19910906, '1992-03-02', datetime.date(2024, 9, 16)]
-                支持格式: [19910906, '1992-03-02', datetime.date(2024, 9, 16)]
+            exchanges: 交易所列表或字符串，默认为所有交易所
+            start_date: 起始日期，支持以下格式：
+                - 整数：20240101
+                - 字符串：'20240101' 或 '2024-01-01'
+                - datetime 对象
+                默认为 default_start
+            end_date: 结束日期，格式同 start_date，默认为当前日期
+            use_cache: 是否使用缓存，默认为 True
 
         Returns:
-            DataFrame containing trading dates with columns:
-            包含以下字段的交易日期DataFrame：
-            - exchange: Exchange code / 交易所代码
-            - trade_date: Trading date / 交易日期
-            - pretrade_date: Previous trading date / 前一交易日
-            - datestamp: Date timestamp / 日期时间戳
-
-        Raises:
-            ValueError: If invalid exchange or date format is provided
-                      当提供的交易所或日期格式无效时
-            RuntimeError: If API call fails
-                        当API调用失败时
+            pd.DataFrame: 交易日历数据，包含以下字段：
+                - exchange: 交易所代码
+                - trade_date: 交易日期 (YYYY-MM-DD)
+                - pretrade_date: 前一交易日 (YYYY-MM-DD)
+                - datestamp: 日期时间戳
+                - date_int: 整数格式的日期 (YYYYMMDD)
         """
-        try:
-            # Normalize inputs
-            exchanges = self._normalize_exchanges(exchanges)
-            start_date = self._normalize_date(start_date, self.default_start)
-            end_date = self._normalize_date(end_date, f"{datetime.date.today().year}-12-31")
+        if start_date is None:
+            start_date = self.default_start
+        if end_date is None:
+            end_date = datetime.datetime.today()
 
-            if start_date > end_date:
-                raise ValueError(f"Start date ({start_date}) must be before end date ({end_date})")
+        # 标准化日期格式为整数
+        start_int = self._normalize_date(start_date)
+        end_int = self._normalize_date(end_date)
+        
+        # 尝试从缓存获取数据
+        if use_cache:
+            cache_key = self._get_cache_key(
+                'trade_dates',
+                start_int,
+                end_int,
+                exchanges
+            )
+            cached_data = self._get_from_cache(cache_key)
+            if cached_data is not None:
+                return cached_data
 
-            # Prepare date strings once
-            start_str = start_date.strftime("%Y%m%d")
-            end_str = end_date.strftime("%Y%m%d")
+        # 使用批量查询获取数据
+        df = self._batch_fetch_trade_dates(
+            start_dates=[start_int],
+            end_dates=[end_int],
+            exchanges=validate_exchanges(exchanges)
+        )
+        
+        # 缓存结果
+        if use_cache:
+            self._set_cache(cache_key, df)
+        
+        return df
 
-            results = []
-            for exchange in exchanges:
-                try:
-                    # Convert exchange code for TuShare API
-                    ts_exchange = "SSE" if exchange == "SHSE" else exchange
+    def fetch_get_trade_dates_batch(
+        self,
+        date_ranges: List[Tuple[Union[str, int, datetime.datetime], Union[str, int, datetime.datetime]]],
+        exchanges: Union[str, List[str], None] = None,
+        use_cache: bool = True
+    ) -> Dict[Tuple[int, int], pd.DataFrame]:
+        """批量获取多个日期范围的交易日历
 
-                    # Fetch trading calendar
-                    data = self.pro.trade_cal(
-                        exchange=ts_exchange,
-                        start_date=start_str,
-                        end_date=end_str
+        Args:
+            date_ranges: 日期范围列表，每个元素是 (start_date, end_date) 元组
+            exchanges: 交易所列表或字符串，默认为所有交易所
+            use_cache: 是否使用缓存，默认为 True
+
+        Returns:
+            Dict[Tuple[int, int], pd.DataFrame]: 每个日期范围对应的交易日历数据
+        """
+        # 标准化所有日期
+        normalized_ranges = [
+            (self._normalize_date(start), self._normalize_date(end))
+            for start, end in date_ranges
+        ]
+        
+        # 尝试从缓存获取数据
+        results = {}
+        to_fetch = []
+        start_dates = []
+        end_dates = []
+        
+        if use_cache:
+            for start_int, end_int in normalized_ranges:
+                cache_key = self._get_cache_key(
+                    'trade_dates',
+                    start_int,
+                    end_int,
+                    exchanges
+                )
+                cached_data = self._get_from_cache(cache_key)
+                if cached_data is not None:
+                    results[(start_int, end_int)] = cached_data
+                else:
+                    to_fetch.append((start_int, end_int))
+                    start_dates.append(start_int)
+                    end_dates.append(end_int)
+        else:
+            to_fetch = normalized_ranges
+            start_dates = [start for start, _ in normalized_ranges]
+            end_dates = [end for _, end in normalized_ranges]
+        
+        if to_fetch:
+            # 获取所有需要的数据
+            df = self._batch_fetch_trade_dates(
+                start_dates=start_dates,
+                end_dates=end_dates,
+                exchanges=validate_exchanges(exchanges)
+            )
+            
+            # 为每个日期范围过滤数据
+            for start_int, end_int in to_fetch:
+                mask = (df['date_int'] >= start_int) & (df['date_int'] <= end_int)
+                range_df = df[mask].copy()
+                results[(start_int, end_int)] = range_df
+                
+                # 缓存结果
+                if use_cache:
+                    cache_key = self._get_cache_key(
+                        'trade_dates',
+                        start_int,
+                        end_int,
+                        exchanges
                     )
+                    self._set_cache(cache_key, range_df)
+        
+        return results
 
-                    if data.empty:
-                        continue
+    def _normalize_date(
+        self,
+        date: Union[str, int, datetime.datetime, None],
+        default: Union[str, datetime.datetime, None] = None
+    ) -> int:
+        """标准化日期格式
 
-                    # Filter trading days and add required information
-                    data = data.query("is_open == 1").copy()
-                    data["exchange"] = "SHSE" if ts_exchange == "SSE" else ts_exchange
-                    
-                    # Use vectorized operations for date processing
-                    data["datestamp"] = pd.to_datetime(data["cal_date"], format="%Y%m%d").astype(np.int64) // 10**9
-                    data = data.rename(columns={"cal_date": "trade_date", "pretrade_date": "pre_trade_date"})
-                    
-                    # Format dates using vectorized operations
-                    for col in ["trade_date", "pre_trade_date"]:
-                        data[col] = pd.to_datetime(data[col]).dt.strftime("%Y-%m-%d")
+        将各种日期格式转换为整数格式（YYYYMMDD）
 
-                    results.append(data)
+        Args:
+            date: 日期，支持以下格式：
+                - 整数：20240101
+                - 字符串：'20240101' 或 '2024-01-01'
+                - datetime 对象
+                - None：使用默认值
+            default: 默认日期，如果 date 为 None 则使用此值
 
-                except Exception as e:
-                    self._handle_error(e, f"Failed to fetch trading dates for exchange {exchange}")
-
-            if not results:
-                return pd.DataFrame(columns=["exchange", "trade_date", "pre_trade_date", "datestamp"])
-
-            # Combine results and ensure column order
-            return pd.concat(results, axis=0)[["exchange", "trade_date", "pre_trade_date", "datestamp"]]
-
-        except Exception as e:
-            self._handle_error(e, "fetch_get_trade_dates")
+        Returns:
+            int: 整数格式的日期，如 20240101
+        """
+        if date is None:
+            date = default if default is not None else datetime.datetime.today()
+        
+        if isinstance(date, int):
+            # 如果是整数，直接返回
+            return date
+        elif isinstance(date, str):
+            # 如果是字符串，去掉连字符并转为整数
+            return int(date.replace('-', ''))
+        else:
+            # 如果是 datetime 对象，转换为整数
+            return int(pd.Timestamp(date).strftime('%Y%m%d'))
 
     def fetch_get_future_contracts(
         self,
@@ -490,16 +612,16 @@ class TSFetcher(BaseFetcher):
             # Validate and normalize exchanges
             # 验证并标准化交易所参数
             if exchanges is None:
-                exchanges = self.future_exchanges
+                exchanges = ['SHFE', 'DCE', 'CFFEX', 'CZCE', 'INE']
             elif isinstance(exchanges, str):
                 exchanges = [ex.strip() for ex in exchanges.split(",")]
 
             # Validate exchanges
             # 验证交易所代码
-            invalid_exchanges = [ex for ex in exchanges if ex not in self.future_exchanges]
+            invalid_exchanges = [ex for ex in exchanges if ex not in ['SHFE', 'DCE', 'CFFEX', 'CZCE', 'INE']]
             if invalid_exchanges:
                 raise ValueError(
-                    f"Invalid exchanges: {invalid_exchanges}. Supported exchanges: {self.future_exchanges}"
+                    f"Invalid exchanges: {invalid_exchanges}. Supported exchanges: ['SHFE', 'DCE', 'CFFEX', 'CZCE', 'INE']"
                 )
 
             # Normalize symbols
@@ -746,7 +868,7 @@ class TSFetcher(BaseFetcher):
                     )
             else:
                 if exchanges is None:
-                    exchanges = self.future_exchanges
+                    exchanges = ['SHFE', 'DCE', 'CFFEX', 'CZCE', 'INE']
                 elif isinstance(exchanges, str):
                     exchanges = exchanges.split(",")
                 results = pd.DataFrame()
@@ -787,7 +909,7 @@ class TSFetcher(BaseFetcher):
                     )
             else:
                 if exchanges is None:
-                    exchanges = self.future_exchanges
+                    exchanges = ['SHFE', 'DCE', 'CFFEX', 'CZCE', 'INE']
                 elif isinstance(exchanges, str):
                     exchanges = exchanges.split(",")
                 results = pd.DataFrame()

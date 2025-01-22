@@ -13,6 +13,10 @@ Quantbox 是一个用于金融数据获取、存储和分析的框架，支持�
 - **命令行工具**：提供 CLI 命令行工具，方便用户执行数据获取和存储操作
 - **灵活配置**：支持通过配置文件管理多个数据源的认证信息
 - **图形界面支持**：提供 PyQt5 实现的图形界面，方便用户交互
+- **统一的交易所代码**：
+  - 支持多种交易所代码格式（如 SSE/SHSE）
+  - 自动代码转换和标准化
+  - 完善的错误处理机制
 
 ## 项目结构
 
@@ -33,7 +37,9 @@ quantbox/
 │   └── main_window.py     # 主窗口实现
 ├── util/              # 工具模块
 │   ├── basic.py          # 基础工具函数
-│   └── tools.py          # 通用工具函数
+│   ├── tools.py          # 通用工具函数
+│   ├── date_utils.py     # 日期处理工具
+│   └── exchange_utils.py  # 交易所代码工具
 ├── cli.py            # 命令行接口
 ├── config.py         # 配置管理
 ├── logger.py         # 日志管理
@@ -146,18 +152,30 @@ pip install -e .
 ### 1. 获取交易日历
 ```python
 from quantbox.fetchers import LocalFetcher
+from quantbox.util.exchange_utils import normalize_exchange
 
+# 创建 fetcher 实例
 fetcher = LocalFetcher()
-trade_dates = fetcher.fetch_trade_dates(exchanges="SSE")
-print(trade_dates)
+
+# 支持多种交易所代码格式
+trade_dates = fetcher.fetch_trade_dates(exchanges="SSE")  # 使用 SSE
+trade_dates = fetcher.fetch_trade_dates(exchanges="SHSE")  # 使用 SHSE
+
+# 标准化交易所代码
+exchange = normalize_exchange("SSE")  # 返回 "SHSE"
+trade_dates = fetcher.fetch_trade_dates(exchanges=exchange)
 ```
 
 ### 2. 获取期货合约信息
 ```python
 from quantbox.fetchers import TSFetcher
+from quantbox.util.exchange_utils import validate_exchanges
 
 fetcher = TSFetcher()
-contracts = fetcher.fetch_future_contracts(symbol="IF")
+
+# 验证交易所代码
+exchanges = validate_exchanges(["SSE", "SZSE"])  # 返回 ["SHSE", "SZSE"]
+contracts = fetcher.fetch_future_contracts(exchanges=exchanges)
 print(contracts)
 ```
 
@@ -187,11 +205,39 @@ sys.exit(app.exec_())
 
 ## 开发指南
 
+### 交易所代码处理
+
+项目提供了统一的交易所代码处理功能：
+
+```python
+from quantbox.util.exchange_utils import (
+    normalize_exchange,
+    denormalize_exchange,
+    validate_exchanges
+)
+
+# 标准化单个交易所代码
+code = normalize_exchange("SSE")  # 返回 "SHSE"
+
+# 反标准化交易所代码
+original = denormalize_exchange("SHSE")  # 返回 "SSE"
+
+# 验证多个交易所代码
+codes = ["SSE", "SZSE", None]  # None 将使用默认值
+valid_codes = validate_exchanges(codes)  # 返回 ["SHSE", "SZSE"]
+
+# 在数据获取时使用
+fetcher = TSFetcher()
+df = fetcher.fetch_get_trade_dates(
+    exchanges=["SSE", "SZSE"],  # 自动转换为标准格式
+    start_date="2024-01-01",
+    end_date="2024-01-31"
+)
+```
+
 ### 使用性能监控
 
 项目提供了性能监控功能，可以帮助开发者追踪和优化数据获取操作的性能：
-
-#### 基本用法
 
 ```python
 from quantbox.fetchers.local_fetcher import LocalFetcher
@@ -199,76 +245,27 @@ from quantbox.fetchers.monitoring import PerformanceMonitor
 
 # 创建 fetcher 实例并添加监控器
 fetcher = LocalFetcher()
-fetcher.monitor = PerformanceMonitor(slow_query_threshold=2.0)  # 设置慢查询阈值为 2 秒
+monitor = PerformanceMonitor()
+fetcher.add_monitor(monitor)
 
-# 执行数据获取操作
-data = fetcher.fetch_trade_dates()
-
-# 查看性能统计
-stats = fetcher.monitor.get_stats()
-print(f"总请求数: {stats['total_requests']}")
-print(f"成功率: {stats['success_rate']:.2%}")
-print(f"平均响应时间: {stats['avg_response_time']:.3f}秒")
-print(f"慢查询数: {stats['slow_queries']}")
-
-# 记录统计信息到日志
-fetcher.monitor.log_stats()
+# 执行操作并查看性能数据
+data = fetcher.fetch_trade_dates(exchanges="SHSE")
+print(monitor.get_stats())
 ```
 
-#### 可用的性能指标
+## 更多文档
 
-- `total_requests`: 总请求数
-- `successful_requests`: 成功请求数
-- `failed_requests`: 失败请求数
-- `cache_hits`: 缓存命中次数
-- `cache_misses`: 缓存未命中次数
-- `slow_queries`: 慢查询次数
-- `avg_response_time`: 平均响应时间
-- `errors_by_type`: 按类型统计的错误数
-- `success_rate`: 成功率
-- `cache_hit_rate`: 缓存命中率
-
-#### 自定义监控
-
-1. 在类中添加监控器：
-```python
-def __init__(self):
-    self.monitor = PerformanceMonitor(slow_query_threshold=2.0)
-```
-
-2. 使用装饰器监控方法：
-```python
-from quantbox.fetchers.monitoring import monitor_performance
-
-@monitor_performance
-def fetch_data(self):
-    # 数据获取代码
-    pass
-```
-
-#### 最佳实践
-
-- 为关键的数据获取操作添加性能监控
-- 定期检查性能统计，识别潜在的性能问题
-- 根据实际需求调整慢查询阈值
-- 使用日志功能记录性能数据，便于后续分析
-
-### 添加新的数据源
-
-1. 在 `fetchers` 目录下创建新的数据获取器类，继承 `BaseFetcher`
-2. 实现必要的方法（如 `fetch_trade_dates`、`fetch_future_contracts` 等）
-3. 在 `data_saver.py` 中添加对新数据源的支持
-
-### 代码风格
-
-- 遵循 PEP 8 编码规范
-- 使用类型注解
-- 提供详细的文档字符串
+- [交易日期系统设计](docs/trade_dates.md)
+- [图形界面使用指南](docs/gui.md)
 
 ## 贡献指南
 
-欢迎提交 Pull Request 或 Issue！
+1. Fork 本仓库
+2. 创建你的特性分支 (`git checkout -b feature/amazing-feature`)
+3. 提交你的修改 (`git commit -m 'Add some amazing feature'`)
+4. 推送到分支 (`git push origin feature/amazing-feature`)
+5. 提交 Pull Request
 
 ## 许可证
 
-MIT License
+本项目采用 MIT 许可证 - 详见 [LICENSE](LICENSE) 文件

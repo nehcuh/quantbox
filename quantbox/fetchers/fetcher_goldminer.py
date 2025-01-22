@@ -20,17 +20,15 @@ from quantbox.fetchers.base import BaseFetcher
 from quantbox.fetchers.local_fetcher import LocalFetcher
 from quantbox.util.basic import (
     DATABASE,
-    DEFAULT_START,
     EXCHANGES,
-    FUTURE_EXCHANGES,
     STOCK_EXCHANGES,
     QUANTCONFIG,
 )
+from quantbox.util.date_utils import util_make_date_stamp
 from quantbox.util.tools import (
     util_format_future_symbols,
     util_format_stock_symbols,
-    util_make_date_stamp,
-    util_format_future_symbols
+    util_to_json_from_pandas,
 )
 
 
@@ -60,7 +58,7 @@ class GMFetcher(BaseFetcher):
         self.stock_exchanges = STOCK_EXCHANGES
         self.future_exchanges = FUTURE_EXCHANGES
         self.client = DATABASE
-        self.default_start = DEFAULT_START
+        self.default_start = "2010-01-01"
         set_token(QUANTCONFIG.gm_token)
 
     def _format_symbol(self, symbol: str) -> str:

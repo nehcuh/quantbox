@@ -166,8 +166,8 @@ class RemoteFetcher(BaseFetcher):
     def fetch_get_trade_dates(
         self,
         exchanges: Union[List[str], str, None] = None,
-        start_date: Optional[str] = None,
-        end_date: Optional[str] = None,
+        start_date: Union[str, int, datetime.datetime, None] = None,
+        end_date: Union[str, int, datetime.datetime, None] = None,
     ) -> pd.DataFrame:
         """
         Fetch trading dates for specified exchanges.
@@ -185,12 +185,46 @@ class RemoteFetcher(BaseFetcher):
             DataFrame with trading dates
             包含交易日期的DataFrame
         """
-        method = self._wrap_method(self._fetcher.fetch_get_trade_dates)
-        return method(
-            exchanges=exchanges,
-            start_date=start_date,
-            end_date=end_date
+        if start_date is None:
+            start_date = self.default_start
+        if end_date is None:
+            end_date = datetime.datetime.today()
+
+        # 将日期转换为字符串格式
+        start_date = pd.Timestamp(start_date).strftime('%Y%m%d')
+        end_date = pd.Timestamp(end_date).strftime('%Y%m%d')
+
+        # 构建请求参数
+        params = {
+            'exchanges': exchanges,
+            'start_date': start_date,
+            'end_date': end_date
+        }
+
+        # 发送请求
+        response = self._fetcher.fetch_get_trade_dates(params)
+        df = pd.DataFrame(response)
+
+        if df.empty:
+            return df
+
+        # 格式化日期
+        df['trade_date'] = df['trade_date'].apply(
+            lambda x: f"{x[:4]}-{x[4:6]}-{x[6:]}"
         )
+        df['pretrade_date'] = df['pretrade_date'].apply(
+            lambda x: f"{x[:4]}-{x[4:6]}-{x[6:]}" if pd.notna(x) else None
+        )
+
+        # 添加时间戳和整数日期字段
+        df['datestamp'] = df['trade_date'].apply(
+            lambda x: time.mktime(time.strptime(x, '%Y-%m-%d'))
+        )
+        df['date_int'] = df['trade_date'].apply(
+            lambda x: int(x.replace('-', ''))
+        )
+
+        return df[['exchange', 'trade_date', 'pretrade_date', 'datestamp', 'date_int']]
 
     def fetch_get_future_contracts(
         self,

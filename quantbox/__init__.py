@@ -1,4 +1,10 @@
-from quantbox.util.basic import Config, QUANTCONFIG, DATABASE, EXCHANGES
-from quantbox.util.tools import util_make_date_stamp, util_to_json_from_pandas
-from quantbox.fetchers.fetcher_tushare import TSFetcher, fetch_get_trade_dates, fetch_get_future_contracts, fetch_get_holdings
-from quantbox.fetchers.local_fetcher import LocalFetcher, fetch_trade_dates, fetch_pre_trade_date, fetch_future_holdings, fetch_next_trade_date, fetch_future_contracts
+"""
+Quantbox package
+"""
+from quantbox.util.date_utils import util_make_date_stamp
+from quantbox.util.tools import util_to_json_from_pandas
+from quantbox.fetchers.local_fetcher import LocalFetcher
+from quantbox.fetchers.fetcher_tushare import TSFetcher
+from quantbox.fetchers.fetcher_goldminer import GMFetcher
+
+__version__ = "0.1.0"
