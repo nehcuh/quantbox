@@ -23,6 +23,7 @@ graph TB
         DU[date_utils.py<br/>日期工具函数]
         BU[basic.py<br/>基础配置]
         TU[tools.py<br/>工具函数]
+        EU[exchange_utils.py<br/>交易所工具]
     end
     
     subgraph "接口层 (API)"
@@ -47,6 +48,9 @@ graph TB
     
     BU --配置--> DB
     TU --工具函数--> DU
+    EU --交易所代码处理--> TS
+    EU --交易所代码处理--> GM
+    EU --交易所代码处理--> LF
 
     %% 样式
     classDef primary fill:#f9f,stroke:#333,stroke-width:2px;
@@ -66,21 +70,25 @@ graph TB
 - 统一的远程数据获取接口
 - 支持多数据源配置
 - 负责数据源的切换和错误处理
+- 使用统一的交易所代码标准
 
 #### TSFetcher (TuShare)
 - TuShare数据源的具体实现
 - 获取A股和期货市场的交易日历
 - 支持所有主要交易所
+- 自动处理交易所代码映射
 
 #### GMFetcher (掘金)
 - 掘金量化数据源的具体实现
 - 获取A股和期货市场的交易日历
 - 支持实时数据更新
+- 兼容统一的交易所代码标准
 
 #### LocalFetcher
 - 本地MongoDB数据获取接口
 - 提供高效的本地数据查询
 - 支持数据缓存和更新
+- 使用标准化的交易所代码
 
 ### 2. 数据存储层 (Storage)
 
@@ -90,7 +98,7 @@ graph TB
 - 存储格式：
   ```python
   {
-    "exchange": "交易所代码",
+    "exchange": "交易所代码",  # 使用标准化的交易所代码
     "trade_date": "交易日期",
     "pretrade_date": "前一交易日",
     "datestamp": "日期时间戳"
@@ -120,13 +128,19 @@ graph TB
 - 日期格式化
 - 数据验证
 
+#### exchange_utils.py
+- 交易所代码标准化
+- 代码映射和验证
+- 支持批量处理
+- 错误处理和日志记录
+
 ### 4. 接口层 (API)
 
 #### is_trade_date
 ```python
 def is_trade_date(
     cursor_date: Union[str, int, datetime.date, None] = None,
-    exchange: str = 'SHSE'
+    exchange: str = 'SHSE'  # 支持 SSE/SHSE
 ) -> bool:
     """判断指定日期是否为交易日"""
 ```
@@ -135,7 +149,7 @@ def is_trade_date(
 ```python
 def get_pre_trade_date(
     cursor_date: Union[str, int, datetime.date, None] = None,
-    exchange: str = 'SHSE',
+    exchange: str = 'SHSE',  # 支持 SSE/SHSE
     n: int = 1,
     include_input: bool = False
 ) -> Optional[Dict[str, Any]]:
@@ -146,7 +160,7 @@ def get_pre_trade_date(
 ```python
 def get_next_trade_date(
     cursor_date: Union[str, int, datetime.date, None] = None,
-    exchange: str = 'SHSE',
+    exchange: str = 'SHSE',  # 支持 SSE/SHSE
     n: int = 1,
     include_input: bool = False
 ) -> Optional[Dict[str, Any]]:
@@ -158,7 +172,7 @@ def get_next_trade_date(
 def get_trade_calendar(
     start_date: Union[str, int, datetime.date, None] = None,
     end_date: Union[str, int, datetime.date, None] = None,
-    exchange: str = 'SHSE'
+    exchange: str = 'SHSE'  # 支持 SSE/SHSE
 ) -> pd.DataFrame:
     """获取指定日期范围内的交易日历"""
 ```
@@ -185,8 +199,15 @@ def get_trade_calendar(
    - 集成测试验证数据一致性
    - 边界条件测试确保稳定性
 
+5. **交易所代码标准化**
+   - 统一的交易所代码标准
+   - 自动代码映射和转换
+   - 兼容多种代码格式
+   - 完善的错误处理
+
 ## 使用示例
 
+### 基本用法
 ```python
 from quantbox.util.date_utils import (
     is_trade_date,
@@ -195,8 +216,9 @@ from quantbox.util.date_utils import (
     get_trade_calendar
 )
 
-# 判断是否为交易日
-is_trade = is_trade_date("2024-01-08", "SHSE")
+# 判断是否为交易日（支持多种交易所代码格式）
+is_trade = is_trade_date("2024-01-08", "SSE")  # 使用 SSE
+is_trade = is_trade_date("2024-01-08", "SHSE")  # 使用 SHSE
 
 # 获取前一交易日
 pre_date = get_pre_trade_date("2024-01-08", "SHSE", n=1)
@@ -205,7 +227,33 @@ pre_date = get_pre_trade_date("2024-01-08", "SHSE", n=1)
 next_date = get_next_trade_date("2024-01-08", "SHSE", n=1)
 
 # 获取交易日历
-calendar = get_trade_calendar("2024-01-01", "2024-01-31", "SHSE")
+calendar = get_trade_calendar(
+    start_date="2024-01-01",
+    end_date="2024-01-31",
+    exchange="SHSE"
+)
+```
+
+### 交易所代码处理
+```python
+from quantbox.util.exchange_utils import (
+    normalize_exchange,
+    denormalize_exchange,
+    validate_exchanges
+)
+
+# 标准化交易所代码
+normalized = normalize_exchange("SSE")  # 返回 "SHSE"
+
+# 反标准化交易所代码
+original = denormalize_exchange("SHSE")  # 返回 "SSE"
+
+# 验证交易所代码
+valid_codes = validate_exchanges(["SSE", "SZSE"])  # 返回 ["SHSE", "SZSE"]
+
+# 批量处理
+codes = ["SSE", "SZSE", None]  # None 将使用默认值
+valid_codes = validate_exchanges(codes)  # 返回 ["SHSE", "SZSE"]
 ```
 
 ## 配置说明
@@ -215,7 +263,8 @@ calendar = get_trade_calendar("2024-01-01", "2024-01-31", "SHSE")
 1. **数据库配置**
    ```toml
    [mongodb]
-   uri = "mongodb://localhost:27018"
+   host = "localhost"
+   port = 27017
    database = "quantbox"
    ```
 
@@ -223,254 +272,101 @@ calendar = get_trade_calendar("2024-01-01", "2024-01-31", "SHSE")
    ```toml
    [tushare]
    token = "your_tushare_token"
-
-   [goldminer]
-   token = "your_goldminer_token"
-   ```
-
-## 注意事项
-
-1. 首次使用前需要初始化本地数据库
-2. 建议定期更新交易日历数据
-3. 不同数据源的交易日历可能存在细微差异
-4. LRU缓存在程序重启后会清空
-
-## 数据源接入指南
-
-### 1. 基类接口说明
-
-所有数据源必须继承 `BaseFetcher` 类并实现以下接口：
-
-```python
-class BaseFetcher:
-    """Abstract base class for all data fetchers
-    所有数据获取器的抽象基类
-    """
-    def __init__(self):
-        """初始化数据获取器"""
-        self.validator = DataValidator()
-        self.exchanges = []  # 支持的交易所列表
-        self.stock_exchanges = []  # 支持的股票交易所列表
-        self.future_exchanges = []  # 支持的期货交易所列表
-        self.client = None  # 数据库客户端
-        self.default_start = None  # 默认起始日期
-
-    def fetch_get_trade_dates(
-        self,
-        exchanges: Union[List[str], str, None] = None,
-        start_date: Union[str, datetime.date, int, None] = None,
-        end_date: Union[str, datetime.date, int, None] = None,
-    ) -> pd.DataFrame:
-        """获取交易日历数据
-        
-        Returns:
-            DataFrame with required columns:
-            - exchange: Exchange code
-            - trade_date: Trading date (YYYY-MM-DD)
-            - pretrade_date: Previous trading date
-            - datestamp: Unix timestamp
-        """
-        raise NotImplementedError
-```
-
-### 2. 实现步骤
-
-1. **创建新的数据源类**
-   ```python
-   from quantbox.fetchers.base import BaseFetcher
    
-   class NewDataSourceFetcher(BaseFetcher):
-       def __init__(self):
-           super().__init__()
-           # 初始化数据源特定的配置
-           self.exchanges = ["SHSE", "SZSE", ...]  # 定义支持的交易所
-           self.api_client = None  # 初始化API客户端
+   [goldminer]
+   username = "your_username"
+   password = "your_password"
    ```
 
-2. **实现必要的接口方法**
-   ```python
-   def fetch_get_trade_dates(
-       self,
-       exchanges: Union[List[str], str, None] = None,
-       start_date: Union[str, datetime.date, int, None] = None,
-       end_date: Union[str, datetime.date, int, None] = None,
-   ) -> pd.DataFrame:
-       """实现交易日历获取逻辑"""
-       try:
-           # 1. 参数处理
-           if exchanges is None:
-               exchanges = self.exchanges
-           elif isinstance(exchanges, str):
-               exchanges = [exchanges]
-           
-           # 2. 调用数据源API
-           raw_data = self.api_client.get_trade_dates(...)
-           
-           # 3. 数据格式转换
-           df = pd.DataFrame(raw_data)
-           
-           # 4. 确保返回必要的字段
-           df = df.rename(columns={
-               'date': 'trade_date',
-               'prev_date': 'pretrade_date',
-               ...
-           })
-           
-           # 5. 添加datestamp字段
-           df['datestamp'] = pd.to_datetime(df['trade_date']).map(lambda x: x.timestamp())
-           
-           return df
-           
-       except Exception as e:
-           self._handle_error(e, "fetch_get_trade_dates")
+3. **缓存配置**
+   ```toml
+   [cache]
+   trade_dates_size = 1024  # 交易日期缓存大小
    ```
 
-3. **添加数据验证**
-   ```python
-   def _validate_trade_dates(self, df: pd.DataFrame) -> pd.DataFrame:
-       """验证交易日历数据的格式"""
-       required_columns = [
-           'exchange',
-           'trade_date',
-           'pretrade_date',
-           'datestamp'
-       ]
-       
-       # 使用内置的验证器
-       self.validator.validate_dataframe(df, required_columns)
-       return df
-   ```
-
-4. **实现错误处理**
-   ```python
-   def _handle_error(self, error: Exception, context: str):
-       """处理数据源特定的错误"""
-       if isinstance(error, APIError):
-           # 处理API特定的错误
-           raise RuntimeError(f"API错误: {str(error)}")
-       else:
-           # 调用基类的错误处理
-           super()._handle_error(error, context)
-   ```
-
-### 3. 数据格式规范
-
-#### 交易日历数据格式
-```python
-{
-    "exchange": str,      # 交易所代码，如 "SHSE"
-    "trade_date": str,    # 交易日期，格式 "YYYY-MM-DD"
-    "pretrade_date": str, # 前一交易日，格式 "YYYY-MM-DD"
-    "datestamp": float    # Unix时间戳
-}
-```
-
-#### 支持的交易所代码
-```python
-EXCHANGES = [
-    "SHSE",  # 上海证券交易所
-    "SZSE",  # 深圳证券交易所
-    "SHFE",  # 上海期货交易所
-    "DCE",   # 大连商品交易所
-    "CZCE",  # 郑州商品交易所
-    "CFFEX", # 中国金融期货交易所
-    "INE"    # 上海国际能源交易中心
-]
-```
-
-### 4. 配置管理
+## 扩展新数据源
 
 1. **添加配置项**
    在 `~/.quantbox/settings/config.toml` 中添加新数据源的配置：
    ```toml
    [new_data_source]
    api_key = "your_api_key"
-   api_secret = "your_api_secret"
-   base_url = "https://api.example.com"
    ```
 
-2. **读取配置**
+2. **实现数据源类**
    ```python
-   from quantbox.util.basic import Config
+   from quantbox.fetchers.base import BaseFetcher
+   from quantbox.util.exchange_utils import validate_exchanges
    
    class NewDataSourceFetcher(BaseFetcher):
        def __init__(self):
            super().__init__()
-           config = Config()
-           self.api_key = config.config.get("new_data_source", {}).get("api_key")
-           self.api_secret = config.config.get("new_data_source", {}).get("api_secret")
-   ```
-
-### 5. 性能优化建议
-
-1. **使用缓存装饰器**
-   ```python
-   from quantbox.fetchers.cache import cache_result
+           # 初始化新数据源
    
-   @cache_result(ttl=3600)  # 缓存1小时
-   def fetch_get_trade_dates(self, ...):
-       pass
+       def fetch_get_trade_dates(
+           self,
+           exchanges: Union[List[str], str, None] = None,
+           start_date: Union[str, int, datetime.date, None] = None,
+           end_date: Union[str, int, datetime.date, None] = None
+       ) -> pd.DataFrame:
+           # 验证和标准化交易所代码
+           exchanges = validate_exchanges(exchanges)
+           # 实现数据获取逻辑
+           pass
    ```
 
-2. **批量获取数据**
+3. **注册数据源**
+   在 `RemoteFetcher` 中添加新数据源：
    ```python
-   def fetch_get_trade_dates(self, ...):
-       # 批量获取数据而不是循环调用API
-       all_data = self.api_client.batch_get_trade_dates(
-           exchanges=exchanges,
-           start_date=start_date,
-           end_date=end_date
-       )
+   class RemoteFetcher:
+       def __init__(self, engine='ts'):
+           self.engines = {
+               'ts': TSFetcher,
+               'gm': GMFetcher,
+               'new': NewDataSourceFetcher,  # 添加新数据源
+           }
    ```
 
-3. **异常重试机制**
+## 性能优化
+
+1. **缓存优化**
+   - 使用 LRU 缓存减少重复查询
+   - 批量获取数据减少网络请求
+   - 定期预加载常用数据
+
+2. **数据库优化**
+   - 创建合适的索引
+   - 使用批量操作
+   - 定期清理过期数据
+
+3. **代码优化**
+   - 使用向量化操作
+   - 避免循环和重复计算
+   - 优化数据结构
+
+## 常见问题
+
+1. **交易所代码不一致**
+   - 问题：不同数据源使用不同的交易所代码
+   - 解决：使用 `exchange_utils.py` 进行标准化
    ```python
-   from quantbox.fetchers.utils import retry_on_error
-   
-   @retry_on_error(max_retries=3, delay=1)
-   def fetch_get_trade_dates(self, ...):
-       pass
+   from quantbox.util.exchange_utils import normalize_exchange
+   normalized_code = normalize_exchange("SSE")  # 返回 "SHSE"
    ```
 
-### 6. 测试要求
-
-1. **单元测试**
+2. **日期格式不统一**
+   - 问题：输入日期格式多样
+   - 解决：使用统一的日期处理函数
    ```python
-   # tests/test_new_data_source.py
-   def test_fetch_trade_dates():
-       fetcher = NewDataSourceFetcher()
-       df = fetcher.fetch_get_trade_dates(
-           exchanges=["SHSE"],
-           start_date="2024-01-01",
-           end_date="2024-01-31"
-       )
-       assert set(df.columns) == {
-           "exchange",
-           "trade_date",
-           "pretrade_date",
-           "datestamp"
-       }
+   from quantbox.util.date_utils import normalize_date
+   standard_date = normalize_date("2024-01-08")  # 支持多种格式
    ```
 
-2. **集成测试**
+3. **性能问题**
+   - 问题：频繁查询导致性能下降
+   - 解决：使用缓存和批量查询
    ```python
-   def test_trade_dates_integration():
-       # 对比不同数据源的结果
-       new_fetcher = NewDataSourceFetcher()
-       ts_fetcher = TSFetcher()
-       
-       new_data = new_fetcher.fetch_get_trade_dates(...)
-       ts_data = ts_fetcher.fetch_get_trade_dates(...)
-       
-       pd.testing.assert_frame_equal(new_data, ts_data)
+   # 使用批量查询
+   date_ranges = [(20240101, 20240131), (20240201, 20240229)]
+   results = fetcher.fetch_get_trade_dates_batch(date_ranges)
    ```
-
-### 7. 注意事项
-
-1. 确保实现所有必要的接口方法
-2. 正确处理日期格式转换
-3. 实现适当的错误处理和重试机制
-4. 添加完整的文档字符串
-5. 编写全面的测试用例
-6. 考虑添加性能监控
-7. 实现数据验证逻辑
