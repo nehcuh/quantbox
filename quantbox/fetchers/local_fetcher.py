@@ -26,11 +26,93 @@ class LocalBaseFetcher(ABC):
         self.client = DATABASE
         self.default_start = DEFAULT_START
 
-    def initialize(self) -> None:
+    def _save_trade_dates(self, df: pd.DataFrame) -> None:
+        """保存交易日历数据到数据库
+
+        Args:
+            df: 交易日历数据，包含以下字段：
+                - exchange: 交易所代码
+                - trade_date: 交易日期
+                - pretrade_date: 前一交易日
+                - datestamp: 日期时间戳
+                - date_int: 整数格式的日期 (YYYYMMDD)
         """
-        Initialize the fetcher with necessary credentials and settings
-        """
-        pass
+        if df.empty:
+            return
+
+        # 确保所有必需的字段都存在
+        required_fields = ['exchange', 'trade_date', 'pretrade_date', 'datestamp', 'date_int']
+        missing_fields = [field for field in required_fields if field not in df.columns]
+        if missing_fields:
+            # 如果缺少 date_int 字段，添加它
+            if 'date_int' in missing_fields and 'trade_date' in df.columns:
+                df['date_int'] = df['trade_date'].apply(lambda x: int(x.replace('-', '')))
+                missing_fields.remove('date_int')
+            if missing_fields:  # 如果还有其他缺失字段
+                raise ValueError(f"Missing required fields: {missing_fields}")
+
+        # 将 DataFrame 转换为字典列表
+        records = df.to_dict('records')
+
+        # 批量更新数据库
+        for record in records:
+            self.client.trade_date.update_one(
+                {
+                    'exchange': record['exchange'],
+                    'date_int': record['date_int']
+                },
+                {'$set': record},
+                upsert=True
+            )
+
+    def _ensure_indexes(self) -> None:
+        """确保数据库中存在所需的索引"""
+        collection = self.client.trade_date
+        
+        # 获取现有索引
+        existing_indexes = collection.index_information()
+        
+        # 创建所需的索引
+        required_indexes = [
+            [("exchange", 1), ("datestamp", 1)],  # 复合索引：按交易所和时间戳查询
+            [("datestamp", 1)],  # 单字段索引：按时间戳查询
+            [("exchange", 1)],  # 单字段索引：按交易所查询
+            [("exchange", 1), ("date_int", 1)],  # 复合索引：按交易所和整数日期查询
+            [("date_int", 1)]  # 单字段索引：按整数日期查询
+        ]
+        
+        for index in required_indexes:
+            index_name = "_".join(f"{field}_{direction}" for field, direction in index)
+            if index_name not in existing_indexes:
+                print(f"创建索引: {index_name}")
+                collection.create_index(index)
+
+    def initialize(self):
+        """初始化数据库连接和索引"""
+        # 确保索引存在
+        self._ensure_indexes()
+        
+        # 检查数据库是否为空
+        if self.client.trade_date.count_documents({}) == 0:
+            print("数据库为空，从 TuShare 获取数据...")
+            # 获取交易日历数据
+            fetcher = TSFetcher()
+            df = fetcher.fetch_trade_dates()
+            if not df.empty:
+                self._save_trade_dates(df)
+                print("数据获取和保存完成")
+
+        # 更新所有文档，添加 date_int 字段
+        if not self.client.trade_date.find_one({"date_int": {"$exists": True}}):
+            print("添加 date_int 字段...")
+            cursor = self.client.trade_date.find({})
+            for doc in cursor:
+                date_int = int(doc['trade_date'].replace('-', ''))
+                self.client.trade_date.update_one(
+                    {"_id": doc["_id"]},
+                    {"$set": {"date_int": date_int}}
+                )
+            print("date_int 字段添加完成")
 
 
 class LocalFetcher(LocalBaseFetcher):
@@ -71,14 +153,8 @@ class LocalFetcher(LocalBaseFetcher):
                 - trade_date: 交易日期
                 - pretrade_date: 前一交易日
                 - datestamp: 日期时间戳
+                - date_int: 整数格式的日期 (YYYYMMDD)
         """
-        # 参数处理和验证
-        if start_date is None:
-            start_date = self.default_start
-        if end_date is None:
-            end_date = datetime.datetime.today()
-        DateRangeValidator.validate_date_range(start_date, end_date)
-
         try:
             # 构建查询条件
             query = {}
@@ -90,10 +166,14 @@ class LocalFetcher(LocalBaseFetcher):
                 query,
                 QueryBuilder.build_projection(),
                 sort=[("exchange", 1), ("datestamp", 1)],
-                hint="idx_exchange_datestamp"  # 使用复合索引
+                hint=[("exchange", 1), ("datestamp", 1)]  # 使用复合索引
             ).batch_size(5000)  # 根据数据量调整批次大小
             
-            return pd.DataFrame(list(cursor))
+            df = pd.DataFrame(list(cursor))
+            if not df.empty:
+                # 添加整数日期字段
+                df['date_int'] = df['trade_date'].apply(lambda x: int(x.replace('-', '')))
+            return df
         except Exception as e:
             raise Exception(f"获取交易日历失败: {str(e)}")
 

@@ -11,6 +11,47 @@ import pandas as pd
 from quantbox.util.basic import DATABASE
 
 
+def date_to_int(date: Union[str, int, datetime.date, None]) -> int:
+    """将日期转换为整数格式 (YYYYMMDD)
+
+    Args:
+        date: 日期，支持字符串、整数或 datetime.date 对象
+
+    Returns:
+        int: 整数格式的日期，如 20240126
+    """
+    if date is None:
+        date = datetime.date.today()
+    if isinstance(date, int):
+        # 如果已经是整数格式，直接返回
+        if len(str(date)) == 8:
+            return date
+        date = str(date)
+    if isinstance(date, str):
+        # 处理 YYYY-MM-DD 格式
+        if '-' in date:
+            date = datetime.datetime.strptime(date, '%Y-%m-%d').date()
+        # 处理 YYYYMMDD 格式
+        else:
+            date = datetime.datetime.strptime(date, '%Y%m%d').date()
+    if isinstance(date, datetime.datetime):
+        date = date.date()
+    return int(date.strftime('%Y%m%d'))
+
+
+def int_to_date_str(date_int: int) -> str:
+    """将整数格式日期转换为字符串格式 (YYYY-MM-DD)
+
+    Args:
+        date_int: 整数格式的日期，如 20240126
+
+    Returns:
+        str: 字符串格式的日期，如 '2024-01-26'
+    """
+    date_str = str(date_int)
+    return f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:]}"
+
+
 def util_make_date_stamp(
     cursor_date: Union[int, str, datetime.date, None] = None,
     format: str = "%Y-%m-%d"
@@ -30,7 +71,9 @@ def util_make_date_stamp(
     if cursor_date is None:
         cursor_date = datetime.date.today()
     if isinstance(cursor_date, int):
-        cursor_date = str(cursor_date)
+        # 如果是整数格式的日期，先转换为字符串
+        if len(str(cursor_date)) == 8:
+            cursor_date = int_to_date_str(cursor_date)
     return time.mktime(
         time.strptime(pd.Timestamp(cursor_date).strftime(format), format)
     )
@@ -49,29 +92,30 @@ def is_trade_date(
         cursor_date: 需要检查的日期
                     支持格式：19981203, "20240910", datetime.date()
                     默认为 None，表示当前日期
-        exchange: 交易所代码
-                默认为 "SHSE"（上海证券交易所）
-                支持：SHSE, SZSE, DCE, INE 等
+        exchange: 交易所代码，默认为上交所
 
     Returns：
         bool: 是否为交易日
     """
     if cursor_date is None:
         cursor_date = datetime.date.today()
-    
-    datestamp = util_make_date_stamp(cursor_date)
-    
-    try:
-        result = DATABASE.trade_date.find_one(
-            {
-                "exchange": exchange,
-                "datestamp": datestamp
-            },
-            {"_id": 0}
-        )
-        return result is not None
-    except Exception as e:
-        raise Exception(f"检查交易日失败: {str(e)}")
+
+    # 如果是整数日期，直接使用整数字段查询
+    if isinstance(cursor_date, int) and len(str(cursor_date)) == 8:
+        query = {
+            "exchange": exchange,
+            "date_int": cursor_date
+        }
+    else:
+        # 否则使用时间戳查询
+        datestamp = util_make_date_stamp(cursor_date)
+        query = {
+            "exchange": exchange,
+            "datestamp": datestamp
+        }
+
+    result = DATABASE.trade_date.find_one(query, {"_id": 0})
+    return result is not None
 
 
 @lru_cache(maxsize=1024)
@@ -98,45 +142,45 @@ def get_pre_trade_date(
         - trade_date: 交易日期
         - pretrade_date: 前一交易日
         - datestamp: 日期时间戳
+        - date_int: 整数格式的日期 (YYYYMMDD)
     """
     if cursor_date is None:
         cursor_date = datetime.date.today()
-    
-    datestamp = util_make_date_stamp(cursor_date)
-    
-    try:
-        # 首先检查输入日期是否为交易日
-        is_input_trade_date = is_trade_date(cursor_date, exchange)
-        
-        # 构建查询条件
+
+    # 如果是整数日期，直接使用整数字段查询
+    if isinstance(cursor_date, int) and len(str(cursor_date)) == 8:
         query = {
             "exchange": exchange,
-            "datestamp": {"$lt": datestamp} if not include_input else {"$lte": datestamp}
+            "date_int": {"$lt": cursor_date}
         }
-        
-        # 如果输入日期是交易日且include_input为True，需要调整跳过的记录数
-        skip_count = n - 1 if (is_input_trade_date and include_input) else n
-        
-        # 如果输入日期是非交易日且include_input为True，我们需要从最近的前一个交易日开始计数
-        if not is_input_trade_date and include_input:
-            skip_count = n
-        
-        # 特殊情况：如果是交易日且include_input为True且n>1，我们需要从前一个交易日开始计数
-        if is_input_trade_date and include_input and n > 1:
-            skip_count = n - 1
-            query["datestamp"] = {"$lt": datestamp}
-        
-        # 执行查询
-        result = DATABASE.trade_date.find_one(
-            query,
-            {"_id": 0},
-            sort=[("datestamp", -1)],
-            skip=max(0, skip_count - 1)  # 调整skip数量
-        )
-        
-        return result
-    except Exception as e:
-        raise Exception(f"获取前一交易日失败: {str(e)}")
+        if include_input and is_trade_date(cursor_date, exchange):
+            query["date_int"]["$lte"] = cursor_date
+            n -= 1
+    else:
+        # 否则使用时间戳查询
+        datestamp = util_make_date_stamp(cursor_date)
+        query = {
+            "exchange": exchange,
+            "datestamp": {"$lt": datestamp}
+        }
+        if include_input and is_trade_date(cursor_date, exchange):
+            query["datestamp"]["$lte"] = datestamp
+            n -= 1
+
+    # 获取前n个交易日
+    result = DATABASE.trade_date.find(
+        query,
+        {"_id": 0},
+        sort=[("datestamp", -1)],
+        skip=n-1,
+        limit=1
+    )
+
+    # 返回结果
+    try:
+        return result[0]
+    except (IndexError, KeyError):
+        return None
 
 
 @lru_cache(maxsize=1024)
@@ -163,45 +207,45 @@ def get_next_trade_date(
         - trade_date: 交易日期
         - pretrade_date: 前一交易日
         - datestamp: 日期时间戳
+        - date_int: 整数格式的日期 (YYYYMMDD)
     """
     if cursor_date is None:
         cursor_date = datetime.date.today()
-    
-    datestamp = util_make_date_stamp(cursor_date)
-    
-    try:
-        # 首先检查输入日期是否为交易日
-        is_input_trade_date = is_trade_date(cursor_date, exchange)
-        
-        # 构建查询条件
+
+    # 如果是整数日期，直接使用整数字段查询
+    if isinstance(cursor_date, int) and len(str(cursor_date)) == 8:
         query = {
             "exchange": exchange,
-            "datestamp": {"$gt": datestamp} if not include_input else {"$gte": datestamp}
+            "date_int": {"$gt": cursor_date}
         }
-        
-        # 如果输入日期是交易日且include_input为True，需要调整跳过的记录数
-        skip_count = n - 1 if (is_input_trade_date and include_input) else n
-        
-        # 如果输入日期是非交易日且include_input为True，我们需要从最近的下一个交易日开始计数
-        if not is_input_trade_date and include_input:
-            skip_count = n - 1
-        
-        # 特殊情况：如果是交易日且include_input为True且n>1，我们需要从下一个交易日开始计数
-        if is_input_trade_date and include_input and n > 1:
-            skip_count = n - 1
-            query["datestamp"] = {"$gt": datestamp}
-        
-        # 执行查询
-        result = DATABASE.trade_date.find_one(
-            query,
-            {"_id": 0},
-            sort=[("datestamp", 1)],
-            skip=max(0, skip_count - 1)  # 调整skip数量
-        )
-        
-        return result
-    except Exception as e:
-        raise Exception(f"获取下一交易日失败: {str(e)}")
+        if include_input and is_trade_date(cursor_date, exchange):
+            query["date_int"]["$gte"] = cursor_date
+            n -= 1
+    else:
+        # 否则使用时间戳查询
+        datestamp = util_make_date_stamp(cursor_date)
+        query = {
+            "exchange": exchange,
+            "datestamp": {"$gt": datestamp}
+        }
+        if include_input and is_trade_date(cursor_date, exchange):
+            query["datestamp"]["$gte"] = datestamp
+            n -= 1
+
+    # 获取后n个交易日
+    result = DATABASE.trade_date.find(
+        query,
+        {"_id": 0},
+        sort=[("datestamp", 1)],
+        skip=n-1,
+        limit=1
+    )
+
+    # 返回结果
+    try:
+        return result[0]
+    except (IndexError, KeyError):
+        return None
 
 
 def get_trade_calendar(
@@ -223,27 +267,33 @@ def get_trade_calendar(
         - pretrade_date: 前一交易日
         - datestamp: 日期时间戳
     """
+    if start_date is None:
+        start_date = datetime.date(2010, 1, 1)
     if end_date is None:
         end_date = datetime.date.today()
-    
-    start_stamp = util_make_date_stamp(start_date) if start_date is not None else None
+
+    # 将日期转换为时间戳
+    start_stamp = util_make_date_stamp(start_date)
     end_stamp = util_make_date_stamp(end_date)
-    
-    try:
-        query = {
-            "exchange": exchange,
-            "datestamp": {"$lte": end_stamp}
+
+    # 构建查询条件
+    query = {
+        'exchange': exchange,
+        'datestamp': {
+            '$gte': start_stamp,
+            '$lte': end_stamp
         }
-        if start_stamp is not None:
-            query["datestamp"]["$gte"] = start_stamp
-        
-        cursor = DATABASE.trade_date.find(
-            query,
-            {"_id": 0},
-            sort=[("datestamp", 1)]
-        )
-        
-        result = pd.DataFrame(list(cursor))
-        return result
-    except Exception as e:
-        raise Exception(f"获取交易日历失败: {str(e)}")
+    }
+
+    # 执行查询
+    cursor = DATABASE.trade_date.find(
+        query,
+        {'_id': 0},
+        sort=[('datestamp', 1)]
+    )
+
+    # 将结果转换为 DataFrame
+    df = pd.DataFrame(list(cursor))
+    if df.empty:
+        return pd.DataFrame(columns=['exchange', 'trade_date', 'pretrade_date', 'datestamp'])
+    return df

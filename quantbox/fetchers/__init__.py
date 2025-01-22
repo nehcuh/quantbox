@@ -9,5 +9,6 @@ except ImportError:
     TSFetcher = None
 
 from quantbox.fetchers.remote_fetcher import RemoteFetcher
+from quantbox.fetchers.local_fetcher import LocalFetcher
 
-__all__ = ['RemoteFetcher', 'GMFetcher', 'TSFetcher']
+__all__ = ['RemoteFetcher', 'GMFetcher', 'TSFetcher', 'LocalFetcher']
