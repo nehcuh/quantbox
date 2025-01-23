@@ -1,0 +1,19 @@
+# 测试配置文件
+
+[TSPRO]
+token = "your_tushare_token_here"  # 请替换为你的 Tushare token
+
+[MONGODB]
+uri = "mongodb://localhost:27017"
+
+[logging]
+level = "INFO"
+file = "~/.quantbox/logs/quantbox.log"
+console = true
+format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+max_size = 10
+backup_count = 5
+
+[cache]
+type = "memory"
+expire = 3600

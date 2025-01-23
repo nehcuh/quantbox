@@ -1,3 +1,42 @@
+Metadata-Version: 2.2
+Name: quantbox
+Version: 0.1.0
+Summary: A comprehensive quantitative investment research platform
+Home-page: https://github.com/nehcuh/quantbox
+Author: huchen
+Classifier: Development Status :: 3 - Alpha
+Classifier: Intended Audience :: Financial and Insurance Industry
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.8
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Classifier: Topic :: Office/Business :: Financial :: Investment
+Requires-Python: >=3.8
+Description-Content-Type: text/markdown
+Requires-Dist: pandas>=1.5.0
+Requires-Dist: numpy>=1.21.0
+Requires-Dist: pymongo>=4.0.0
+Requires-Dist: redis>=4.5.0
+Requires-Dist: tushare>=1.2.89
+Requires-Dist: pydantic>=2.0.0
+Requires-Dist: python-dateutil>=2.8.2
+Requires-Dist: pytz>=2023.3
+Requires-Dist: tomli>=2.0.0
+Provides-Extra: test
+Requires-Dist: pytest>=7.0.0; extra == "test"
+Requires-Dist: pytest-cov>=4.0.0; extra == "test"
+Dynamic: author
+Dynamic: classifier
+Dynamic: description
+Dynamic: description-content-type
+Dynamic: home-page
+Dynamic: provides-extra
+Dynamic: requires-dist
+Dynamic: requires-python
+Dynamic: summary
+
 # QuantBox
 
 QuantBox 是一个全面的量化投资研究平台，支持股票、期货、期权、加密货币等多品种的在线查询、数据存储和交易分析。

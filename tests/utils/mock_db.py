@@ -1,95 +1,42 @@
-"""Mock database for testing"""
+"""Mock database manager for testing"""
 
-from typing import Optional, Dict, Any, List
+from typing import Dict, Any, Optional, List
 import pandas as pd
 from datetime import datetime
 
 from quantbox.data.database.base import DatabaseManager
 
 
-class MockDatabaseManager(DatabaseManager):
-    """Mock database manager for testing"""
-    
-    def __init__(self):
-        """Initialize mock database"""
-        self._collections = {}
-        for name in ["calendar", "stock_basic", "stock_daily"]:
-            self._collections[name] = []
-    
-    def get_collection(self, name: str) -> 'MockCollection':
-        """Get a mock collection"""
-        if name not in self._collections:
-            self._collections[name] = []
-        return MockCollection(self._collections[name])
-    
-    def ensure_calendar_index(self) -> None:
-        """Ensure calendar index exists"""
-        pass  # No need to create indexes in mock database
-    
-    def save_calendar(self, df: pd.DataFrame) -> None:
-        """Save calendar data"""
-        records = df.to_dict('records')
-        self._collections["calendar"] = records  # Replace existing records
-    
-    def save_stock_basic(self, df: pd.DataFrame) -> None:
-        """Save stock basic data"""
-        records = df.to_dict('records')
-        self._collections["stock_basic"] = records  # Replace existing records
-    
-    def save_stock_daily(self, df: pd.DataFrame) -> None:
-        """Save stock daily data"""
-        records = df.to_dict('records')
-        self._collections["stock_daily"] = records  # Replace existing records
-    
-    def get_calendar(self, exchange: str, start_date: Optional[str] = None,
-                    end_date: Optional[str] = None) -> pd.DataFrame:
-        """Get calendar data"""
-        data = self._collections["calendar"]
-        df = pd.DataFrame(data)
-        
-        if df.empty:
-            return df
-            
-        mask = df["exchange"] == exchange
-        if start_date:
-            # Convert date format from "YYYY-MM-DD" to YYYYMMDD
-            if isinstance(start_date, str) and "-" in start_date:
-                start_date = start_date.replace("-", "")
-            mask &= df["trade_date"].astype(str) >= str(start_date)
-        if end_date:
-            # Convert date format from "YYYY-MM-DD" to YYYYMMDD
-            if isinstance(end_date, str) and "-" in end_date:
-                end_date = end_date.replace("-", "")
-            elif isinstance(end_date, datetime):
-                end_date = end_date.strftime("%Y%m%d")
-            mask &= df["trade_date"].astype(str) <= str(end_date)
-            
-        return df[mask]
-    
-    def close(self) -> None:
-        """Close database connection"""
-        pass  # No need to close connection in mock database
-
-
 class MockCollection:
     """Mock collection for testing"""
     
-    def __init__(self, data: List[Dict[str, Any]]):
+    def __init__(self):
         """Initialize mock collection"""
-        self._data = data
-    
-    def delete_many(self, filter: Dict[str, Any]) -> None:
-        """Delete documents matching filter"""
-        self._data.clear()
-    
-    def insert_many(self, documents: list) -> None:
+        self._data = []
+        self._indexes = {}
+        
+    def insert_many(self, documents: List[Dict[str, Any]]) -> None:
         """Insert many documents"""
         self._data.extend(documents)
-    
+        
+    def delete_many(self, filter: Dict[str, Any]) -> None:
+        """Delete many documents"""
+        self._data = []
+        
     def drop(self) -> None:
         """Drop collection"""
-        self._data.clear()
-    
+        self._data = []
+        self._indexes = {}
+        
+    def create_index(self, keys: List[tuple], unique: bool = False) -> None:
+        """Create index"""
+        index_name = "_".join(f"{key}_{direction}" for key, direction in keys)
+        self._indexes[index_name] = {
+            "v": 2,
+            "key": keys,
+            "unique": unique
+        }
+        
     def index_information(self) -> Dict[str, Any]:
         """Get index information"""
         return {
@@ -122,3 +69,111 @@ class MockCollection:
                 "unique": True
             }
         }
+        
+    def find(self, filter: Dict[str, Any] = None) -> List[Dict[str, Any]]:
+        """Find documents"""
+        if filter is None:
+            return self._data
+            
+        result = []
+        for doc in self._data:
+            match = True
+            for key, value in filter.items():
+                if key not in doc or doc[key] != value:
+                    match = False
+                    break
+            if match:
+                result.append(doc)
+        return result
+
+
+class MockDatabaseManager(DatabaseManager):
+    """Mock database manager for testing"""
+    
+    def __init__(self):
+        """Initialize mock database manager"""
+        self._collections = {}
+        
+    def get_collection(self, name: str) -> MockCollection:
+        """Get collection by name"""
+        if name not in self._collections:
+            self._collections[name] = MockCollection()
+        return self._collections[name]
+        
+    def save_calendar(self, data: pd.DataFrame) -> None:
+        """Save calendar data"""
+        collection = self.get_collection("calendar")
+        
+        # 转换数据
+        documents = []
+        for _, row in data.iterrows():
+            doc = row.to_dict()
+            if isinstance(doc.get("trade_date"), str):
+                doc["datestamp"] = int(datetime.strptime(doc["trade_date"], "%Y%m%d").timestamp() * 1_000_000_000)
+            documents.append(doc)
+            
+        # 保存数据
+        collection.delete_many({})  # 清空集合
+        collection.insert_many(documents)
+        
+    def get_calendar(self, exchange: Optional[str] = None,
+                    start_date: Optional[str] = None,
+                    end_date: Optional[str] = None) -> pd.DataFrame:
+        """Get calendar data"""
+        collection = self.get_collection("calendar")
+        
+        # 构建查询条件
+        filter = {}
+        if exchange:
+            filter["exchange"] = exchange
+            
+        # 查询数据
+        documents = collection.find(filter)
+        if not documents:
+            return pd.DataFrame()
+            
+        # 转换为 DataFrame
+        df = pd.DataFrame(documents)
+        
+        # 过滤日期范围
+        if start_date:
+            df = df[df["trade_date"] >= start_date]
+        if end_date:
+            df = df[df["trade_date"] <= end_date]
+            
+        return df
+        
+    def ensure_calendar_index(self) -> None:
+        """Ensure calendar index exists"""
+        collection = self.get_collection("calendar")
+        
+        # 创建索引
+        collection.create_index([("exchange", 1), ("trade_date", 1)], unique=True)
+        collection.create_index([("exchange", 1), ("datestamp", 1)], unique=True)
+        collection.create_index([("exchange", 1), ("pretrade_date", 1)], unique=True)
+        
+    def save_stock_basic(self, data: pd.DataFrame) -> None:
+        """Save stock basic data"""
+        collection = self.get_collection("stock_basic")
+        
+        # 转换数据
+        documents = data.to_dict('records')
+            
+        # 保存数据
+        collection.delete_many({})  # 清空集合
+        collection.insert_many(documents)
+        
+    def save_stock_daily(self, data: pd.DataFrame) -> None:
+        """Save stock daily data"""
+        collection = self.get_collection("stock_daily")
+        
+        # 转换数据
+        documents = data.to_dict('records')
+            
+        # 保存数据
+        collection.delete_many({})  # 清空集合
+        collection.insert_many(documents)
+        
+    def close(self) -> None:
+        """Close database connection"""
+        pass

@@ -22,8 +22,8 @@
 
 1. 交易日期数据结构统一
    - 统一使用 `trade_date` 作为交易日期字段名
-   - 日期格式统一为 `YYYY-MM-DD` 字符串格式
-   - 必须包含 exchange、trade_date、pre_trade_date、datestamp 字段
+   - 日期格式统一为整数格式，如 20240123
+   - 必须包含 exchange、trade_date、pretrade_date、datestamp 字段
 
 2. 交易日期查询功能
    - 支持按交易所查询交易日期
@@ -39,50 +39,91 @@
 ### 3.2 接口设计
 
 ```python
+from typing import Union, Optional, List, Dict
+from datetime import datetime, date
+import pandas as pd
+
+DateType = Union[str, int, date, datetime, pd.Timestamp]
+
 class TradeDateManager:
     def get_trade_dates(
         self,
         exchanges: Union[str, List[str]],
-        start_date: Optional[str] = None,
-        end_date: Optional[str] = None
+        start_date: Optional[DateType] = None,
+        end_date: Optional[DateType] = None
     ) -> pd.DataFrame:
-        """获取交易日期数据"""
+        """获取交易日期数据
+        
+        Args:
+            exchanges: 单个交易所代码或交易所代码列表
+            start_date: 开始日期，支持以下格式：
+                - str: '2024-01-23' 或 '20240123'
+                - int: 20240123
+                - date: datetime.date(2024, 1, 23)
+                - datetime: datetime.datetime(2024, 1, 23)
+                - pd.Timestamp: pd.Timestamp('2024-01-23')
+            end_date: 结束日期，格式同 start_date
+        """
         pass
 
     def get_prev_trade_date(
         self,
         exchange: str,
-        reference_date: str,
+        reference_date: DateType,
         n: int = 1,
         include_reference: bool = False
-    ) -> Dict[str, str]:
-        """获取前N个交易日"""
+    ) -> Dict[str, int]:
+        """获取前N个交易日
+        
+        Args:
+            exchange: 交易所代码
+            reference_date: 参考日期，支持多种格式
+            n: 向前获取的天数
+            include_reference: 是否包含参考日期
+        """
         pass
 
     def get_next_trade_date(
         self,
         exchange: str,
-        reference_date: str,
+        reference_date: DateType,
         n: int = 1,
         include_reference: bool = False
-    ) -> Dict[str, str]:
-        """获取后N个交易日"""
+    ) -> Dict[str, int]:
+        """获取后N个交易日
+        
+        Args:
+            exchange: 交易所代码
+            reference_date: 参考日期，支持多种格式
+            n: 向后获取的天数
+            include_reference: 是否包含参考日期
+        """
         pass
 
     def is_trade_date(
         self,
         exchange: str,
-        date: str
+        date: DateType
     ) -> bool:
-        """判断是否为交易日"""
+        """判断是否为交易日
+        
+        Args:
+            exchange: 交易所代码
+            date: 日期，支持多种格式
+        """
         pass
 
     def sync_trade_dates(
         self,
         engine: str = "ts",
-        start_date: Optional[str] = None
+        start_date: Optional[DateType] = None
     ) -> None:
-        """同步交易日期数据"""
+        """同步交易日期数据
+        
+        Args:
+            engine: 数据源引擎
+            start_date: 开始日期，支持多种格式
+        """
         pass
 ```
 
@@ -102,30 +143,54 @@ quantbox/
       └── trade_dates/    # 测试用例
 ```
 
-### 4.2 数据结构
+### 4.2 数据库设计
 
-交易日期数据格式：
-```python
-class TradeDate(TypedDict):
-    exchange: str         # 交易所代码
-    trade_date: str       # 交易日期 YYYY-MM-DD
-    pre_trade_date: str   # 前一交易日 YYYY-MM-DD
-    datestamp: int        # 时间戳
+```sql
+CREATE TABLE trade_calendar (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    exchange VARCHAR(10) NOT NULL COMMENT '交易所代码',
+    trade_date INT NOT NULL COMMENT '交易日期，格式：20240123',
+    pretrade_date INT NOT NULL COMMENT '前一交易日，格式：20240122',
+    datestamp BIGINT NOT NULL COMMENT '纳秒级时间戳',
+    is_open BOOLEAN NOT NULL COMMENT '是否开市',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uniq_exchange_date (exchange, trade_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='交易日历表';
 ```
 
-### 4.3 性能优化
+### 4.3 示例数据
 
-1. 数据缓存
-   - 使用内存缓存常用交易日期数据
-   - 实现 LRU 缓存机制
+```python
+# 交易日期数据示例
+trade_dates = {
+    'SSE': [
+        {
+            'trade_date': 20240123,
+            'pretrade_date': 20240122,
+            'datestamp': 1705968000000000000,  # 纳秒级时间戳
+            'is_open': True
+        },
+        {
+            'trade_date': 20240124,
+            'pretrade_date': 20240123,
+            'datestamp': 1706054400000000000,  # 纳秒级时间戳
+            'is_open': True
+        }
+    ]
+}
 
-2. 数据库索引
-   - 为 exchange 和 trade_date 字段建立复合索引
-   - 优化查询性能
-
-3. 批量操作
-   - 支持批量查询和更新
-   - 减少数据库访问次数
+# 交易日历缓存示例
+trade_calendar_cache = {
+    'SSE': {
+        20240123: {
+            'pretrade_date': 20240122,
+            'next_trade_date': 20240124,
+            'is_open': True
+        }
+    }
+}
+```
 
 ## 5. 测试计划
 
@@ -148,10 +213,6 @@ class TradeDate(TypedDict):
 1. 功能集成测试
    - 测试与其他模块的集成
    - 测试数据流程完整性
-
-2. 性能测试
-   - 测试大数据量下的性能
-   - 测试并发访问性能
 
 ## 6. 迁移计划
 
@@ -176,11 +237,6 @@ class TradeDate(TypedDict):
    - 符合代码规范
    - 无严重 bug
 
-3. 性能指标
-   - 单次查询响应时间 < 100ms
-   - 批量查询响应时间 < 1s
-   - 内存占用合理
-
 ## 8. 时间计划
 
 1. 设计阶段（1周）
@@ -195,7 +251,6 @@ class TradeDate(TypedDict):
 
 3. 测试阶段（1周）
    - 集成测试
-   - 性能测试
    - Bug修复
 
 4. 上线阶段（1周）

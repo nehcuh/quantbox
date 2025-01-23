@@ -1,0 +1,138 @@
+# QuantBox配置文件示例
+# 默认配置文件路径：~/.quantbox/settings/config.toml
+
+[database]
+host = "localhost"
+port = 27017
+username = "quantbox"
+password = "your_password_here"
+database = "quantbox"
+collection_prefix = "qb_"
+
+[api]
+# TuShare API配置
+# 获取地址：https://tushare.pro/user/token
+[TSPRO]
+token = ""  # 你的 Tushare token，从 https://tushare.pro 获取
+
+# Wind API配置
+wind_token = "your_wind_token_here"
+
+# 天勤量化配置
+# 获取地址：https://www.shinnytech.com/
+tqsdk_account = "your_tqsdk_account"
+tqsdk_password = "your_tqsdk_password"
+
+# 掘金量化配置
+[GM]
+token = ""  # 你的掘金 token，从 https://www.myquant.cn 获取
+
+[MONGODB]
+uri = "mongodb://localhost:27017"  # MongoDB 连接 URI
+
+[logging]
+# 日志级别：DEBUG, INFO, WARNING, ERROR, CRITICAL
+level = "INFO"  # 日志级别：DEBUG, INFO, WARNING, ERROR, CRITICAL
+# 日志文件路径，支持绝对路径和相对路径（相对于用户主目录）
+file = "~/.quantbox/logs/quantbox.log"  # 日志文件路径
+# 是否同时输出到控制台
+console = true  # 是否同时输出到控制台
+# 日志格式
+format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"  # 日志格式
+# 日志文件最大大小（MB）
+max_size = 10  # 日志文件最大大小（MB）
+# 保留的日志文件数量
+backup_count = 5  # 保留的日志文件数量
+
+[cache]
+# 缓存类型：memory, redis
+type = "memory"  # 缓存类型：memory, redis
+# Redis配置（当type为redis时有效）
+redis_host = "localhost"  # Redis 主机地址
+redis_port = 6379  # Redis 端口
+redis_db = 0  # Redis 数据库
+redis_password = ""  # Redis 密码
+# 缓存过期时间（秒）
+expire = 3600  # 缓存过期时间（秒）
+
+[trade]
+# 交易时区
+timezone = "Asia/Shanghai"
+# 默认交易所
+default_exchange = "SSE"
+
+# 交易所配置
+[trade.exchanges.SSE]
+name = "上海证券交易所"
+code = "SSE"
+timezone = "Asia/Shanghai"
+open_time = ["09:30:00", "13:00:00"]
+close_time = ["11:30:00", "15:00:00"]
+trading_days = "1,2,3,4,5"  # 周一到周五
+commission_type = "rate"     # rate: 费率, fixed: 固定费用
+commission_open = 0.0003     # 开仓手续费
+commission_close = 0.0003    # 平仓手续费
+commission_close_today = 0.0003  # 平今手续费
+commission_min = 5.0         # 最小手续费
+slippage_type = "rate"      # rate: 比率, tick: 跳数
+slippage_value = 0.0001     # 滑点值
+
+[trade.exchanges.SZSE]
+name = "深圳证券交易所"
+code = "SZSE"
+timezone = "Asia/Shanghai"
+open_time = ["09:30:00", "13:00:00"]
+close_time = ["11:30:00", "15:00:00"]
+trading_days = "1,2,3,4,5"
+commission_type = "rate"
+commission_open = 0.0003
+commission_close = 0.0003
+commission_close_today = 0.0003
+commission_min = 5.0
+slippage_type = "rate"
+slippage_value = 0.0001
+
+[trade.exchanges.CFFEX]
+name = "中国金融期货交易所"
+code = "CFFEX"
+timezone = "Asia/Shanghai"
+open_time = ["09:15:00", "13:00:00"]
+close_time = ["11:30:00", "15:15:00"]
+trading_days = "1,2,3,4,5"
+commission_type = "fixed"
+commission_open = 3.0
+commission_close = 3.0
+commission_close_today = 0.0
+commission_min = 0.0
+slippage_type = "tick"
+slippage_value = 1
+
+[trade.exchanges.SHFE]
+name = "上海期货交易所"
+code = "SHFE"
+timezone = "Asia/Shanghai"
+open_time = ["09:00:00", "13:30:00", "21:00:00"]
+close_time = ["11:30:00", "15:00:00", "23:00:00"]
+trading_days = "1,2,3,4,5"
+commission_type = "fixed"
+commission_open = 5.0
+commission_close = 5.0
+commission_close_today = 5.0
+commission_min = 0.0
+slippage_type = "tick"
+slippage_value = 1
+
+[trade.exchanges.DCE]
+name = "大连商品交易所"
+code = "DCE"
+timezone = "Asia/Shanghai"
+open_time = ["09:00:00", "13:30:00", "21:00:00"]
+close_time = ["11:30:00", "15:00:00", "23:00:00"]
+trading_days = "1,2,3,4,5"
+commission_type = "fixed"
+commission_open = 2.0
+commission_close = 2.0
+commission_close_today = 2.0
+commission_min = 0.0
+slippage_type = "tick"
+slippage_value = 1

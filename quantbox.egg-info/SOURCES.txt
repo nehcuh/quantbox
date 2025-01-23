@@ -1,0 +1,7 @@
+README.md
+setup.py
+quantbox.egg-info/PKG-INFO
+quantbox.egg-info/SOURCES.txt
+quantbox.egg-info/dependency_links.txt
+quantbox.egg-info/requires.txt
+quantbox.egg-info/top_level.txt
