@@ -37,6 +37,7 @@ setup(
         "python-dateutil>=2.8.2",
         "pytz>=2023.3",
         "tomli>=2.0.0",
+        "prompt_toolkit>=3.0.0",
     ],
     extras_require={
         "test": [
@@ -47,5 +48,10 @@ setup(
     include_package_data=True,
     package_data={
         "quantbox": ["example.config.toml"],
+    },
+    entry_points={
+        "console_scripts": [
+            "quantbox=quantbox.cli.shell:main",
+        ],
     },
 )

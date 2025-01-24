@@ -25,6 +25,7 @@ class TushareFetcher(BaseFetcher):
         
         # 获取所有交易所的交易日历缓存
         self._calendar_cache = {}
+        self._cache_key_format = "{exchange}_{start_date}_{end_date}"
     
     def _get_cached_calendar(
         self,
@@ -33,7 +34,7 @@ class TushareFetcher(BaseFetcher):
         start_date: Optional[Union[str, int, date, datetime]] = None,
         end_date: Optional[Union[str, int, date, datetime]] = None
     ) -> pd.DataFrame:
-        """获取交易日历，优先从本地数据库获取
+        """获取交易日历，优先从内存缓存获取，其次从本地数据库获取
         
         Args:
             exchange: 交易所代码，如果为None则根据exchange_type获取
@@ -58,6 +59,25 @@ class TushareFetcher(BaseFetcher):
         else:
             exchanges = [exchange]
         
+        # 标准化日期格式，用于缓存key
+        start_date_int = int(pd.Timestamp(start_date).strftime('%Y%m%d')) if start_date else 0
+        end_date_int = int(pd.Timestamp(end_date).strftime('%Y%m%d')) if end_date else 0
+        
+        # 从内存缓存获取数据
+        dfs = []
+        need_db_query = False
+        for ex in exchanges:
+            cache_key = (ex, start_date_int, end_date_int)  # 使用元组作为key
+            if cache_key in self._calendar_cache:
+                dfs.append(self._calendar_cache[cache_key])
+            else:
+                need_db_query = True
+                break
+        
+        # 如果所有数据都在缓存中，直接返回
+        if not need_db_query:
+            return pd.concat(dfs, ignore_index=True) if len(dfs) > 1 else dfs[0]
+        
         # 从本地数据库获取数据
         dfs = []
         need_update = False
@@ -65,12 +85,21 @@ class TushareFetcher(BaseFetcher):
             df = self.db.get_calendar(ex, start_date, end_date)
             if len(df) == 0 or 'is_open' not in df.columns:
                 need_update = True
+                break
+            # 更新内存缓存
+            cache_key = (ex, start_date_int, end_date_int)
+            self._calendar_cache[cache_key] = df
             dfs.append(df)
         
         # 如果本地数据库没有数据或者没有is_open字段，则从Tushare获取并保存
         if need_update:
             df = self.fetch_get_calendar(exchange, exchange_type, start_date, end_date)
             self.db.save_calendar(df)
+            # 更新内存缓存
+            for ex in exchanges:
+                cache_key = (ex, start_date_int, end_date_int)
+                ex_df = df[df['exchange'] == ex].copy()
+                self._calendar_cache[cache_key] = ex_df
             return df
         
         # 合并多个交易所的数据
