@@ -134,6 +134,65 @@ QuantBox 使用 TOML 格式的配置文件，默认从用户主目录下的 `~/.
    - 多维度指标分析
    - 自定义告警规则
 
+## 数据管理
+
+### 交易日历
+
+QuantBox 提供了两种方式来保存交易日历数据：
+
+1. **命令行工具**
+
+```bash
+# 查看帮助信息
+python -m quantbox.cli.trade_dates --help
+
+# 保存所有交易所的数据（默认行为）
+python -m quantbox.cli.trade_dates
+
+# 保存单个交易所的数据（如上交所）
+python -m quantbox.cli.trade_dates -e SSE
+
+# 保存所有股票交易所的数据
+python -m quantbox.cli.trade_dates -t STOCK
+
+# 保存所有期货交易所的数据
+python -m quantbox.cli.trade_dates -t FUTURES
+
+# 保存指定日期范围的数据
+python -m quantbox.cli.trade_dates -e SSE -s 20240101 -d 20241231
+```
+
+2. **脚本方式**
+
+```bash
+# 查看帮助信息
+python scripts/save_trade_dates.py --help
+
+# 保存所有交易所的数据（默认行为）
+python scripts/save_trade_dates.py
+
+# 保存单个交易所的数据（如上交所）
+python scripts/save_trade_dates.py -e SSE
+
+# 保存所有股票交易所的数据
+python scripts/save_trade_dates.py -t STOCK
+
+# 保存所有期货交易所的数据
+python scripts/save_trade_dates.py -t FUTURES
+
+# 保存指定日期范围的数据
+python scripts/save_trade_dates.py -e SSE -s 20240101 -d 20241231
+```
+
+注意事项：
+1. 默认从 1989 年 1 月 1 日开始获取数据
+2. 如果不指定结束日期，则使用当年年底作为结束日期
+3. 如果不指定交易所或类型，则默认保存所有交易所的数据
+4. 支持的交易所类型：
+   - 股票：SSE（上交所）、SZSE（深交所）
+   - 期货：SHFE（上期所）、DCE（大商所）、CZCE（郑商所）、CFFEX（中金所）、INE（能源所）、GFEX（广期所）
+5. 数据会保存到配置文件中指定的 MongoDB 数据库中
+
 ## 开发指南
 
 详细的开发文档请参考 [docs/](docs/) 目录：

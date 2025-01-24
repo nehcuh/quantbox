@@ -28,7 +28,7 @@ def save_trade_dates(
     """保存交易日历数据
     
     Args:
-        exchange: 交易所代码，如SSE, SZSE等。如果不指定，则根据exchange_type保存对应类型的所有交易所
+        exchange: 交易所代码，如SSE, SZSE等。如果不指定，则保存所有交易所的数据
         exchange_type: 交易所类型，STOCK或FUTURES。当exchange未指定时使用
         start_date: 开始日期，格式为YYYYMMDD。如果不指定，则使用19890101
         end_date: 结束日期，格式为YYYYMMDD。如果不指定，则使用当年结束
@@ -57,8 +57,8 @@ def save_trade_dates(
             elif exchange_type == ExchangeType.FUTURES:
                 exchanges = ["SHFE", "DCE", "CZCE", "CFFEX", "INE", "GFEX"]
             else:
-                # 默认保存所有股票交易所
-                exchanges = ["SSE", "SZSE"]
+                # 默认保存所有交易所
+                exchanges = ["SSE", "SZSE", "SHFE", "DCE", "CZCE", "CFFEX", "INE", "GFEX"]
             
             for ex in exchanges:
                 fetcher.fetch_calendar(
@@ -78,7 +78,7 @@ def main():
     parser = argparse.ArgumentParser(description="保存交易日历数据到本地数据库")
     parser.add_argument(
         "-e", "--exchange",
-        help="交易所代码（如SSE, SZSE）。如果不指定，将根据exchange-type保存对应类型的所有交易所",
+        help="交易所代码（如SSE, SZSE）。如果不指定，将保存所有交易所的数据",
     )
     parser.add_argument(
         "-t", "--exchange-type",

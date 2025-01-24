@@ -41,7 +41,7 @@ def save_trade_dates(
 ):
     """Save trade dates to database.
     
-    If neither exchange nor exchange-type is provided, will save for all stock exchanges.
+    If neither exchange nor exchange-type is provided, will save for all exchanges.
     If start-date is not provided, will use 19890101.
     If end-date is not provided, will use current year's end.
     """
@@ -69,8 +69,8 @@ def save_trade_dates(
             elif exchange_type == ExchangeType.FUTURES:
                 exchanges = ["SHFE", "DCE", "CZCE", "CFFEX", "INE", "GFEX"]
             else:
-                # 默认保存所有股票交易所
-                exchanges = ["SSE", "SZSE"]
+                # 默认保存所有交易所
+                exchanges = ["SSE", "SZSE", "SHFE", "DCE", "CZCE", "CFFEX", "INE", "GFEX"]
             
             for ex in exchanges:
                 fetcher.fetch_calendar(
