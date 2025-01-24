@@ -89,7 +89,7 @@ class TushareFetcher(BaseFetcher):
         Args:
             exchange: 交易所代码，如果为None则根据exchange_type获取
             exchange_type: 交易所类型，如果exchange为None则必须指定
-            start_date: 开始日期，如果为None则获取从1990年至今的数据
+            start_date: 开始日期，如果为None则使用19890101
             end_date: 结束日期，如果为None则获取从start_date至当年度12月31日的数据
             
         Returns:
@@ -108,11 +108,31 @@ class TushareFetcher(BaseFetcher):
         if exchange is None:
             exchange = "SSE"
             
-        # 如果没有指定日期范围，则获取当前年份的数据
-        if start_date is None or end_date is None:
-            current_year = datetime.now().year
-            start_date = f"{current_year}0101"
+        # 处理日期范围
+        current_year = datetime.now().year
+        if start_date is None:
+            # 如果没有指定开始日期，则使用1989年1月1日
+            start_date = "19890101"
+        else:
+            # 统一日期格式
+            if isinstance(start_date, (date, datetime)):
+                start_date = start_date.strftime("%Y%m%d")
+            elif isinstance(start_date, str):
+                start_date = start_date.replace("-", "")
+            elif isinstance(start_date, int):
+                start_date = str(start_date)
+        
+        if end_date is None:
+            # 如果没有指定结束日期，则使用当前年份的12月31日
             end_date = f"{current_year}1231"
+        else:
+            # 统一日期格式
+            if isinstance(end_date, (date, datetime)):
+                end_date = end_date.strftime("%Y%m%d")
+            elif isinstance(end_date, str):
+                end_date = end_date.replace("-", "")
+            elif isinstance(end_date, int):
+                end_date = str(end_date)
         
         # 获取交易日历
         df = ts.pro_api().trade_cal(
@@ -126,8 +146,8 @@ class TushareFetcher(BaseFetcher):
         df = df.rename(columns={"cal_date": "trade_date"})
         
         # 转换日期格式
-        df["trade_date"] = df["trade_date"].astype(int)
-        df["pretrade_date"] = df["pretrade_date"].astype(int)
+        df["trade_date"] = df["trade_date"].fillna(0).astype(int)
+        df["pretrade_date"] = df["pretrade_date"].fillna(0).astype(int)
         
         # 添加时间戳
         df["datestamp"] = pd.to_datetime(df["trade_date"].astype(str)).astype(np.int64)
