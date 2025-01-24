@@ -311,20 +311,20 @@ class TushareFetcher(BaseFetcher):
         exchange: str = "SSE",
         start_date: Optional[Union[str, int, date, datetime]] = None,
         end_date: Optional[Union[str, int, date, datetime]] = None
-    ) -> Union[str, List[str]]:
+    ) -> int:
         """获取前N个交易日
         
         Args:
             date: 当前日期
-            n: 获取前N个交易日，默认为1
+            n: 往前数第N个交易日，默认为1
             include_input_date: 如果输入日期是交易日，是否将其纳入统计，默认为False
             exchange: 交易所代码，默认为SSE
             start_date: 开始日期，可选
             end_date: 结束日期，可选
             
         Returns:
-            如果n=1，返回前一个交易日，格式为YYYY-MM-DD
-            如果n>1，返回前N个交易日列表，格式为[YYYY-MM-DD, ...]，按时间倒序排列
+            往前数第N个交易日，格式为YYYYMMDD
+            如果找不到对应的交易日，返回None
         """
         # 统一日期格式为YYYYMMDD
         if isinstance(date, str):
@@ -335,27 +335,27 @@ class TushareFetcher(BaseFetcher):
         
         # 获取交易日历
         df = self._get_cached_calendar(exchange, start_date=start_date, end_date=end_date)
-        df = df.sort_values('trade_date')
         
-        # 如果输入日期是交易日且include_input_date=False，则从前一个交易日开始计算
-        if include_input_date:
-            prev_dates = df[df['trade_date'] <= date]['trade_date'].values
-        else:
-            prev_dates = df[df['trade_date'] < date]['trade_date'].values
+        # 获取所有交易日
+        trade_dates = df[df["is_open"] == 1]["trade_date"].sort_values().reset_index(drop=True)
         
-        if len(prev_dates) < n:
-            raise ValueError(f"Not enough previous trade dates found for {date}")
-            
-        # 获取前N个交易日
-        result_dates = prev_dates[-n:][::-1]  # 倒序取N个日期并反转
-        
-        # 格式化日期
-        formatted_dates = [
-            f"{str(d)[:4]}-{str(d)[4:6]}-{str(d)[6:]}"
-            for d in result_dates
-        ]
-        
-        return formatted_dates[0] if n == 1 else formatted_dates
+        # 找到当前日期的位置
+        try:
+            if include_input_date:
+                mask = trade_dates <= date
+            else:
+                mask = trade_dates < date
+                
+            if not mask.any():
+                return None
+                
+            current_idx = trade_dates[mask].index[-1]
+            if current_idx - n + 1 < 0:  # 如果没有足够的前置交易日
+                return None
+                
+            return int(trade_dates.iloc[current_idx - n + 1])
+        except (IndexError, KeyError):
+            return None
     
     def get_next_trade_date(
         self,
@@ -365,20 +365,20 @@ class TushareFetcher(BaseFetcher):
         exchange: str = "SSE",
         start_date: Optional[Union[str, int, date, datetime]] = None,
         end_date: Optional[Union[str, int, date, datetime]] = None
-    ) -> Union[str, List[str]]:
+    ) -> int:
         """获取后N个交易日
         
         Args:
             date: 当前日期
-            n: 获取后N个交易日，默认为1
+            n: 往后数第N个交易日，默认为1
             include_input_date: 如果输入日期是交易日，是否将其纳入统计，默认为False
             exchange: 交易所代码，默认为SSE
             start_date: 开始日期，可选
             end_date: 结束日期，可选
             
         Returns:
-            如果n=1，返回下一个交易日，格式为YYYY-MM-DD
-            如果n>1，返回后N个交易日列表，格式为[YYYY-MM-DD, ...]，按时间顺序排列
+            往后数第N个交易日，格式为YYYYMMDD
+            如果找不到对应的交易日，返回None
         """
         # 统一日期格式为YYYYMMDD
         if isinstance(date, str):
@@ -389,106 +389,24 @@ class TushareFetcher(BaseFetcher):
         
         # 获取交易日历
         df = self._get_cached_calendar(exchange, start_date=start_date, end_date=end_date)
-        df = df.sort_values('trade_date')
-        
-        # 如果输入日期是交易日且include_input_date=False，则从后一个交易日开始计算
-        if include_input_date:
-            next_dates = df[df['trade_date'] >= date]['trade_date'].values
-        else:
-            next_dates = df[df['trade_date'] > date]['trade_date'].values
-        
-        if len(next_dates) < n:
-            raise ValueError(f"Not enough next trade dates found for {date}")
-            
-        # 获取后N个交易日
-        result_dates = next_dates[:n]
-        
-        # 格式化日期
-        formatted_dates = [
-            f"{str(d)[:4]}-{str(d)[4:6]}-{str(d)[6:]}"
-            for d in result_dates
-        ]
-        
-        return formatted_dates[0] if n == 1 else formatted_dates
-    
-    def get_next_trade_date_n(
-        self,
-        date: Union[str, int, datetime],
-        n: int,
-        exchange: str = "SSE"
-    ) -> Union[str, List[str]]:
-        """获取后N个交易日
-        
-        Args:
-            date: 起始日期
-            n: 向后第N个交易日
-            exchange: 交易所代码，默认为SSE
-            
-        Returns:
-            Union[str, List[str]]: 如果n=1，返回单个日期，格式为YYYY-MM-DD；如果n>1，返回日期列表
-        """
-        # 统一日期格式为YYYYMMDD
-        if isinstance(date, str):
-            date = date.replace("-", "")
-        elif isinstance(date, datetime):
-            date = date.strftime("%Y%m%d")
-        date = int(date)
-        
-        # 获取交易日历
-        df = self._get_cached_calendar(exchange)
         
         # 获取所有交易日
-        trade_dates = df[df["is_open"] == 1]["trade_date"].sort_values()
+        trade_dates = df[df["is_open"] == 1]["trade_date"].sort_values().reset_index(drop=True)
         
         # 找到当前日期的位置
         try:
-            current_idx = trade_dates[trade_dates >= date].index[0]
-            if n == 1:
-                next_date = trade_dates.iloc[current_idx + 1]
-                return f"{next_date // 10000}-{next_date % 10000 // 100:02d}-{next_date % 100:02d}"
+            if include_input_date:
+                mask = trade_dates >= date
             else:
-                next_dates = trade_dates.iloc[current_idx + 1:current_idx + n + 1]
-                return [f"{d // 10000}-{d % 10000 // 100:02d}-{d % 100:02d}" for d in next_dates]
-        except (IndexError, KeyError):
-            return None
-    
-    def get_previous_trade_date_n(
-        self,
-        date: Union[str, int, datetime],
-        n: int,
-        exchange: str = "SSE"
-    ) -> Union[str, List[str]]:
-        """获取前N个交易日
-        
-        Args:
-            date: 起始日期
-            n: 向前第N个交易日
-            exchange: 交易所代码，默认为SSE
-            
-        Returns:
-            Union[str, List[str]]: 如果n=1，返回单个日期，格式为YYYY-MM-DD；如果n>1，返回日期列表
-        """
-        # 统一日期格式为YYYYMMDD
-        if isinstance(date, str):
-            date = date.replace("-", "")
-        elif isinstance(date, datetime):
-            date = date.strftime("%Y%m%d")
-        date = int(date)
-        
-        # 获取交易日历
-        df = self._get_cached_calendar(exchange)
-        
-        # 获取所有交易日
-        trade_dates = df[df["is_open"] == 1]["trade_date"].sort_values()
-        
-        # 找到当前日期的位置
-        try:
-            current_idx = trade_dates[trade_dates <= date].index[-1]
-            if n == 1:
-                prev_date = trade_dates.iloc[current_idx - 1]
-                return f"{prev_date // 10000}-{prev_date % 10000 // 100:02d}-{prev_date % 100:02d}"
-            else:
-                prev_dates = trade_dates.iloc[current_idx - n:current_idx][::-1]
-                return [f"{d // 10000}-{d % 10000 // 100:02d}-{d % 100:02d}" for d in prev_dates]
+                mask = trade_dates > date
+                
+            if not mask.any():
+                return None
+                
+            current_idx = trade_dates[mask].index[0]
+            if current_idx + n - 1 >= len(trade_dates):  # 如果没有足够的后续交易日
+                return None
+                
+            return int(trade_dates.iloc[current_idx + n - 1])
         except (IndexError, KeyError):
             return None
