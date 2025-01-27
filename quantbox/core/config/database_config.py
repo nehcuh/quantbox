@@ -9,7 +9,7 @@ class MongoDBConfig:
     username: str
     password: str
     database: str
-    collection_prefix: str = "qb_"  # quantbox前缀
+    collection_prefix: str = ""  # quantbox前缀
     
     @property
     def uri(self) -> str:

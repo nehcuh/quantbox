@@ -119,7 +119,7 @@ class ConfigLoader:
     def get_api_config(
         cls,
         config_path: Optional[str] = None
-    ) -> ApiConfig:
+    ) -> Optional[ApiConfig]:
         """获取API配置"""
         if cls._api_config is None:
             cls._load_config()
@@ -129,7 +129,7 @@ class ConfigLoader:
     def get_cache_config(
         cls,
         config_path: Optional[str] = None
-    ) -> CacheConfig:
+    ) -> Optional[CacheConfig]:
         """获取缓存配置"""
         if cls._cache_config is None:
             cls._load_config()
@@ -139,7 +139,7 @@ class ConfigLoader:
     def get_database_config(
         cls,
         config_path: Optional[str] = None
-    ) -> MongoDBConfig:
+    ) -> Optional[MongoDBConfig]:
         """获取数据库配置"""
         if cls._database_config is None:
             cls._load_config()
