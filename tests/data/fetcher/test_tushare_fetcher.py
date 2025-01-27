@@ -83,6 +83,28 @@ class TestDataFetcher(unittest.TestCase):
         result = self.fetcher.get_previous_trade_date_n("2024-01-02", 2)
         self.assertEqual(result, "2023-12-28")
 
+    def test_fetch_get_future_contracts(self):
+        """测试获取期货合约信息"""
+        # 测试默认参数
+        result = self.fetcher.fetch_get_future_contracts()
+        self.assertIsNotNone(result)
+        self.assertGreater(len(result), 0)
+        self.assertTrue(all(col in result.columns for col in ["ts_code", "symbol", "exchange"]))
+
+        # 测试指定交易所
+        dce_result = self.fetcher.fetch_get_future_contracts(exchange="DCE")
+        self.assertTrue(all(row["exchange"] == "DCE" for _, row in dce_result.iterrows()))
+
+        # 测试日期过滤
+        date_result = self.fetcher.fetch_get_future_contracts(trade_date=20240102)
+        self.assertIsNotNone(date_result)
+        
+        # 测试符号格式转换
+        if len(result) > 0:
+            sample_row = result.iloc[0]
+            self.assertTrue("." in sample_row["ts_code"])
+            symbol_parts = sample_row["ts_code"].split(".")
+            self.assertEqual(len(symbol_parts), 2)
 
 if __name__ == '__main__':
     unittest.main()
