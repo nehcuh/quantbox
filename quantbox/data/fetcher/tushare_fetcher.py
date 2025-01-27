@@ -6,6 +6,7 @@ from .base_fetcher import BaseFetcher
 from ..database import MongoDBManager
 from ...core.config import ConfigLoader, ExchangeType
 import numpy as np
+import re
 
 
 class TushareFetcher(BaseFetcher):
@@ -18,6 +19,7 @@ class TushareFetcher(BaseFetcher):
             raise ValueError("Tushare token not found in config")
         ts.set_token(config.tushare_token)
         self.pro = ts.pro_api()
+        self.future_exchanges = ["SHFE", "DCE", "CFFEX", "CZCE", "INE"]
         
         # 初始化MongoDB管理器
         self.db = MongoDBManager(ConfigLoader.get_database_config())
@@ -410,3 +412,125 @@ class TushareFetcher(BaseFetcher):
             return int(trade_dates.iloc[current_idx + n - 1])
         except (IndexError, KeyError):
             return None
+
+    def fetch_get_future_contracts(
+        self,
+        exchange: str = "DCE",
+        spec_name: Union[str, List[str], None] = None,
+        cursor_date: Optional[Union[str, int]] = None,
+        fields: Optional[List[str]] = None,
+    ) -> pd.DataFrame:
+        """
+        Fetch future contract information from TuShare.
+        从 Tushare 获取期货合约信息。
+
+        Args:
+            exchange: Exchange to fetch data from, defaults to DCE
+                    要获取数据的交易所，默认为大商所
+                Supported: ['SHFE', 'DCE', 'CFFEX', 'CZCE', 'INE']
+                支持: ['SHFE', 'DCE', 'CFFEX', 'CZCE', 'INE']
+            spec_name: Chinese name of contract, defaults to None to fetch all
+                     合约中文名称，默认为 None 获取所有品种
+                Examples: ["豆粕", "棕榈油", ...]
+                示例: ["豆粕", "棕榈油", ...]
+            cursor_date: Reference date for filtering contracts, defaults to None to fetch all
+                       过滤合约的参考日期，默认为 None 获取所有合约
+                Format: int (YYYYMMDD) or str ('YYYY-MM-DD')
+                格式：整数 (YYYYMMDD) 或字符串 ('YYYY-MM-DD')
+            fields: Custom fields to return, defaults to None to return all fields
+                   自定义返回字段，默认为 None 返回所有字段
+                Examples: ['symbol', 'name', 'list_date', 'delist_date']
+                示例: ['symbol', 'name', 'list_date', 'delist_date']
+
+        Returns:
+            DataFrame containing contract information
+            包含合约信息的DataFrame
+
+        Raises:
+            ValueError: If invalid exchange or date format is provided
+                      当提供的交易所或日期格式无效时
+            RuntimeError: If API call fails
+                        当API调用失败时
+        """
+        try:
+            # 验证交易所
+            if exchange not in self.future_exchanges:
+                raise ValueError(f"Invalid exchange: {exchange}. Supported exchanges: {self.future_exchanges}")
+
+            # 确保必要字段存在
+            required_fields = ["list_date", "delist_date", "name", "ts_code"]
+            if fields:
+                fields.extend([f for f in required_fields if f not in fields])
+                # 获取合约信息，只获取普通合约，不包括主力和连续合约
+                data = self.pro.fut_basic(exchange=exchange, fut_type="1", fields=fields)
+            else:
+                data = self.pro.fut_basic(exchange=exchange, fut_type="1")
+
+            if data.empty:
+                # 返回带有正确列的空DataFrame
+                return pd.DataFrame(columns=["qbcode", "symbol", "name", "chinese_name", "list_date", "delist_date", 
+                                          "list_datestamp", "delist_datestamp", "exchange"])
+
+            # 处理日期，转换为整数格式 YYYYMMDD
+            for date_col in ["list_date", "delist_date"]:
+                data[f"{date_col}stamp"] = pd.to_datetime(data[date_col].astype(str)).astype(np.int64) // 10**9
+                data[date_col] = pd.to_datetime(data[date_col]).dt.strftime("%Y%m%d").astype(int)
+
+            # 提取中文名称（去除空格）
+            data["chinese_name"] = data["name"].apply(lambda x: re.match(r'(.+?)(?=\d{3,})', x).group(1).strip())
+            
+            # 处理合约代码
+            data["exchange"] = exchange
+            
+            # 将 ts_code 格式从 "symbol.exchange" 转换为 "exchange.symbol"
+            data["qbcode"] = data["ts_code"].apply(lambda x: x.split(".")[1] + "." + x.split(".")[0])
+            
+            # 根据交易所处理 symbol
+            if exchange == "SHFE":
+                # 上期所合约代码小写
+                data["symbol"] = data["symbol"].apply(str.lower)
+            elif exchange == "CZCE":
+                # 郑商所合约代码大写
+                data["symbol"] = data["symbol"].apply(str.upper)
+            elif exchange == "DCE":
+                # 大商所合约代码小写
+                data["symbol"] = data["symbol"].apply(str.lower)
+            elif exchange == "CFFEX":
+                # 中金所合约代码大写
+                data["symbol"] = data["symbol"].apply(str.upper)
+            elif exchange == "INE":
+                # 能源所合约代码小写
+                data["symbol"] = data["symbol"].apply(str.lower)
+            
+            # 按品种名称过滤
+            if spec_name:
+                if isinstance(spec_name, str):
+                    spec_name = [s.strip() for s in spec_name.split(",")]
+                data = data[data["chinese_name"].isin(spec_name)]
+
+            # 按日期过滤
+            if cursor_date is not None:
+                try:
+                    # 将 cursor_date 转换为整数格式 YYYYMMDD
+                    if isinstance(cursor_date, str):
+                        cursor_date = int(pd.Timestamp(cursor_date).strftime("%Y%m%d"))
+                    # 确保 list_date 和 delist_date 是整数类型
+                    data["list_date"] = data["list_date"].astype(int)
+                    data["delist_date"] = data["delist_date"].astype(int)
+                    # 过滤合约
+                    data = data[data["list_date"].astype(int) <= cursor_date]
+                    data = data[data["delist_date"].astype(int) > cursor_date]
+                except ValueError as e:
+                    raise ValueError(f"Invalid cursor_date format: {cursor_date}. Error: {str(e)}")
+
+            # 整理列顺序
+            if "ts_code" in data.columns and fields is None:
+                columns = ["qbcode"] + [col for col in data.columns if col not in ["qbcode", "ts_code"]]
+            else:
+                columns = ["qbcode"] + [col for col in data.columns if col != "qbcode"]
+            data = data[columns]
+
+            return data
+
+        except Exception as e:
+            raise RuntimeError(f"Failed to fetch future contracts: {str(e)}")
