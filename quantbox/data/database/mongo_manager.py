@@ -1,11 +1,15 @@
 """MongoDB管理器"""
 
-from typing import Optional, List, Dict, Any, Union
+from typing import Optional, List, Dict, Any, Union, Tuple
 from datetime import datetime, date
 import pandas as pd
 from pymongo import MongoClient, ASCENDING, DESCENDING, IndexModel
 from pymongo.collection import Collection
 from pymongo.database import Database
+import pymongo
+import logging
+
+logger = logging.getLogger(__name__)
 
 from quantbox.core.config import MongoDBConfig
 
@@ -47,6 +51,11 @@ class MongoDBManager:
             Collection: MongoDB集合
         """
         return self.db[f"{self.config.collection_prefix}{name}"]
+    
+    @property
+    def future_contracts(self) -> Collection:
+        """获取期货合约集合"""
+        return self.get_collection("future_contracts")
     
     def ensure_calendar_index(self):
         """确保交易日历索引存在"""
@@ -143,6 +152,77 @@ class MongoDBManager:
         df = df.drop("_id", axis=1)
         
         return df
+    
+    def save_future_contracts(
+        self,
+        data: pd.DataFrame,
+        exchange: str,
+    ) -> Tuple[int, int]:
+        """保存期货合约数据到数据库。
+
+        Args:
+            data: 包含期货合约数据的 DataFrame
+            exchange: 交易所代码
+
+        Returns:
+            Tuple[int, int]: (新增数据数量, 更新数据数量)
+
+        Raises:
+            ValueError: 当输入数据无效时
+            pymongo.errors.PyMongoError: 数据库操作错误
+        """
+        if data is None or data.empty:
+            raise ValueError("输入数据为空")
+
+        collection = self.future_contracts
+        inserted_count = 0
+        updated_count = 0
+
+        try:
+            # 创建索引
+            collection.create_index(
+                [
+                    ("exchange", pymongo.ASCENDING),
+                    ("symbol", pymongo.ASCENDING),
+                    ("list_date", pymongo.ASCENDING)
+                ],
+                unique=True,
+                background=True
+            )
+            collection.create_index(
+                [("list_datestamp", pymongo.DESCENDING)],
+                background=True
+            )
+            collection.create_index(
+                [("delist_datestamp", pymongo.DESCENDING)],
+                background=True
+            )
+
+            # 保存数据
+            for _, row in data.iterrows():
+                filter_condition = {
+                    "exchange": exchange,
+                    "symbol": row["symbol"],
+                    "list_date": row["list_date"]
+                }
+
+                update_data = row.to_dict()
+                result = collection.update_one(
+                    filter_condition,
+                    {"$set": update_data},
+                    upsert=True
+                )
+
+                if result.upserted_id:
+                    inserted_count += 1
+                elif result.modified_count > 0:
+                    updated_count += 1
+
+            return inserted_count, updated_count
+
+        except pymongo.errors.PyMongoError as e:
+            logger.error(f"保存期货合约数据时发生错误: {str(e)}")
+            raise
     
     def close(self):
         """关闭数据库连接"""

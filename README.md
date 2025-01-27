@@ -193,6 +193,51 @@ python scripts/save_trade_dates.py -e SSE -s 20240101 -d 20241231
    - 期货：SHFE（上期所）、DCE（大商所）、CZCE（郑商所）、CFFEX（中金所）、INE（能源所）、GFEX（广期所）
 5. 数据会保存到配置文件中指定的 MongoDB 数据库中
 
+### 期货合约数据
+
+QuantBox 支持从 Tushare 获取期货合约数据并保存到 MongoDB 数据库。您可以通过以下方式使用：
+
+1. **命令行工具**
+
+```bash
+# 保存所有交易所的期货合约数据
+python scripts/save_future_contracts.py
+
+# 保存指定交易所的期货合约数据
+python scripts/save_future_contracts.py -e DCE
+
+# 保存指定交易所和品种的期货合约数据
+python scripts/save_future_contracts.py -e DCE -s 豆粕
+
+# 保存指定日期的期货合约数据
+python scripts/save_future_contracts.py -d 20240127
+```
+
+2. **交互式命令行**
+
+```bash
+# 启动交互式命令行
+python -m quantbox.cli.shell
+
+# 在交互式命令行中使用以下命令
+quantbox> save future_contracts              # 保存所有交易所数据
+quantbox> save future_contracts -e DCE       # 保存大商所数据
+quantbox> save future_contracts -s 豆粕      # 保存豆粕品种数据
+quantbox> save future_contracts -d 20240127  # 保存指定日期数据
+```
+
+支持的参数：
+- `-e, --exchange`: 交易所代码 (SHFE/DCE/CZCE/CFFEX/INE)
+- `-s, --spec-name`: 期货品种名称 (如"豆粕")
+- `-d, --date`: 参考日期 (YYYYMMDD或YYYY-MM-DD格式)
+
+### 数据库索引
+
+期货合约数据使用以下索引来优化查询性能：
+- 复合唯一索引：(exchange, symbol, list_date)
+- 上市时间戳索引：list_datestamp
+- 退市时间戳索引：delist_datestamp
+
 ## 开发指南
 
 详细的开发文档请参考 [docs/](docs/) 目录：
