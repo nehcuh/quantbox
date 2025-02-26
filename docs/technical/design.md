@@ -170,3 +170,13 @@ quantbox/
 ├── setup.py          # 安装脚本
 └── README.md         # 项目说明
 ```
+
+## 5. Docker Configuration
+
+The `docker` directory contains the necessary files for containerizing the application using Docker. It includes a `Dockerfile` for building the Docker image and a `docker-compose.yml` file for orchestrating multi-container deployments.
+
+To build and run the Docker container, follow these steps:
+
+1.  Navigate to the `docker` directory.
+2.  Run `docker-compose build` to build the Docker image.
+3.  Run `docker-compose up` to start the container.

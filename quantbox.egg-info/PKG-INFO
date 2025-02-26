@@ -7,13 +7,16 @@ Author: huchen
 Classifier: Development Status :: 3 - Alpha
 Classifier: Intended Audience :: Financial and Insurance Industry
 Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.7
 Classifier: Programming Language :: Python :: 3.8
 Classifier: Programming Language :: Python :: 3.9
 Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
 Classifier: License :: OSI Approved :: MIT License
 Classifier: Operating System :: OS Independent
 Classifier: Topic :: Office/Business :: Financial :: Investment
-Requires-Python: >=3.8
+Requires-Python: >=3.7
 Description-Content-Type: text/markdown
 Requires-Dist: pandas>=1.5.0
 Requires-Dist: numpy>=1.21.0
@@ -24,6 +27,7 @@ Requires-Dist: pydantic>=2.0.0
 Requires-Dist: python-dateutil>=2.8.2
 Requires-Dist: pytz>=2023.3
 Requires-Dist: tomli>=2.0.0
+Requires-Dist: prompt_toolkit>=3.0.0
 Provides-Extra: test
 Requires-Dist: pytest>=7.0.0; extra == "test"
 Requires-Dist: pytest-cov>=4.0.0; extra == "test"
@@ -172,6 +176,110 @@ QuantBox 使用 TOML 格式的配置文件，默认从用户主目录下的 `~/.
    - 实时性能监控
    - 多维度指标分析
    - 自定义告警规则
+
+## 数据管理
+
+### 交易日历
+
+QuantBox 提供了两种方式来保存交易日历数据：
+
+1. **命令行工具**
+
+```bash
+# 查看帮助信息
+python -m quantbox.cli.trade_dates --help
+
+# 保存所有交易所的数据（默认行为）
+python -m quantbox.cli.trade_dates
+
+# 保存单个交易所的数据（如上交所）
+python -m quantbox.cli.trade_dates -e SSE
+
+# 保存所有股票交易所的数据
+python -m quantbox.cli.trade_dates -t STOCK
+
+# 保存所有期货交易所的数据
+python -m quantbox.cli.trade_dates -t FUTURES
+
+# 保存指定日期范围的数据
+python -m quantbox.cli.trade_dates -e SSE -s 20240101 -d 20241231
+```
+
+2. **脚本方式**
+
+```bash
+# 查看帮助信息
+python scripts/save_trade_dates.py --help
+
+# 保存所有交易所的数据（默认行为）
+python scripts/save_trade_dates.py
+
+# 保存单个交易所的数据（如上交所）
+python scripts/save_trade_dates.py -e SSE
+
+# 保存所有股票交易所的数据
+python scripts/save_trade_dates.py -t STOCK
+
+# 保存所有期货交易所的数据
+python scripts/save_trade_dates.py -t FUTURES
+
+# 保存指定日期范围的数据
+python scripts/save_trade_dates.py -e SSE -s 20240101 -d 20241231
+```
+
+注意事项：
+1. 默认从 1989 年 1 月 1 日开始获取数据
+2. 如果不指定结束日期，则使用当年年底作为结束日期
+3. 如果不指定交易所或类型，则默认保存所有交易所的数据
+4. 支持的交易所类型：
+   - 股票：SSE（上交所）、SZSE（深交所）
+   - 期货：SHFE（上期所）、DCE（大商所）、CZCE（郑商所）、CFFEX（中金所）、INE（能源所）、GFEX（广期所）
+5. 数据会保存到配置文件中指定的 MongoDB 数据库中
+
+### 期货合约数据
+
+QuantBox 支持从 Tushare 获取期货合约数据并保存到 MongoDB 数据库。您可以通过以下方式使用：
+
+1. **命令行工具**
+
+```bash
+# 保存所有交易所的期货合约数据
+python scripts/save_future_contracts.py
+
+# 保存指定交易所的期货合约数据
+python scripts/save_future_contracts.py -e DCE
+
+# 保存指定交易所和品种的期货合约数据
+python scripts/save_future_contracts.py -e DCE -s 豆粕
+
+# 保存指定日期的期货合约数据
+python scripts/save_future_contracts.py -d 20240127
+```
+
+2. **交互式命令行**
+
+```bash
+# 启动交互式命令行
+python -m quantbox.cli.shell
+
+# 在交互式命令行中使用以下命令
+quantbox> save future_contracts              # 保存所有交易所数据
+quantbox> save future_contracts -e DCE       # 保存大商所数据
+quantbox> save future_contracts -s 豆粕      # 保存豆粕品种数据
+quantbox> save future_contracts -d 20240127  # 保存指定日期数据
+```
+
+支持的参数：
+- `-e, --exchange`: 交易所代码 (SHFE/DCE/CZCE/CFFEX/INE)
+- `-s, --spec-name`: 期货品种名称 (如"豆粕")
+- `-d, --date`: 参考日期 (YYYYMMDD或YYYY-MM-DD格式)
+
+### 数据库索引
+
+期货合约数据使用以下索引来优化查询性能：
+- 复合唯一索引：(exchange, symbol, list_date)
+- 上市时间戳索引：list_datestamp
+- 退市时间戳索引：delist_datestamp
 
 ## 开发指南
 

@@ -1,0 +1,2 @@
+[console_scripts]
+quantbox = quantbox.cli.shell:main

@@ -7,6 +7,7 @@ pydantic>=2.0.0
 python-dateutil>=2.8.2
 pytz>=2023.3
 tomli>=2.0.0
+click>=8.0.0
 
 # Test dependencies
 pytest>=7.0.0
