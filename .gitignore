@@ -1,14 +1,9 @@
-# Byte-compiled / optimized / DLL files
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
-
-# C extensions
 *.so
-
-# Distribution / packaging
 .Python
-env/
 build/
 develop-eggs/
 dist/
@@ -24,95 +19,60 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+MANIFEST
+
+# Virtual Environment
 .venv/
-_venv/
+venv/
+ENV/
+env/
 
-# PyInstaller
-#  Usually these files are written by a python script from a template
-#  before PyInstaller builds the exe, so as to inject date/other infos into it.
-*.manifest
-*.spec
+# uv
+.uv/
+uv.lock
 
-# Installer logs
-pip-log.txt
-pip-delete-this-directory.txt
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
 
-# Unit test / coverage reports
+# Testing
+.pytest_cache/
+.coverage
 htmlcov/
 .tox/
 .nox/
-.cache/
-coverage.xml
-*,cover
-.hypothesis/
-.pytest_cache/
-nosetests.xml
-coverage.xml
-*.cover
-.hypothesis/
-.venv/
-pycrypto-test
-spam.eggtivo
-*.tox/
 
-# Translations
-*.mo
+# MyPy
+.mypy_cache/
+.dmypy.json
+dmypy.json
 
-# Mr Developer
-.mr.developer.cfg
-.project
-.pydevproject
+# Ruff
+.ruff_cache/
 
-# Rope
-.ropeproject
+# Jupyter Notebook
+.ipynb_checkpoints
 
-# Environments
-.env
-.venv/
-# MyVenv
-Venv/
-# myvenv/
-VENV/
-env.bak/
-# \.venv
-venv.bak/
+# PyInstaller
+*.manifest
+*.spec
 
-# Environments
-.pyright
-.mypy_cache./
-#$venv/
-# *.venv
-# .myenv\
-lib/python3.8\site-packages/
-Lib/
+# Backup files
+*_old.py
+*.bak
 
-# VS Code
-.vscode/
+# Local config
+.quantbox/
+*.local.toml
 
-# pyenv
-.python-version
+# Database
+*.db
+*.sqlite
+*.sqlite3
 
-# celery beat schedule file
-celerybeat-schedule
-
-# SageMath parsed files
-.sage.py
-
-# Environments
-*.env
-*.venv
-venv*
-ENV*
-env*/
-dev/
-.env-sample
-local.py
-
-# spyderproject
-.spyproject
-
-# Rope
-.ropeproject
-
-# Private straties
-results/
+# Logs
+*.log

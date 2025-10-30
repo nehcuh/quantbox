@@ -3,7 +3,7 @@ services:
     image: mongo
     container_name: qbmongo
     ports:
-      - "27018:27017"
+      - "27017:27017"
     volumes:
       - qbmg:/data/db
     environment:
