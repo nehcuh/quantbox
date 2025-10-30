@@ -10,7 +10,7 @@ Trading date utilities
 """
 import datetime
 import time
-from typing import Union, Dict, Any, Optional
+from typing import Union, Dict, Any, Optional, List
 from functools import lru_cache
 
 import pandas as pd
@@ -89,110 +89,55 @@ def int_to_date_str(date_int: int) -> str:
 
     Returns:
         str: 字符串格式的日期，如 '2024-01-26'
-        
-    Raises:
-        ValueError: 日期格式无效
-        
-    Examples:
-        >>> int_to_date_str(20240126)
-        '2024-01-26'
     """
-    try:
-        date_str = str(date_int)
-        if len(date_str) != 8:
-            raise ValueError(f"Date integer must be 8 digits, got {len(date_str)}")
-        
-        # 验证日期有效性
-        datetime.datetime.strptime(date_str, '%Y%m%d')
-        
-        return f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:]}"
-    except ValueError as e:
-        raise ValueError(f"Invalid date integer '{date_int}': {str(e)}") from e
-
-
-def date_to_str(date: DateLike, format: str = "%Y-%m-%d") -> str:
-    """将日期转换为指定格式的字符串
-    
-    Args:
-        date: 需要转换的日期
-        format: 日期格式字符串，默认为 "%Y-%m-%d"
-        
-    Returns:
-        str: 格式化的日期字符串
-        
-    Raises:
-        ValueError: 日期格式无效
-        
-    Examples:
-        >>> date_to_str("2024-01-26")
-        '2024-01-26'
-        >>> date_to_str(20240126, "%Y/%m/%d")
-        '2024/01/26'
-    """
-    if date is None:
-        date = datetime.date.today()
-        
-    try:
-        if isinstance(date, int):
-            date = int_to_date_str(date)
-            
-        # 使用 pandas 的 Timestamp 进行统一处理
-        return pd.Timestamp(date).strftime(format)
-    except Exception as e:
-        raise ValueError(f"Failed to convert date '{date}' to string: {str(e)}") from e
+    date_str = str(date_int)
+    return f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:]}"
 
 
 def util_make_date_stamp(
-    cursor_date: DateLike = None,
+    cursor_date: Union[int, str, datetime.date, None] = None,
     format: str = "%Y-%m-%d"
 ) -> float:
-    """将日期转换为 Unix 时间戳
+    """将日期转换为时间戳
 
-    将指定格式的日期转换为 Unix 时间戳（秒级精度）。
+    将指定格式的日期转换为 Unix 时间戳。
 
-    Args:
-        cursor_date: 需要转换的日期，支持多种格式
+    Args：
+        cursor_date: 需要转换的日期，支持整数、字符串或 datetime.date 对象
                     如果为 None，则使用当前日期
         format: 日期格式字符串，默认为 "%Y-%m-%d"
 
-    Returns:
-        float: Unix 时间戳（秒）
-        
-    Raises:
-        ValueError: 日期格式无效
-        
-    Examples:
-        >>> util_make_date_stamp("2024-01-26")
-        1706227200.0
+    Returns：
+        float: Unix 时间戳
     """
-    try:
-        date_str = date_to_str(cursor_date, format)
-        return time.mktime(time.strptime(date_str, format))
-    except Exception as e:
-        raise ValueError(f"Failed to create timestamp for '{cursor_date}': {str(e)}") from e
+    if cursor_date is None:
+        cursor_date = datetime.date.today()
+    if isinstance(cursor_date, int):
+        # 如果是整数格式的日期，先转换为字符串
+        if len(str(cursor_date)) == 8:
+            cursor_date = int_to_date_str(cursor_date)
+    return time.mktime(
+        time.strptime(pd.Timestamp(cursor_date).strftime(format), format)
+    )
 
 
 @lru_cache(maxsize=1024)
 def is_trade_date(
-    cursor_date: DateLike = None,
+    cursor_date: Union[str, int, datetime.date, None] = None,
     exchange: str = 'SHSE'
 ) -> bool:
     """判断指定日期是否为交易日
 
     检查指定日期在指定交易所是否为交易日。
 
-    Args:
+    Args：
         cursor_date: 需要检查的日期
                     支持格式：19981203, "20240910", datetime.date()
                     默认为 None，表示当前日期
         exchange: 交易所代码，默认为上交所
 
-    Returns:
+    Returns：
         bool: 是否为交易日
-        
-    Examples:
-        >>> is_trade_date("2024-01-26", "SHSE")
-        True
     """
     if cursor_date is None:
         cursor_date = datetime.date.today()
@@ -217,14 +162,14 @@ def is_trade_date(
 
 @lru_cache(maxsize=1024)
 def get_pre_trade_date(
-    cursor_date: DateLike = None,
+    cursor_date: Union[str, int, datetime.date, None] = None,
     exchange: str = 'SHSE',
     n: int = 1,
     include_input: bool = False
 ) -> Optional[Dict[str, Any]]:
     """获取指定日期之前的第n个交易日
 
-    Args:
+    Args：
         cursor_date: 指定日期，默认为当前日期
         exchange: 交易所代码，默认为上交所
         n: 往前回溯的天数，默认为 1
@@ -232,7 +177,7 @@ def get_pre_trade_date(
                       True: 如果输入日期是交易日，则将其计入n个交易日中
                       False: 不论输入日期是否为交易日，都从比输入日期更早的日期开始计数
 
-    Returns:
+    Returns：
         Optional[Dict[str, Any]]: 交易日信息，如果没有找到则返回 None
         返回字段包括：
         - exchange: 交易所代码
@@ -240,10 +185,6 @@ def get_pre_trade_date(
         - pretrade_date: 前一交易日
         - datestamp: 日期时间戳
         - date_int: 整数格式的日期 (YYYYMMDD)
-        
-    Examples:
-        >>> get_pre_trade_date("2024-01-26", "SHSE", 1)
-        {'exchange': 'SHSE', 'trade_date': '2024-01-25', ...}
     """
     if cursor_date is None:
         cursor_date = datetime.date.today()
@@ -286,14 +227,14 @@ def get_pre_trade_date(
 
 @lru_cache(maxsize=1024)
 def get_next_trade_date(
-    cursor_date: DateLike = None,
+    cursor_date: Union[str, int, datetime.date, None] = None,
     exchange: str = 'SHSE',
     n: int = 1,
     include_input: bool = False
 ) -> Optional[Dict[str, Any]]:
     """获取指定日期之后的第n个交易日
 
-    Args:
+    Args：
         cursor_date: 指定日期，默认为当前日期
         exchange: 交易所代码，默认为上交所
         n: 往后推进的天数，默认为 1
@@ -301,7 +242,7 @@ def get_next_trade_date(
                       True: 如果输入日期是交易日，则将其计入n个交易日中
                       False: 不论输入日期是否为交易日，都从比输入日期更晚的日期开始计数
 
-    Returns:
+    Returns：
         Optional[Dict[str, Any]]: 交易日信息，如果没有找到则返回 None
         返回字段包括：
         - exchange: 交易所代码
@@ -309,10 +250,6 @@ def get_next_trade_date(
         - pretrade_date: 前一交易日
         - datestamp: 日期时间戳
         - date_int: 整数格式的日期 (YYYYMMDD)
-        
-    Examples:
-        >>> get_next_trade_date("2024-01-26", "SHSE", 1)
-        {'exchange': 'SHSE', 'trade_date': '2024-01-29', ...}
     """
     if cursor_date is None:
         cursor_date = datetime.date.today()
@@ -354,29 +291,23 @@ def get_next_trade_date(
 
 
 def get_trade_calendar(
-    start_date: DateLike = None,
-    end_date: DateLike = None,
+    start_date: Union[str, int, datetime.date, None] = None,
+    end_date: Union[str, int, datetime.date, None] = None,
     exchange: str = 'SHSE'
 ) -> pd.DataFrame:
     """获取指定日期范围内的交易日历
 
-    Args:
+    Args：
         start_date: 起始日期，默认为 None
         end_date: 结束日期，默认为当前日期
         exchange: 交易所代码，默认为上交所
 
-    Returns:
+    Returns：
         pd.DataFrame: 交易日历数据，包含以下字段：
         - exchange: 交易所代码
         - trade_date: 交易日期
         - pretrade_date: 前一交易日
         - datestamp: 日期时间戳
-        - date_int: 整数格式的日期
-        
-    Examples:
-        >>> df = get_trade_calendar("2024-01-01", "2024-01-31", "SHSE")
-        >>> len(df)
-        21
     """
     if start_date is None:
         start_date = datetime.date(2010, 1, 1)
@@ -406,5 +337,5 @@ def get_trade_calendar(
     # 将结果转换为 DataFrame
     df = pd.DataFrame(list(cursor))
     if df.empty:
-        return pd.DataFrame(columns=['exchange', 'trade_date', 'pretrade_date', 'datestamp', 'date_int'])
+        return pd.DataFrame(columns=['exchange', 'trade_date', 'pretrade_date', 'datestamp'])
     return df
