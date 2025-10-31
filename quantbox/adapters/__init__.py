@@ -5,8 +5,10 @@
 """
 
 from quantbox.adapters.base import IDataAdapter, BaseDataAdapter
+from quantbox.adapters.local_adapter import LocalAdapter
 
 __all__ = [
     "IDataAdapter",
     "BaseDataAdapter",
+    "LocalAdapter",
 ]
