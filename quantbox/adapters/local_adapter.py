@@ -11,8 +11,8 @@ import pymongo
 
 from quantbox.adapters.base import BaseDataAdapter
 from quantbox.util.date_utils import DateLike, date_to_int, util_make_date_stamp
-from quantbox.util.exchange_utils_new import normalize_exchange, validate_exchanges
-from quantbox.util.contract_utils_new import normalize_contracts, parse_contract
+from quantbox.util.exchange_utils import normalize_exchange, validate_exchanges
+from quantbox.util.contract_utils import normalize_contracts, parse_contract
 from quantbox.util.basic import DATABASE
 
 

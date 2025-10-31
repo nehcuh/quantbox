@@ -8,7 +8,7 @@ import os
 # 为了测试新模块，临时导入
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from quantbox.util.exchange_utils_new import (
+from quantbox.util.exchange_utils import (
     normalize_exchange,
     denormalize_exchange,
     validate_exchange,

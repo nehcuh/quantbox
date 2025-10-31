@@ -7,7 +7,7 @@ contract_utils_new 模块的测试套件
 import pytest
 from typing import List
 
-from quantbox.util.contract_utils_new import (
+from quantbox.util.contract_utils import (
     ContractInfo,
     ContractFormat,
     AssetType,

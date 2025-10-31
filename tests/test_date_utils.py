@@ -1,165 +1,166 @@
 """
-Test cases for date utilities
+日期工具模块单元测试
 """
-import datetime
 import pytest
-from unittest.mock import patch
-from pymongo import MongoClient
+import datetime
 from quantbox.util.date_utils import (
-    is_trade_date,
-    get_pre_trade_date,
-    get_next_trade_date,
-    get_trade_calendar
+    date_to_int,
+    int_to_date_str,
+    date_to_str,
+    util_make_date_stamp,
+    DateLike
 )
 
 
-@pytest.fixture(scope="module")
-def database():
-    """创建数据库连接"""
-    client = MongoClient("mongodb://localhost:27018")
-    return client.quantbox
+class TestDateToInt:
+    """测试 date_to_int 函数"""
+    
+    def test_none_input(self):
+        """测试 None 输入，应返回今天的日期"""
+        result = date_to_int(None)
+        expected = int(datetime.date.today().strftime('%Y%m%d'))
+        assert result == expected
+    
+    def test_integer_input(self):
+        """测试整数输入"""
+        assert date_to_int(20240126) == 20240126
+        assert date_to_int(20231231) == 20231231
+    
+    def test_string_with_hyphen(self):
+        """测试带连字符的字符串输入"""
+        assert date_to_int("2024-01-26") == 20240126
+        assert date_to_int("2023-12-31") == 20231231
+    
+    def test_string_without_hyphen(self):
+        """测试不带连字符的字符串输入"""
+        assert date_to_int("20240126") == 20240126
+        assert date_to_int("20231231") == 20231231
+    
+    def test_date_object(self):
+        """测试 datetime.date 对象输入"""
+        date_obj = datetime.date(2024, 1, 26)
+        assert date_to_int(date_obj) == 20240126
+    
+    def test_datetime_object(self):
+        """测试 datetime.datetime 对象输入"""
+        dt_obj = datetime.datetime(2024, 1, 26, 10, 30, 45)
+        assert date_to_int(dt_obj) == 20240126
+    
+    def test_invalid_integer_length(self):
+        """测试无效的整数长度"""
+        with pytest.raises(ValueError, match="Integer date must be 8 digits"):
+            date_to_int(2024)
+        with pytest.raises(ValueError, match="Integer date must be 8 digits"):
+            date_to_int(202401265)
+    
+    def test_invalid_date_value(self):
+        """测试无效的日期值"""
+        with pytest.raises(ValueError):
+            date_to_int(20241332)  # 无效月份
+        with pytest.raises(ValueError):
+            date_to_int("2024-13-01")  # 无效月份
+    
+    def test_invalid_date_format(self):
+        """测试无效的日期格式"""
+        with pytest.raises(ValueError):
+            date_to_int("2024/01/26")  # 不支持的格式
+        with pytest.raises(ValueError):
+            date_to_int("26-01-2024")  # 错误的顺序
 
 
-@pytest.mark.db
-@pytest.mark.parametrize("test_date,expected", [
-    ("2024-01-02", True),   # 交易日
-    ("2024-01-03", True),   # 交易日
-    ("2024-01-04", True),   # 交易日
-    ("2024-01-05", True),   # 交易日
-    ("2024-01-08", True),   # 交易日
-    ("2024-01-09", True),   # 交易日
-    ("2024-01-10", True),   # 交易日
-    ("2024-01-06", False),  # 周六
-    ("2024-01-07", False),  # 周日
-    (None, None),           # 当前日期
-])
-def test_is_trade_date(database, test_date, expected):
-    """测试是否为交易日的判断"""
-    with patch("quantbox.util.date_utils.DATABASE", database):
-        if test_date is None:
-            # 当输入为None时，使用当前日期，这里我们跳过具体测试
-            return
-            
-        result = is_trade_date(test_date, "SHSE")
-        if expected is None:
-            assert result is not None
-        else:
-            assert result == expected
+class TestIntToDateStr:
+    """测试 int_to_date_str 函数"""
+    
+    def test_valid_input(self):
+        """测试有效输入"""
+        assert int_to_date_str(20240126) == "2024-01-26"
+        assert int_to_date_str(20231231) == "2023-12-31"
+    
+    def test_invalid_length(self):
+        """测试无效的整数长度"""
+        with pytest.raises(ValueError, match="Date integer must be 8 digits"):
+            int_to_date_str(2024)
+        with pytest.raises(ValueError, match="Date integer must be 8 digits"):
+            int_to_date_str(202401265)
+    
+    def test_invalid_date_value(self):
+        """测试无效的日期值"""
+        with pytest.raises(ValueError):
+            int_to_date_str(20241332)  # 无效月份
+        with pytest.raises(ValueError):
+            int_to_date_str(20240230)  # 无效日期
 
 
-@pytest.mark.db
-@pytest.mark.parametrize("test_case", [
-    {
-        "cursor_date": "2024-01-08",
-        "n": 1,
-        "include_input": False,
-        "expected_date": "2024-01-05"
-    },
-    {
-        "cursor_date": "2024-01-08",
-        "n": 1,
-        "include_input": True,
-        "expected_date": "2024-01-08"
-    },
-    {
-        "cursor_date": "2024-01-07",  # 非交易日
-        "n": 1,
-        "include_input": False,
-        "expected_date": "2024-01-05"
-    },
-    {
-        "cursor_date": "2024-01-07",  # 非交易日
-        "n": 1,
-        "include_input": True,
-        "expected_date": "2024-01-05"
-    },
-    {
-        "cursor_date": "2024-01-08",
-        "n": 2,
-        "include_input": False,
-        "expected_date": "2024-01-04"
-    },
-    {
-        "cursor_date": "2024-01-08",
-        "n": 2,
-        "include_input": True,
-        "expected_date": "2024-01-05"
-    }
-])
-def test_get_pre_trade_date(database, test_case):
-    """测试获取前一交易日"""
-    with patch("quantbox.util.date_utils.DATABASE", database):
-        result = get_pre_trade_date(
-            test_case["cursor_date"],
-            "SHSE",
-            test_case["n"],
-            test_case["include_input"]
-        )
-        assert result is not None
-        assert result["trade_date"] == test_case["expected_date"]
+class TestDateToStr:
+    """测试 date_to_str 函数"""
+    
+    def test_default_format(self):
+        """测试默认格式"""
+        assert date_to_str("2024-01-26") == "2024-01-26"
+        assert date_to_str(20240126) == "2024-01-26"
+        assert date_to_str(datetime.date(2024, 1, 26)) == "2024-01-26"
+    
+    def test_custom_format(self):
+        """测试自定义格式"""
+        assert date_to_str("2024-01-26", "%Y/%m/%d") == "2024/01/26"
+        assert date_to_str(20240126, "%d-%m-%Y") == "26-01-2024"
+    
+    def test_none_input(self):
+        """测试 None 输入"""
+        result = date_to_str(None)
+        expected = datetime.date.today().strftime("%Y-%m-%d")
+        assert result == expected
 
 
-@pytest.mark.db
-@pytest.mark.parametrize("test_case", [
-    {
-        "cursor_date": "2024-01-05",
-        "n": 1,
-        "include_input": False,
-        "expected_date": "2024-01-08"
-    },
-    {
-        "cursor_date": "2024-01-05",
-        "n": 1,
-        "include_input": True,
-        "expected_date": "2024-01-05"
-    },
-    {
-        "cursor_date": "2024-01-06",  # 非交易日
-        "n": 1,
-        "include_input": False,
-        "expected_date": "2024-01-08"
-    },
-    {
-        "cursor_date": "2024-01-06",  # 非交易日
-        "n": 1,
-        "include_input": True,
-        "expected_date": "2024-01-08"
-    },
-    {
-        "cursor_date": "2024-01-05",
-        "n": 2,
-        "include_input": False,
-        "expected_date": "2024-01-09"
-    },
-    {
-        "cursor_date": "2024-01-08",
-        "n": 2,
-        "include_input": True,
-        "expected_date": "2024-01-09"
-    }
-])
-def test_get_next_trade_date(database, test_case):
-    """测试获取下一交易日"""
-    with patch("quantbox.util.date_utils.DATABASE", database):
-        result = get_next_trade_date(
-            test_case["cursor_date"],
-            "SHSE",
-            test_case["n"],
-            test_case["include_input"]
-        )
-        assert result is not None
-        assert result["trade_date"] == test_case["expected_date"]
+class TestUtilMakeDateStamp:
+    """测试 util_make_date_stamp 函数"""
+    
+    def test_valid_input(self):
+        """测试有效输入"""
+        # 2024-01-26 00:00:00 的时间戳（可能因时区而异）
+        timestamp = util_make_date_stamp("2024-01-26")
+        assert isinstance(timestamp, float)
+        assert timestamp > 0
+    
+    def test_integer_input(self):
+        """测试整数输入"""
+        timestamp1 = util_make_date_stamp(20240126)
+        timestamp2 = util_make_date_stamp("2024-01-26")
+        assert timestamp1 == timestamp2
+    
+    def test_none_input(self):
+        """测试 None 输入"""
+        result = util_make_date_stamp(None)
+        assert isinstance(result, float)
+        assert result > 0
 
 
-@pytest.mark.db
-def test_get_trade_calendar(database):
-    """测试获取交易日历"""
-    with patch("quantbox.util.date_utils.DATABASE", database):
-        result = get_trade_calendar(
-            start_date="2024-01-01",
-            end_date="2024-01-10",
-            exchange="SHSE"
-        )
-        assert len(result) > 0
-        assert "trade_date" in result.columns
-        assert "exchange" in result.columns
+class TestEdgeCases:
+    """测试边界情况"""
+    
+    def test_leap_year(self):
+        """测试闰年日期"""
+        # 2024 是闰年
+        assert date_to_int("2024-02-29") == 20240229
+        
+        # 2023 不是闰年
+        with pytest.raises(ValueError):
+            date_to_int("2023-02-29")
+    
+    def test_year_2000(self):
+        """测试 2000 年（特殊的闰年）"""
+        assert date_to_int("2000-02-29") == 20000229
+    
+    def test_end_of_year(self):
+        """测试年末日期"""
+        assert date_to_int("2023-12-31") == 20231231
+        assert date_to_int("2024-12-31") == 20241231
+    
+    def test_start_of_year(self):
+        """测试年初日期"""
+        assert date_to_int("2024-01-01") == 20240101
+        assert date_to_int("2023-01-01") == 20230101
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])

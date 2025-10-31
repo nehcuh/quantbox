@@ -31,7 +31,7 @@ from enum import Enum
 import re
 from functools import lru_cache
 
-from quantbox.util.exchange_utils_new import (
+from quantbox.util.exchange_utils import (
     ExchangeType,
     normalize_exchange,
     denormalize_exchange,
