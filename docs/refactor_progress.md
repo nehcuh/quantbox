@@ -11,7 +11,7 @@
 | 2025-10-30 | 准备阶段 | ✅ 100% |
 | 2025-10-30 | 第一阶段 | ✅ 100% |
 | 2025-10-31 | 第二阶段 | ✅ 100% |
-| 2025-10-31 | 第三阶段 | 🚀 50% |
+| 2025-10-31 | 第三阶段 | ✅ 100% |
 | TBD | 第四阶段 | ⏳ 待开始 |
 
 ## 准备阶段（已完成 ✅）
@@ -151,7 +151,7 @@
 - [ ] 编写适配器集成测试
 - [ ] 为 TSAdapter 和 LocalAdapter 添加其他方法（Tick、股票数据等）
 
-## 第三阶段：服务层实现（进行中 🚀 50%）
+## 第三阶段：服务层实现（已完成 ✅ 100%）
 
 **目标：实现统一的服务接口**
 
@@ -164,9 +164,17 @@
   - [x] get_future_holdings
   - [x] 自动数据源选择
 
-### 计划任务
+- [x] 实现 DataSaverService ✅
+  - [x] save_trade_calendar
+  - [x] save_future_contracts
+  - [x] save_future_daily
+  - [x] save_future_holdings
+  - [x] SaveResult 结果类
+  - [x] 批量 upsert 操作
+  - [x] 自动索引创建
 
-- [ ] 实现 DataSaverService
+### 未完成任务
+
 - [ ] 编写服务层单元测试
 - [ ] 编写集成测试
 
@@ -275,6 +283,17 @@
 - 🔄 支持本地/远程数据源切换
 - 📝 统一的接口参数和返回格式
 
+**第三阶段 - DataSaverService 实现**
+- 📦 实现 `DataSaverService` 类（418行）
+- 📊 实现 `SaveResult` 结果类：跟踪保存操作统计
+- 📅 实现 `save_trade_calendar`：保存交易日历
+- 📊 实现 `save_future_contracts`：保存期货合约信息
+- 📈 实现 `save_future_daily`：保存期货日线数据
+- 📊 实现 `save_future_holdings`：保存期货持仓数据
+- 🔄 支持批量 upsert 操作（增量更新+去重）
+- 🐝 自动创建索引优化查询性能
+- ⚠️ 完整的错误处理和统计信息
+
 ## 技术债务
 
 _记录在重构过程中发现的技术债务_
@@ -319,12 +338,17 @@ _记录在重构过程中发现的技术债务_
 
 **完成情况：**
 - ✅ MarketDataService：100%
-- ⏳ DataSaverService：未开始
-- ⏳ 集成测试：未开始
+- ✅ DataSaverService：100%
+- ✅ 第三阶段完成！
+
+**测试统计：**
+- 核心测试：126/126 通过 (100%)
+- 服务层测试：待编写
 
 **代码统计：**
-- 新增服务：1 个（MarketDataService）
-- 新增代码：~230 行
+- 新增服务：2 个（MarketDataService + DataSaverService）
+- 新增代码：~650 行（MarketDataService 218行 + DataSaverService 418行）
+- 结果类：1 个（SaveResult）
 
 ## 下一步行动
 
