@@ -23,7 +23,7 @@ DateLike = Union[str, int, datetime.date, datetime.datetime, None]
 
 def date_to_int(date: DateLike) -> int:
     """将日期转换为整数格式 (YYYYMMDD)
-    
+
     支持的输入格式：
     - None: 返回今天的日期
     - int: 如 20240126（8位整数）
@@ -36,10 +36,10 @@ def date_to_int(date: DateLike) -> int:
 
     Returns:
         int: 整数格式的日期，如 20240126
-        
+
     Raises:
         ValueError: 日期格式无效或日期值不合法
-        
+
     Examples:
         >>> date_to_int("2024-01-26")
         20240126
@@ -50,7 +50,7 @@ def date_to_int(date: DateLike) -> int:
     """
     if date is None:
         date = datetime.date.today()
-        
+
     try:
         if isinstance(date, int):
             # 验证整数格式
@@ -60,7 +60,7 @@ def date_to_int(date: DateLike) -> int:
             # 验证日期的有效性
             datetime.datetime.strptime(date_str, '%Y%m%d')
             return date
-            
+
         if isinstance(date, str):
             # 处理 YYYY-MM-DD 格式
             if '-' in date:
@@ -68,15 +68,15 @@ def date_to_int(date: DateLike) -> int:
             # 处理 YYYYMMDD 格式
             else:
                 date = datetime.datetime.strptime(date, '%Y%m%d').date()
-                
+
         if isinstance(date, datetime.datetime):
             date = date.date()
-            
+
         if isinstance(date, datetime.date):
             return int(date.strftime('%Y%m%d'))
-            
+
         raise ValueError(f"Unsupported date type: {type(date)}")
-        
+
     except ValueError as e:
         raise ValueError(f"Invalid date format for '{date}': {str(e)}") from e
 
@@ -89,10 +89,10 @@ def int_to_date_str(date_int: int) -> str:
 
     Returns:
         str: 字符串格式的日期，如 '2024-01-26'
-        
+
     Raises:
         ValueError: 日期格式无效
-        
+
     Examples:
         >>> int_to_date_str(20240126)
         '2024-01-26'
@@ -101,10 +101,10 @@ def int_to_date_str(date_int: int) -> str:
         date_str = str(date_int)
         if len(date_str) != 8:
             raise ValueError(f"Date integer must be 8 digits, got {len(date_str)}")
-        
+
         # 验证日期有效性
         datetime.datetime.strptime(date_str, '%Y%m%d')
-        
+
         return f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:]}"
     except ValueError as e:
         raise ValueError(f"Invalid date integer '{date_int}': {str(e)}") from e
@@ -112,17 +112,17 @@ def int_to_date_str(date_int: int) -> str:
 
 def date_to_str(date: DateLike, format: str = "%Y-%m-%d") -> str:
     """将日期转换为指定格式的字符串
-    
+
     Args:
         date: 需要转换的日期
         format: 日期格式字符串，默认为 "%Y-%m-%d"
-        
+
     Returns:
         str: 格式化的日期字符串
-        
+
     Raises:
         ValueError: 日期格式无效
-        
+
     Examples:
         >>> date_to_str("2024-01-26")
         '2024-01-26'
@@ -131,11 +131,11 @@ def date_to_str(date: DateLike, format: str = "%Y-%m-%d") -> str:
     """
     if date is None:
         date = datetime.date.today()
-        
+
     try:
         if isinstance(date, int):
             date = int_to_date_str(date)
-            
+
         # 使用 pandas 的 Timestamp 进行统一处理
         return pd.Timestamp(date).strftime(format)
     except Exception as e:
@@ -157,10 +157,10 @@ def util_make_date_stamp(
 
     Returns:
         float: Unix 时间戳（秒）
-        
+
     Raises:
         ValueError: 日期格式无效
-        
+
     Examples:
         >>> util_make_date_stamp("2024-01-26")
         1706227200.0
@@ -189,7 +189,7 @@ def is_trade_date(
 
     Returns:
         bool: 是否为交易日
-        
+
     Examples:
         >>> is_trade_date("2024-01-26", "SHSE")
         True
@@ -240,7 +240,7 @@ def get_pre_trade_date(
         - pretrade_date: 前一交易日
         - datestamp: 日期时间戳
         - date_int: 整数格式的日期 (YYYYMMDD)
-        
+
     Examples:
         >>> get_pre_trade_date("2024-01-26", "SHSE", 1)
         {'exchange': 'SHSE', 'trade_date': '2024-01-25', ...}
@@ -309,7 +309,7 @@ def get_next_trade_date(
         - pretrade_date: 前一交易日
         - datestamp: 日期时间戳
         - date_int: 整数格式的日期 (YYYYMMDD)
-        
+
     Examples:
         >>> get_next_trade_date("2024-01-26", "SHSE", 1)
         {'exchange': 'SHSE', 'trade_date': '2024-01-29', ...}
@@ -372,7 +372,7 @@ def get_trade_calendar(
         - pretrade_date: 前一交易日
         - datestamp: 日期时间戳
         - date_int: 整数格式的日期
-        
+
     Examples:
         >>> df = get_trade_calendar("2024-01-01", "2024-01-31", "SHSE")
         >>> len(df)

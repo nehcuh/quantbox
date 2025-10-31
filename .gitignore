@@ -29,7 +29,8 @@ env/
 
 # uv
 .uv/
-uv.lock
+# uv.lock - Uncomment to ignore lock file if desired
+# uv.lock
 
 # IDE
 .vscode/

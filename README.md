@@ -50,6 +50,7 @@ quantbox/
 ## 安装
 
 ### 环境要求
+
 - Python >= 3.12
 - MongoDB >= 4.0
 - 依赖包：
@@ -63,11 +64,13 @@ quantbox/
 ### 安装步骤
 
 1. 安装项目依赖：
+
 ```bash
 pip install -r requirements.txt
 ```
 
 2. 安装本项目：
+
 ```bash
 pip install -e .
 ```
@@ -81,15 +84,17 @@ pip install -e .
 这是最简单的安装方式，只需要按照以下步骤操作：
 
 1. **安装 Docker**
-   
+
    如果你还没有安装 Docker，请先从 [Docker 官网](https://www.docker.com/get-started) 下载并安装。
 
 2. **创建数据卷**
+
    ```bash
    docker volume create qbmg
    ```
 
 3. **启动 MongoDB 容器**
+
    ```bash
    cd docker/qb-base
    docker-compose -f database.yaml up -d
@@ -97,15 +102,17 @@ pip install -e .
 
    这将启动一个 MongoDB 容器，具有以下特性：
    - 容器名称：qbmongo
-   - 端口映射：27018:27017（外部访问端口为 27018）
+   - 端口映射：27017:27017（外部访问端口为 27017）
    - 数据持久化：使用 qbmg 数据卷
    - 时区设置：Asia/Shanghai
    - 自动重启：容器会在系统重启后自动启动
 
 4. **验证安装**
+
    ```bash
    docker ps
    ```
+
    你应该能看到名为 "qbmongo" 的容器正在运行。
 
 #### 2. 手动安装
@@ -113,6 +120,7 @@ pip install -e .
 如果你不想使用 Docker，也可以直接从 [MongoDB 官网](https://www.mongodb.com/try/download/community) 下载并安装 MongoDB。
 
 安装完成后，需要：
+
 1. 启动 MongoDB 服务
 2. 确保服务在默认端口（27017）运行
 3. 创建一个名为 "quantbox" 的数据库
@@ -122,6 +130,7 @@ pip install -e .
 1. **创建配置文件**
 
    在用户主目录下创建 `.quantbox/config.toml` 文件：
+
    ```toml
    [tushare]
    token = "your_tushare_token"
@@ -133,6 +142,7 @@ pip install -e .
 2. **MongoDB 配置**
 
    默认连接本地 MongoDB（localhost:27017）。如需修改，在配置文件中添加：
+
    ```toml
    [mongodb]
    host = "localhost"
@@ -140,8 +150,9 @@ pip install -e .
    ```
 
 3. **验证配置**
-   
+
    运行以下命令验证配置是否正确：
+
    ```bash
    quantbox
    > save_trade_dates
@@ -150,6 +161,7 @@ pip install -e .
 ## 使用示例
 
 ### 1. 获取交易日历
+
 ```python
 from quantbox.fetchers import LocalFetcher
 from quantbox.util.exchange_utils import normalize_exchange
@@ -167,6 +179,7 @@ trade_dates = fetcher.fetch_trade_dates(exchanges=exchange)
 ```
 
 ### 2. 获取期货合约信息
+
 ```python
 from quantbox.fetchers import TSFetcher
 from quantbox.util.exchange_utils import validate_exchanges
@@ -180,6 +193,7 @@ print(contracts)
 ```
 
 ### 3. 保存市场数据
+
 ```python
 from quantbox.savers import MarketDataSaver
 

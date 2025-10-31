@@ -1,6 +1,0 @@
-pymongo >=4, < 5
-tushare
-toml
-configparser
-pandas >= 2, < 3
-click

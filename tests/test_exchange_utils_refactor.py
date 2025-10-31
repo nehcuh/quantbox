@@ -74,12 +74,14 @@ class TestDenormalizeExchange:
     
     def test_tushare_target(self):
         """测试 TuShare 目标格式"""
-        assert denormalize_exchange("SHSE", "tushare") == "SSE"
+        # Tushare 使用简称：SH/SZ/BJ
+        assert denormalize_exchange("SHSE", "tushare") == "SH"
+        assert denormalize_exchange("SZSE", "tushare") == "SZ"
+        assert denormalize_exchange("BSE", "tushare") == "BJ"
+        # 期货交易所
         assert denormalize_exchange("SHFE", "tushare") == "SHF"
         assert denormalize_exchange("CZCE", "tushare") == "ZCE"
-        # 没有别名的保持原样
         assert denormalize_exchange("DCE", "tushare") == "DCE"
-        assert denormalize_exchange("SZSE", "tushare") == "SZSE"
     
     def test_goldminer_target(self):
         """测试掘金量化目标格式"""
@@ -239,11 +241,11 @@ class TestIntegration:
     
     def test_round_trip_normalization(self):
         """测试标准化和反标准化的往返转换"""
-        # SSE -> SHSE -> SSE
-        normalized = normalize_exchange("SSE")
+        # SH -> SHSE -> SH
+        normalized = normalize_exchange("SH")
         assert normalized == "SHSE"
         denormalized = denormalize_exchange(normalized, "tushare")
-        assert denormalized == "SSE"
+        assert denormalized == "SH"
     
     def test_validate_and_normalize_consistency(self):
         """测试 validate_exchange 和 normalize_exchange 的一致性"""

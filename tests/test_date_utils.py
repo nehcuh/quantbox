@@ -20,6 +20,7 @@ def database():
     return client.quantbox
 
 
+@pytest.mark.db
 @pytest.mark.parametrize("test_date,expected", [
     ("2024-01-02", True),   # 交易日
     ("2024-01-03", True),   # 交易日
@@ -46,6 +47,7 @@ def test_is_trade_date(database, test_date, expected):
             assert result == expected
 
 
+@pytest.mark.db
 @pytest.mark.parametrize("test_case", [
     {
         "cursor_date": "2024-01-08",
@@ -97,6 +99,7 @@ def test_get_pre_trade_date(database, test_case):
         assert result["trade_date"] == test_case["expected_date"]
 
 
+@pytest.mark.db
 @pytest.mark.parametrize("test_case", [
     {
         "cursor_date": "2024-01-05",
@@ -148,6 +151,7 @@ def test_get_next_trade_date(database, test_case):
         assert result["trade_date"] == test_case["expected_date"]
 
 
+@pytest.mark.db
 def test_get_trade_calendar(database):
     """测试获取交易日历"""
     with patch("quantbox.util.date_utils.DATABASE", database):
