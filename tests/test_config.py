@@ -1,5 +1,5 @@
 import unittest
-from quantbox.util.basic import Config
+from quantbox.config.config_loader import get_config_loader
 from unittest.mock import patch, mock_open
 
 class TestConfig(unittest.TestCase):
@@ -9,9 +9,9 @@ class TestConfig(unittest.TestCase):
         """
          测试加载 .toml 配置文件
         """
-        config = Config()
-        self.assertEqual(config.ts_token, 'testtoken')
-        self.assertEqual(config.mongo_uri, 'localhost')
+        config = get_config_loader()
+        self.assertEqual(config.get_tushare_token(), 'testtoken')
+        self.assertEqual(config.get_mongodb_uri(), 'localhost')
 
     # @patch('builtins.open', new_callable=mock_open, read_data="[TSPRO]\ntoken=testtoken\n[MONGODB]\nuri=localhost\n")
     # @patch('configparser.ConfigParser.read', return_value=True)

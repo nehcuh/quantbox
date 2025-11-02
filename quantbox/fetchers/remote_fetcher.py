@@ -27,7 +27,7 @@ from quantbox.fetchers.fetcher_goldminer import GMFetcher
 from quantbox.fetchers.config import FetcherConfig
 from quantbox.fetchers.monitoring import PerformanceMonitor, monitor_performance
 from quantbox.fetchers.validation import DataValidator
-from quantbox.util.basic import EXCHANGES, FUTURE_EXCHANGES, QUANTCONFIG
+from quantbox.config.config_loader import get_config_loader
 
 # Configure logging
 # 配置日志

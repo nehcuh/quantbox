@@ -18,12 +18,7 @@ else:
 
 from quantbox.fetchers.base import BaseFetcher
 from quantbox.fetchers.local_fetcher import LocalFetcher
-from quantbox.util.basic import (
-    DATABASE,
-    EXCHANGES,
-    STOCK_EXCHANGES,
-    QUANTCONFIG,
-)
+from quantbox.config.config_loader import get_config_loader
 from quantbox.util.date_utils import util_make_date_stamp
 from quantbox.util.tools import (
     util_format_future_symbols,
@@ -54,12 +49,38 @@ class GMFetcher(BaseFetcher):
                 "Please use other data sources or run on Linux/Windows."
             )
         super().__init__()
-        self.exchanges = EXCHANGES
-        self.stock_exchanges = STOCK_EXCHANGES
-        self.future_exchanges = FUTURE_EXCHANGES
-        self.client = DATABASE
+        config_loader = get_config_loader()
+        self.exchanges = config_loader.list_exchanges()
+        self.stock_exchanges = config_loader.list_exchanges(market_type='stock')
+        self.future_exchanges = config_loader.list_exchanges(market_type='futures')
+        self.client = config_loader.get_mongodb_client().quantbox
         self.default_start = "2010-01-01"
-        set_token(QUANTCONFIG.gm_token)
+        set_token(config_loader.get_gm_token())
+
+    def _format_contract_by_exchange(self, exchange: str, contract: str) -> str:
+        """
+        根据交易所规则格式化合约代码
+
+        Args:
+            exchange: 交易所代码
+            contract: 合约代码
+
+        Returns:
+            str: 格式化后的合约代码
+        """
+        if exchange in ["CFFEX", "CZCE"]:
+            # 中金所和郑商所使用大写
+            if exchange == "CZCE":
+                # 郑商所期货合约使用3位年月格式
+                if len(contract) > 4 and contract[2:6].isdigit():
+                    # 将4位年月转换为3位年月 (如 2501 -> 501)
+                    contract = contract[:2] + contract[3:]
+                return f"{exchange}.{contract.upper()}"
+            else:
+                return f"{exchange}.{contract.upper()}"
+        else:
+            # 上期所、大商所、上期能源、广期所使用小写
+            return f"{exchange}.{contract.lower()}"
 
     def _format_symbol(self, symbol: str) -> str:
         """
@@ -92,30 +113,16 @@ class GMFetcher(BaseFetcher):
         if '.' in symbol:
             exchange = symbol.split(".")[0]
             contract = symbol.split(".")[1]
-            if exchange == "CZCE":
-                if len(contract) > 4 and contract[2:6].isdigit():
-                    contract = contract[:2] + contract[3:]
-                    return f"{exchange}.{contract}".upper()
-                else:
-                    return f"{exchange}.{contract}".upper()
-            else:
-                return exchange + "." + contract.lower()
+            return self._format_contract_by_exchange(exchange, contract)
 
         # Handle regular contracts (lowercase symbols)
         fut_code = re.match(r'([A-Za-z]+)', symbol).group(1).upper()
-        coll = DATABASE.future_contracts
+        coll = self.client.future_contracts
         result = coll.find_one({'fut_code': fut_code})
         if result is None:
             raise ValueError(f"{symbol} 找不到相应交易所")
         exchange = result["exchange"]
-        if exchange == "CZCE":
-            if len(symbol) > 4 and symbol[2:6].isdigit():
-                contract = symbol[:2] + symbol[3:]
-                return f"{exchange}.{contract}".upper()
-            else:
-                return f"{exchange}.{symbol}".upper()
-        else:
-            return exchange + "." + symbol.lower()
+        return self._format_contract_by_exchange(exchange, symbol)
 
     def fetch_get_holdings(
         self,

@@ -8,7 +8,7 @@ import pandas as pd
 from datetime import datetime, timedelta
 import numpy as np
 from gm.api import history, set_token
-from quantbox.util.basic import Config
+from quantbox.config.config_loader import get_config_loader
 import os
 import toml
 import json

@@ -1,0 +1,149 @@
+# 期货交易所配置文件
+# 该文件定义了中国各大期货交易所的基础信息和别名
+
+[exchanges]
+
+# 上海期货交易所
+[exchanges.SHFE]
+name = "上海期货交易所"
+name_en = "Shanghai Futures Exchange"
+aliases = ["上期所", "SHFE", "SHF"]
+market_type = "futures"
+trading_days = "周一至周五"
+timezone = "Asia/Shanghai"
+currency = "CNY"
+
+# 大连商品交易所
+[exchanges.DCE]
+name = "大连商品交易所"
+name_en = "Dalian Commodity Exchange"
+aliases = ["大商所", "DCE", "DCE"]
+market_type = "futures"
+trading_days = "周一至周五"
+timezone = "Asia/Shanghai"
+currency = "CNY"
+
+# 郑州商品交易所
+[exchanges.CZCE]
+name = "郑州商品交易所"
+name_en = "Zhengzhou Commodity Exchange"
+aliases = ["郑商所", "CZCE", "ZCE"]
+market_type = "futures"
+trading_days = "周一至周五"
+timezone = "Asia/Shanghai"
+currency = "CNY"
+
+# 中国金融期货交易所
+[exchanges.CFFEX]
+name = "中国金融期货交易所"
+name_en = "China Financial Futures Exchange"
+aliases = ["中金所", "CFFEX", "CFFEX"]
+market_type = "futures"
+trading_days = "周一至周五"
+timezone = "Asia/Shanghai"
+currency = "CNY"
+
+# 上海国际能源交易中心
+[exchanges.INE]
+name = "上海国际能源交易中心"
+name_en = "Shanghai International Energy Exchange"
+aliases = ["上期能源", "INE", "INE"]
+market_type = "futures"
+trading_days = "周一至周五"
+timezone = "Asia/Shanghai"
+currency = "CNY"
+
+# 广州期货交易所
+[exchanges.GFEX]
+name = "广州期货交易所"
+name_en = "Guangzhou Futures Exchange"
+aliases = ["广期所", "GFEX", "GFEX"]
+market_type = "futures"
+trading_days = "周一至周五"
+timezone = "Asia/Shanghai"
+currency = "CNY"
+
+# 上海证券交易所
+[exchanges.SSE]
+name = "上海证券交易所"
+name_en = "Shanghai Stock Exchange"
+aliases = ["上交所", "SSE", "SHSE"]
+market_type = "stock"
+trading_days = "周一至周五"
+timezone = "Asia/Shanghai"
+currency = "CNY"
+
+# 深圳证券交易所
+[exchanges.SZSE]
+name = "深圳证券交易所"
+name_en = "Shenzhen Stock Exchange"
+aliases = ["深交所", "SZSE", "SZSE"]
+market_type = "stock"
+trading_days = "周一至周五"
+timezone = "Asia/Shanghai"
+currency = "CNY"
+
+# 股票和指数代码规则说明
+[stock_index_rules]
+description = "中国股票和指数代码规则"
+
+# 上交所股票代码规则
+[stock_index_rules.shse_stocks]
+主板 = "600000-601999"
+科创板 = "688000-688999"
+description = "上交所股票代码前缀规则"
+
+# 上交所指数代码
+[stock_index_rules.shse_indices]
+上证指数 = ["000001", "000002", "000003", "000005", "000006", "000007", "000008", "000009", "000010", "000011", "000012", "000013", "000014", "000015", "000016"]
+沪深300 = "000300"
+description = "上交所主要指数代码"
+
+# 深交所股票代码规则
+[stock_index_rules.szse_stocks]
+主板 = "000000-002999"
+中小板 = "003000-004999"
+创业板 = "300000-300999"
+description = "深交所股票代码前缀规则"
+
+# 深交所指数代码
+[stock_index_rules.szse_indices]
+深证成指 = "390001-390999"
+深证综指 = "399001-399999"
+description = "深交所主要指数代码前缀"
+
+# 数据源映射配置
+[data_sources]
+
+# 掘金/GoldMiner 数据源
+[data_sources.goldminer]
+SHFE = "SHFE"
+DCE = "DCE"
+CZCE = "CZCE"
+CFFEX = "CFFEX"
+INE = "INE"
+GFEX = "GFEX"
+SSE = "SSE"
+SZSE = "SZSE"
+
+# Tushare 数据源
+[data_sources.tushare]
+SHFE = "SHF"
+DCE = "DCE"
+CZCE = "ZCE"
+CFFEX = "CFFEX"
+INE = "INE"
+GFEX = "GFEX"
+SSE = "SSE"
+SZSE = "SZSE"
+
+# 聚宽/JoinQuant 数据源
+[data_sources.joinquant]
+SHFE = "XSGE"
+DCE = "XDCE"
+CZCE = "XZCE"
+CFFEX = "XCFE"
+INE = "XINE"
+GFEX = "XGF"
+SSE = "XSHG"
+SZSE = "XSHE"

@@ -31,6 +31,7 @@ STANDARD_EXCHANGES = {
     "CZCE": {"name": "郑州商品交易所", "type": ExchangeType.FUTURES, "aliases": ["ZCE"]},
     "CFFEX": {"name": "中国金融期货交易所", "type": ExchangeType.FUTURES, "aliases": []},
     "INE": {"name": "上海国际能源交易中心", "type": ExchangeType.FUTURES, "aliases": []},
+    "GFEX": {"name": "广州期货交易所", "type": ExchangeType.FUTURES, "aliases": []},
 }
 
 # 构建完整的交易所代码集合（包括别名）
@@ -49,13 +50,13 @@ STANDARD_TO_ALIAS: Dict[str, str] = {v: k for k, v in ALIAS_TO_STANDARD.items()}
 
 # 股票交易所列表
 STOCK_EXCHANGES: List[str] = [
-    code for code, info in STANDARD_EXCHANGES.items() 
+    code for code, info in STANDARD_EXCHANGES.items()
     if info["type"] == ExchangeType.STOCK
 ]
 
 # 期货交易所列表
 FUTURES_EXCHANGES: List[str] = [
-    code for code, info in STANDARD_EXCHANGES.items() 
+    code for code, info in STANDARD_EXCHANGES.items()
     if info["type"] == ExchangeType.FUTURES
 ]
 
@@ -65,20 +66,20 @@ ALL_EXCHANGES: List[str] = list(STANDARD_EXCHANGES.keys())
 
 def normalize_exchange(exchange: str) -> str:
     """将交易所代码标准化为 MongoDB 存储格式
-    
+
     支持的输入：
     - 标准代码：SHSE, SZSE, SHFE, DCE, CZCE, CFFEX, INE, BSE
     - 别名：SSE -> SHSE, SHF -> SHFE, ZCE -> CZCE
-    
+
     Args:
         exchange: 交易所代码（标准或别名）
-        
+
     Returns:
         str: 标准化的交易所代码
-        
+
     Raises:
         ValueError: 交易所代码无效
-        
+
     Examples:
         >>> normalize_exchange("SSE")
         'SHSE'
@@ -89,32 +90,32 @@ def normalize_exchange(exchange: str) -> str:
     """
     if not exchange or not exchange.strip():
         raise ValueError("Exchange code cannot be empty")
-    
+
     exchange = exchange.strip().upper()
-    
+
     if exchange not in VALID_EXCHANGES:
         raise ValueError(
             f"Invalid exchange code: '{exchange}'. "
             f"Valid codes: {', '.join(sorted(ALL_EXCHANGES))}"
         )
-    
+
     # 如果是别名，转换为标准代码
     return ALIAS_TO_STANDARD.get(exchange, exchange)
 
 
 def denormalize_exchange(exchange: str, target: str = "tushare") -> str:
     """将标准交易所代码转换为特定数据源的格式
-    
+
     Args:
         exchange: 标准化的交易所代码
         target: 目标数据源，支持 "tushare", "goldminer", "joinquant"
-        
+
     Returns:
         str: 转换后的交易所代码
-        
+
     Raises:
         ValueError: 交易所代码无效或目标数据源不支持
-        
+
     Examples:
         >>> denormalize_exchange("SHSE", "tushare")
         'SH'
@@ -125,15 +126,15 @@ def denormalize_exchange(exchange: str, target: str = "tushare") -> str:
     """
     if not exchange:
         raise ValueError("Exchange code cannot be empty")
-    
+
     exchange = exchange.strip().upper()
-    
+
     if exchange not in STANDARD_EXCHANGES:
         raise ValueError(
             f"Invalid standard exchange code: '{exchange}'. "
             f"Valid codes: {', '.join(sorted(ALL_EXCHANGES))}"
         )
-    
+
     if target.lower() == "tushare":
         # TuShare 特殊映射：使用简称
         tushare_mapping = {
@@ -161,6 +162,7 @@ def denormalize_exchange(exchange: str, target: str = "tushare") -> str:
             "DCE": "XDCE",
             "CFFEX": "CCFX",
             "INE": "XINE",
+            "GFEX": "XGFEX",
         }
         return joinquant_mapping.get(exchange, exchange)
     else:
@@ -172,15 +174,15 @@ def denormalize_exchange(exchange: str, target: str = "tushare") -> str:
 
 def validate_exchange(exchange: str) -> str:
     """验证单个交易所代码并返回标准格式
-    
+
     这是 normalize_exchange 的别名，提供更语义化的函数名
-    
+
     Args:
         exchange: 交易所代码
-        
+
     Returns:
         str: 标准化的交易所代码
-        
+
     Raises:
         ValueError: 交易所代码无效
     """
@@ -192,7 +194,7 @@ def validate_exchanges(
     default_type: str = "all"
 ) -> List[str]:
     """验证并标准化交易所代码列表
-    
+
     Args:
         exchanges: 交易所代码或代码列表
                   - None: 使用默认值（根据 default_type）
@@ -202,13 +204,13 @@ def validate_exchanges(
                      - "all": 所有交易所
                      - "stock": 股票交易所
                      - "futures": 期货交易所
-        
+
     Returns:
         List[str]: 标准化后的交易所代码列表
-        
+
     Raises:
         ValueError: 任何交易所代码无效或 default_type 无效
-        
+
     Examples:
         >>> validate_exchanges("SSE")
         ['SHSE']
@@ -230,20 +232,20 @@ def validate_exchanges(
                 f"Invalid default_type: '{default_type}'. "
                 f"Valid types: 'all', 'stock', 'futures'"
             )
-    
+
     # 处理字符串输入（可能包含逗号分隔）
     if isinstance(exchanges, str):
         if "," in exchanges:
             exchanges = [e.strip() for e in exchanges.split(",")]
         else:
             exchanges = [exchanges]
-    
+
     # 验证并标准化每个交易所代码
     result = []
     for exchange in exchanges:
         if exchange and exchange.strip():  # 跳过空字符串和空白字符串
             result.append(normalize_exchange(exchange))
-    
+
     # 去重并保持顺序
     seen = set()
     unique_result = []
@@ -251,19 +253,19 @@ def validate_exchanges(
         if exchange not in seen:
             seen.add(exchange)
             unique_result.append(exchange)
-    
+
     return unique_result
 
 
 def is_stock_exchange(exchange: str) -> bool:
     """判断是否为股票交易所
-    
+
     Args:
         exchange: 交易所代码（标准或别名）
-        
+
     Returns:
         bool: 是否为股票交易所
-        
+
     Examples:
         >>> is_stock_exchange("SHSE")
         True
@@ -276,13 +278,13 @@ def is_stock_exchange(exchange: str) -> bool:
 
 def is_futures_exchange(exchange: str) -> bool:
     """判断是否为期货交易所
-    
+
     Args:
         exchange: 交易所代码（标准或别名）
-        
+
     Returns:
         bool: 是否为期货交易所
-        
+
     Examples:
         >>> is_futures_exchange("SHFE")
         True
@@ -295,20 +297,20 @@ def is_futures_exchange(exchange: str) -> bool:
 
 def get_exchange_info(exchange: str) -> Dict[str, any]:
     """获取交易所的详细信息
-    
+
     Args:
         exchange: 交易所代码（标准或别名）
-        
+
     Returns:
         Dict: 交易所信息，包含以下字段：
             - code: 标准代码
             - name: 中文名称
             - type: 交易所类型
             - aliases: 别名列表
-            
+
     Raises:
         ValueError: 交易所代码无效
-        
+
     Examples:
         >>> info = get_exchange_info("SSE")
         >>> info["code"]
@@ -318,7 +320,7 @@ def get_exchange_info(exchange: str) -> Dict[str, any]:
     """
     standard_code = normalize_exchange(exchange)
     exchange_data = STANDARD_EXCHANGES[standard_code]
-    
+
     return {
         "code": standard_code,
         "name": exchange_data["name"],
@@ -329,16 +331,16 @@ def get_exchange_info(exchange: str) -> Dict[str, any]:
 
 def get_all_exchanges(exchange_type: Optional[str] = None) -> List[str]:
     """获取所有交易所代码列表
-    
+
     Args:
         exchange_type: 交易所类型过滤
                       - None: 返回所有交易所
                       - "stock": 只返回股票交易所
                       - "futures": 只返回期货交易所
-        
+
     Returns:
         List[str]: 交易所代码列表
-        
+
     Examples:
         >>> len(get_all_exchanges())
         8

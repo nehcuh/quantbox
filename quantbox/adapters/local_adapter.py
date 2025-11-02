@@ -13,7 +13,7 @@ from quantbox.adapters.base import BaseDataAdapter
 from quantbox.util.date_utils import DateLike, date_to_int, util_make_date_stamp
 from quantbox.util.exchange_utils import normalize_exchange, validate_exchanges
 from quantbox.util.contract_utils import normalize_contracts, parse_contract
-from quantbox.util.basic import DATABASE
+from quantbox.config.config_loader import get_config_loader
 
 
 class LocalAdapter(BaseDataAdapter):
@@ -31,7 +31,7 @@ class LocalAdapter(BaseDataAdapter):
             database: MongoDB 数据库连接，默认使用全局 DATABASE
         """
         super().__init__("LocalAdapter")
-        self.database = database or DATABASE
+        self.database = database or get_config_loader().get_mongodb_client().quantbox
     
     def check_availability(self) -> bool:
         """

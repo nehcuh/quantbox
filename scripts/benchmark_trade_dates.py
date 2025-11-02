@@ -23,7 +23,7 @@ from quantbox.util.date_utils import (
     get_trade_calendar
 )
 from quantbox.fetchers import TSFetcher, RemoteFetcher, LocalFetcher
-from quantbox.util.basic import DATABASE
+from quantbox.config.config_loader import get_config_loader
 
 
 def clear_lru_cache(func):
@@ -37,7 +37,7 @@ def clear_lru_cache(func):
 def prepare_database():
     """准备数据库环境"""
     # 确保索引存在
-    collection = DATABASE['trade_date']
+    collection = get_config_loader().get_mongodb_client().quantbox['trade_date']
     
     # 获取现有索引
     existing_indexes = collection.index_information()
@@ -74,7 +74,7 @@ class TradeDateBenchmark:
     
     def __init__(self):
         """初始化测试环境"""
-        self.db = DATABASE
+        self.db = get_config_loader().get_mongodb_client().quantbox
         self.local_fetcher = LocalFetcher()
         
         # 生成测试数据

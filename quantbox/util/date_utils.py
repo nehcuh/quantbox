@@ -9,16 +9,18 @@ Trading date utilities
 所有函数都支持多种日期输入格式，自动进行转换。
 """
 import datetime
-import time
-from typing import Union, Dict, Any, Optional
+from typing import Union, Dict, Any, Optional, List
 from functools import lru_cache
 
-import pandas as pd
-
-from quantbox.util.basic import DATABASE
+from quantbox.config.config_loader import get_config_loader
 
 # 日期类型别名，提高代码可读性
 DateLike = Union[str, int, datetime.date, datetime.datetime, None]
+
+# 获取数据库连接的辅助函数
+def _get_database():
+    """获取 MongoDB 数据库连接"""
+    return get_config_loader().get_mongodb_client().quantbox
 
 
 def date_to_int(date: DateLike) -> int:
@@ -49,36 +51,41 @@ def date_to_int(date: DateLike) -> int:
         20240126
     """
     if date is None:
-        date = datetime.date.today()
+        return int(datetime.date.today().strftime('%Y%m%d'))
 
-    try:
-        if isinstance(date, int):
-            # 验证整数格式
-            date_str = str(date)
-            if len(date_str) != 8:
-                raise ValueError(f"Integer date must be 8 digits, got {len(date_str)}")
-            # 验证日期的有效性
+    # 处理整数类型
+    if isinstance(date, int):
+        date_str = str(date)
+        if len(date_str) != 8:
+            raise ValueError(f"Integer date must be 8 digits, got {len(date_str)}")
+        # 验证日期有效性（会抛出 ValueError 如果无效）
+        datetime.datetime.strptime(date_str, '%Y%m%d')
+        return date
+
+    # 处理 datetime 对象
+    if isinstance(date, datetime.datetime):
+        return int(date.strftime('%Y%m%d'))
+
+    # 处理 date 对象
+    if isinstance(date, datetime.date):
+        return int(date.strftime('%Y%m%d'))
+
+    # 处理字符串类型
+    if isinstance(date, str):
+        # 移除所有分隔符（支持 '-', '/', '.' 等）
+        date_str = date.replace('-', '').replace('/', '').replace('.', '').strip()
+
+        if len(date_str) != 8:
+            raise ValueError(f"Date string must result in 8 digits, got '{date}'")
+
+        # 验证日期有效性
+        try:
             datetime.datetime.strptime(date_str, '%Y%m%d')
-            return date
+            return int(date_str)
+        except ValueError as e:
+            raise ValueError(f"Invalid date string '{date}': {str(e)}") from e
 
-        if isinstance(date, str):
-            # 处理 YYYY-MM-DD 格式
-            if '-' in date:
-                date = datetime.datetime.strptime(date, '%Y-%m-%d').date()
-            # 处理 YYYYMMDD 格式
-            else:
-                date = datetime.datetime.strptime(date, '%Y%m%d').date()
-
-        if isinstance(date, datetime.datetime):
-            date = date.date()
-
-        if isinstance(date, datetime.date):
-            return int(date.strftime('%Y%m%d'))
-
-        raise ValueError(f"Unsupported date type: {type(date)}")
-
-    except ValueError as e:
-        raise ValueError(f"Invalid date format for '{date}': {str(e)}") from e
+    raise ValueError(f"Unsupported date type: {type(date).__name__}")
 
 
 def int_to_date_str(date_int: int) -> str:
@@ -97,15 +104,14 @@ def int_to_date_str(date_int: int) -> str:
         >>> int_to_date_str(20240126)
         '2024-01-26'
     """
+    date_str = str(date_int)
+    if len(date_str) != 8:
+        raise ValueError(f"Date integer must be 8 digits, got {len(date_str)}")
+
+    # 验证日期有效性并转换
     try:
-        date_str = str(date_int)
-        if len(date_str) != 8:
-            raise ValueError(f"Date integer must be 8 digits, got {len(date_str)}")
-
-        # 验证日期有效性
-        datetime.datetime.strptime(date_str, '%Y%m%d')
-
-        return f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:]}"
+        dt = datetime.datetime.strptime(date_str, '%Y%m%d')
+        return dt.strftime('%Y-%m-%d')
     except ValueError as e:
         raise ValueError(f"Invalid date integer '{date_int}': {str(e)}") from e
 
@@ -130,15 +136,36 @@ def date_to_str(date: DateLike, format: str = "%Y-%m-%d") -> str:
         '2024/01/26'
     """
     if date is None:
-        date = datetime.date.today()
+        return datetime.date.today().strftime(format)
 
+    # 直接处理 datetime 对象
+    if isinstance(date, datetime.datetime):
+        return date.strftime(format)
+
+    # 直接处理 date 对象
+    if isinstance(date, datetime.date):
+        return date.strftime(format)
+
+    # 处理整数和字符串：先转换为 date 对象
     try:
         if isinstance(date, int):
-            date = int_to_date_str(date)
+            date_str = str(date)
+            if len(date_str) != 8:
+                raise ValueError(f"Integer date must be 8 digits, got {len(date_str)}")
+            dt = datetime.datetime.strptime(date_str, '%Y%m%d')
+        elif isinstance(date, str):
+            # 尝试多种格式
+            date_clean = date.replace('-', '').replace('/', '').replace('.', '').strip()
+            if len(date_clean) == 8:
+                dt = datetime.datetime.strptime(date_clean, '%Y%m%d')
+            else:
+                # 尝试直接解析
+                dt = datetime.datetime.fromisoformat(date.replace('/', '-'))
+        else:
+            raise ValueError(f"Unsupported date type: {type(date).__name__}")
 
-        # 使用 pandas 的 Timestamp 进行统一处理
-        return pd.Timestamp(date).strftime(format)
-    except Exception as e:
+        return dt.strftime(format)
+    except (ValueError, TypeError) as e:
         raise ValueError(f"Failed to convert date '{date}' to string: {str(e)}") from e
 
 
@@ -149,11 +176,12 @@ def util_make_date_stamp(
     """将日期转换为 Unix 时间戳
 
     将指定格式的日期转换为 Unix 时间戳（秒级精度）。
+    时间戳对应当天 00:00:00（本地时间）。
 
     Args:
         cursor_date: 需要转换的日期，支持多种格式
                     如果为 None，则使用当前日期
-        format: 日期格式字符串，默认为 "%Y-%m-%d"
+        format: 日期格式字符串，默认为 "%Y-%m-%d"（仅在需要格式化输出时使用）
 
     Returns:
         float: Unix 时间戳（秒）
@@ -165,11 +193,20 @@ def util_make_date_stamp(
         >>> util_make_date_stamp("2024-01-26")
         1706227200.0
     """
-    try:
-        date_str = date_to_str(cursor_date, format)
-        return time.mktime(time.strptime(date_str, format))
-    except Exception as e:
-        raise ValueError(f"Failed to create timestamp for '{cursor_date}': {str(e)}") from e
+    if cursor_date is None:
+        dt = datetime.datetime.combine(datetime.date.today(), datetime.time.min)
+    elif isinstance(cursor_date, datetime.datetime):
+        # 取日期部分，时间设为 00:00:00
+        dt = datetime.datetime.combine(cursor_date.date(), datetime.time.min)
+    elif isinstance(cursor_date, datetime.date):
+        dt = datetime.datetime.combine(cursor_date, datetime.time.min)
+    else:
+        # 对于整数和字符串，先转换为整数日期，再转为 datetime
+        date_int = date_to_int(cursor_date)
+        date_str = str(date_int)
+        dt = datetime.datetime.strptime(date_str, '%Y%m%d')
+
+    return dt.timestamp()
 
 
 @lru_cache(maxsize=1024)
@@ -194,24 +231,18 @@ def is_trade_date(
         >>> is_trade_date("2024-01-26", "SHSE")
         True
     """
-    if cursor_date is None:
-        cursor_date = datetime.date.today()
+    # 统一转换为整数格式进行查询（性能更好）
+    try:
+        date_int = date_to_int(cursor_date)
+    except (ValueError, TypeError):
+        return False
 
-    # 如果是整数日期，直接使用整数字段查询
-    if isinstance(cursor_date, int) and len(str(cursor_date)) == 8:
-        query = {
-            "exchange": exchange,
-            "date_int": cursor_date
-        }
-    else:
-        # 否则使用时间戳查询
-        datestamp = util_make_date_stamp(cursor_date)
-        query = {
-            "exchange": exchange,
-            "datestamp": datestamp
-        }
+    query = {
+        "exchange": exchange,
+        "date_int": date_int
+    }
 
-    result = DATABASE.trade_date.find_one(query, {"_id": 0})
+    result = _get_database().trade_date.find_one(query, {"_id": 0})
     return result is not None
 
 
@@ -245,41 +276,31 @@ def get_pre_trade_date(
         >>> get_pre_trade_date("2024-01-26", "SHSE", 1)
         {'exchange': 'SHSE', 'trade_date': '2024-01-25', ...}
     """
-    if cursor_date is None:
-        cursor_date = datetime.date.today()
+    if n < 1:
+        raise ValueError(f"n must be >= 1, got {n}")
 
-    # 如果是整数日期，直接使用整数字段查询
-    if isinstance(cursor_date, int) and len(str(cursor_date)) == 8:
+    date_int = date_to_int(cursor_date)
+
+    # 构建查询条件
+    if include_input and is_trade_date(date_int, exchange):
         query = {
             "exchange": exchange,
-            "date_int": {"$lt": cursor_date}
+            "date_int": {"$lte": date_int}
         }
-        if include_input and is_trade_date(cursor_date, exchange):
-            query["date_int"]["$lte"] = cursor_date
-            n -= 1
     else:
-        # 否则使用时间戳查询
-        datestamp = util_make_date_stamp(cursor_date)
         query = {
             "exchange": exchange,
-            "datestamp": {"$lt": datestamp}
+            "date_int": {"$lt": date_int}
         }
-        if include_input and is_trade_date(cursor_date, exchange):
-            query["datestamp"]["$lte"] = datestamp
-            n -= 1
 
-    # 获取前n个交易日
-    result = DATABASE.trade_date.find(
+    # 查询前n个交易日
+    cursor = _get_database().trade_date.find(
         query,
-        {"_id": 0},
-        sort=[("datestamp", -1)],
-        skip=n-1,
-        limit=1
-    )
+        {"_id": 0}
+    ).sort("date_int", -1).skip(n - 1).limit(1)
 
-    # 返回结果
     try:
-        return result[0]
+        return cursor[0]
     except (IndexError, KeyError):
         return None
 
@@ -314,41 +335,31 @@ def get_next_trade_date(
         >>> get_next_trade_date("2024-01-26", "SHSE", 1)
         {'exchange': 'SHSE', 'trade_date': '2024-01-29', ...}
     """
-    if cursor_date is None:
-        cursor_date = datetime.date.today()
+    if n < 1:
+        raise ValueError(f"n must be >= 1, got {n}")
 
-    # 如果是整数日期，直接使用整数字段查询
-    if isinstance(cursor_date, int) and len(str(cursor_date)) == 8:
+    date_int = date_to_int(cursor_date)
+
+    # 构建查询条件
+    if include_input and is_trade_date(date_int, exchange):
         query = {
             "exchange": exchange,
-            "date_int": {"$gt": cursor_date}
+            "date_int": {"$gte": date_int}
         }
-        if include_input and is_trade_date(cursor_date, exchange):
-            query["date_int"]["$gte"] = cursor_date
-            n -= 1
     else:
-        # 否则使用时间戳查询
-        datestamp = util_make_date_stamp(cursor_date)
         query = {
             "exchange": exchange,
-            "datestamp": {"$gt": datestamp}
+            "date_int": {"$gt": date_int}
         }
-        if include_input and is_trade_date(cursor_date, exchange):
-            query["datestamp"]["$gte"] = datestamp
-            n -= 1
 
-    # 获取后n个交易日
-    result = DATABASE.trade_date.find(
+    # 查询后n个交易日
+    cursor = _get_database().trade_date.find(
         query,
-        {"_id": 0},
-        sort=[("datestamp", 1)],
-        skip=n-1,
-        limit=1
-    )
+        {"_id": 0}
+    ).sort("date_int", 1).skip(n - 1).limit(1)
 
-    # 返回结果
     try:
-        return result[0]
+        return cursor[0]
     except (IndexError, KeyError):
         return None
 
@@ -357,7 +368,7 @@ def get_trade_calendar(
     start_date: DateLike = None,
     end_date: DateLike = None,
     exchange: str = 'SHSE'
-) -> pd.DataFrame:
+) -> List[Dict[str, Any]]:
     """获取指定日期范围内的交易日历
 
     Args:
@@ -366,7 +377,7 @@ def get_trade_calendar(
         exchange: 交易所代码，默认为上交所
 
     Returns:
-        pd.DataFrame: 交易日历数据，包含以下字段：
+        List[Dict[str, Any]]: 交易日历数据列表，每个字典包含以下字段：
         - exchange: 交易所代码
         - trade_date: 交易日期
         - pretrade_date: 前一交易日
@@ -374,37 +385,59 @@ def get_trade_calendar(
         - date_int: 整数格式的日期
 
     Examples:
-        >>> df = get_trade_calendar("2024-01-01", "2024-01-31", "SHSE")
-        >>> len(df)
+        >>> calendar = get_trade_calendar("2024-01-01", "2024-01-31", "SHSE")
+        >>> len(calendar)
         21
     """
+    # 设置默认日期
     if start_date is None:
         start_date = datetime.date(2010, 1, 1)
     if end_date is None:
         end_date = datetime.date.today()
 
-    # 将日期转换为时间戳
-    start_stamp = util_make_date_stamp(start_date)
-    end_stamp = util_make_date_stamp(end_date)
+    # 转换为整数格式（使用整数查询比时间戳更高效）
+    start_int = date_to_int(start_date)
+    end_int = date_to_int(end_date)
 
     # 构建查询条件
     query = {
         'exchange': exchange,
-        'datestamp': {
-            '$gte': start_stamp,
-            '$lte': end_stamp
+        'date_int': {
+            '$gte': start_int,
+            '$lte': end_int
         }
     }
 
     # 执行查询
-    cursor = DATABASE.trade_date.find(
+    cursor = _get_database().trade_date.find(
         query,
-        {'_id': 0},
-        sort=[('datestamp', 1)]
-    )
+        {'_id': 0}
+    ).sort('date_int', 1)
 
-    # 将结果转换为 DataFrame
-    df = pd.DataFrame(list(cursor))
-    if df.empty:
-        return pd.DataFrame(columns=['exchange', 'trade_date', 'pretrade_date', 'datestamp', 'date_int'])
-    return df
+    return list(cursor)
+
+
+def get_trade_dates(
+    start_date: DateLike = None,
+    end_date: DateLike = None,
+    exchange: str = 'SHSE'
+) -> List[str]:
+    """获取指定日期范围内的交易日期列表（仅返回日期字符串）
+
+    这是一个便捷函数，返回交易日期字符串列表而不是完整的字典信息。
+
+    Args:
+        start_date: 起始日期，默认为 None
+        end_date: 结束日期，默认为当前日期
+        exchange: 交易所代码，默认为上交所
+
+    Returns:
+        List[str]: 交易日期字符串列表，格式为 'YYYY-MM-DD'
+
+    Examples:
+        >>> dates = get_trade_dates("2024-01-01", "2024-01-05", "SHSE")
+        >>> print(dates)
+        ['2024-01-02', '2024-01-03', '2024-01-04', '2024-01-05']
+    """
+    calendar = get_trade_calendar(start_date, end_date, exchange)
+    return [item['trade_date'] for item in calendar]

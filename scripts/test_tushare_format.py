@@ -3,7 +3,7 @@ import tushare as ts
 import time
 from typing import Any, Dict, List, Union, Tuple
 from quantbox.fetchers.fetcher_tushare import TSFetcher
-from quantbox.util.basic import TSPRO
+from quantbox.config.config_loader import get_config_loader
 
 def benchmark_tushare_api(
     pro,
@@ -130,8 +130,8 @@ def test_tushare_direct():
     """直接使用 TuShare API 测试"""
     print("\n=== 直接使用 TuShare API ===\n")
     
-    # 使用全局的 TSPRO
-    pro = TSPRO
+    # 使用配置系统获取 Tushare Pro
+    pro = get_config_loader().get_tushare_pro()
     if pro is None:
         print("错误：未找到 TuShare token，请在配置文件中设置")
         return

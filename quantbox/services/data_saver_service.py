@@ -13,7 +13,7 @@ from quantbox.adapters.base import BaseDataAdapter
 from quantbox.adapters.local_adapter import LocalAdapter
 from quantbox.adapters.ts_adapter import TSAdapter
 from quantbox.util.date_utils import DateLike, date_to_int
-from quantbox.util.basic import DATABASE
+from quantbox.config.config_loader import get_config_loader
 
 
 class SaveResult:
@@ -95,7 +95,7 @@ class DataSaverService:
         """
         self.remote_adapter = remote_adapter or TSAdapter()
         self.local_adapter = local_adapter or LocalAdapter()
-        self.database = database or DATABASE
+        self.database = database or get_config_loader().get_mongodb_client().quantbox
     
     def _create_index(self, collection, index_keys, unique=False):
         """

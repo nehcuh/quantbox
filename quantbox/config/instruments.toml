@@ -1,0 +1,812 @@
+# 期货交易品种配置文件
+# 该文件定义了各交易所的交易品种信息，包括品种代码、名称、合约乘数等
+
+# 上期所 (SHFE) 品种
+[instruments."SHFE.rb"]
+name = "螺纹钢"
+name_en = "Rebar"
+exchange = "SHFE"
+contract_size = 10
+tick_size = 1
+tick_value = 10
+currency = "CNY"
+trading_unit = "吨"
+product_type = "metal"
+margin_rate = 0.08
+
+[instruments."SHFE.hc"]
+name = "热轧卷板"
+name_en = "Hot Rolled Coil"
+exchange = "SHFE"
+contract_size = 10
+tick_size = 1
+tick_value = 10
+currency = "CNY"
+trading_unit = "吨"
+product_type = "metal"
+margin_rate = 0.08
+
+[instruments."SHFE.cu"]
+name = "铜"
+name_en = "Copper"
+exchange = "SHFE"
+contract_size = 5
+tick_size = 10
+tick_value = 50
+currency = "CNY"
+trading_unit = "吨"
+product_type = "metal"
+margin_rate = 0.08
+
+[instruments."SHFE.al"]
+name = "铝"
+name_en = "Aluminum"
+exchange = "SHFE"
+contract_size = 5
+tick_size = 5
+tick_value = 25
+currency = "CNY"
+trading_unit = "吨"
+product_type = "metal"
+margin_rate = 0.07
+
+[instruments."SHFE.zn"]
+name = "锌"
+name_en = "Zinc"
+exchange = "SHFE"
+contract_size = 5
+tick_size = 5
+tick_value = 25
+currency = "CNY"
+trading_unit = "吨"
+product_type = "metal"
+margin_rate = 0.08
+
+[instruments."SHFE.pb"]
+name = "铅"
+name_en = "Lead"
+exchange = "SHFE"
+contract_size = 5
+tick_size = 5
+tick_value = 25
+currency = "CNY"
+trading_unit = "吨"
+product_type = "metal"
+margin_rate = 0.08
+
+[instruments."SHFE.ni"]
+name = "镍"
+name_en = "Nickel"
+exchange = "SHFE"
+contract_size = 1
+tick_size = 10
+tick_value = 10
+currency = "CNY"
+trading_unit = "吨"
+product_type = "metal"
+margin_rate = 0.12
+
+[instruments."SHFE.sn"]
+name = "锡"
+name_en = "Tin"
+exchange = "SHFE"
+contract_size = 1
+tick_size = 10
+tick_value = 10
+currency = "CNY"
+trading_unit = "吨"
+product_type = "metal"
+margin_rate = 0.10
+
+[instruments."SHFE.au"]
+name = "黄金"
+name_en = "Gold"
+exchange = "SHFE"
+contract_size = 1000
+tick_size = 0.02
+tick_value = 20
+currency = "CNY"
+trading_unit = "克"
+product_type = "precious_metal"
+margin_rate = 0.08
+
+[instruments."SHFE.ag"]
+name = "白银"
+name_en = "Silver"
+exchange = "SHFE"
+contract_size = 15
+tick_size = 1
+tick_value = 15
+currency = "CNY"
+trading_unit = "千克"
+product_type = "precious_metal"
+margin_rate = 0.10
+
+[instruments."SHFE.bu"]
+name = "石油沥青"
+name_en = "Bitumen"
+exchange = "SHFE"
+contract_size = 10
+tick_size = 1
+tick_value = 10
+currency = "CNY"
+trading_unit = "吨"
+product_type = "energy"
+margin_rate = 0.10
+
+[instruments."SHFE.ru"]
+name = "天然橡胶"
+name_en = "Natural Rubber"
+exchange = "SHFE"
+contract_size = 10
+tick_size = 5
+tick_value = 50
+currency = "CNY"
+trading_unit = "吨"
+product_type = "agriculture"
+margin_rate = 0.09
+
+[instruments."SHFE.fu"]
+name = "燃料油"
+name_en = "Fuel Oil"
+exchange = "SHFE"
+contract_size = 50
+tick_size = 1
+tick_value = 50
+currency = "CNY"
+trading_unit = "吨"
+product_type = "energy"
+margin_rate = 0.10
+
+[instruments."SHFE.sp"]
+name = "纸浆"
+name_en = "Pulp"
+exchange = "SHFE"
+contract_size = 10
+tick_size = 1
+tick_value = 10
+currency = "CNY"
+trading_unit = "吨"
+product_type = "agriculture"
+margin_rate = 0.07
+
+# 大商所 (DCE) 品种
+[instruments."DCE.m"]
+name = "豆粕"
+name_en = "Soybean Meal"
+exchange = "DCE"
+contract_size = 10
+tick_size = 1
+tick_value = 10
+currency = "CNY"
+trading_unit = "吨"
+product_type = "agriculture"
+margin_rate = 0.07
+
+[instruments."DCE.a"]
+name = "黄大豆一号"
+name_en = "Soybean No.1"
+exchange = "DCE"
+contract_size = 10
+tick_size = 1
+tick_value = 10
+currency = "CNY"
+trading_unit = "吨"
+product_type = "agriculture"
+margin_rate = 0.07
+
+[instruments."DCE.b"]
+name = "黄大豆二号"
+name_en = "Soybean No.2"
+exchange = "DCE"
+contract_size = 10
+tick_size = 1
+tick_value = 10
+currency = "CNY"
+trading_unit = "吨"
+product_type = "agriculture"
+margin_rate = 0.07
+
+[instruments."DCE.c"]
+name = "玉米"
+name_en = "Corn"
+exchange = "DCE"
+contract_size = 10
+tick_size = 1
+tick_value = 10
+currency = "CNY"
+trading_unit = "吨"
+product_type = "agriculture"
+margin_rate = 0.06
+
+[instruments."DCE.y"]
+name = "豆油"
+name_en = "Soybean Oil"
+exchange = "DCE"
+contract_size = 10
+tick_size = 1
+tick_value = 10
+currency = "CNY"
+trading_unit = "吨"
+product_type = "agriculture"
+margin_rate = 0.07
+
+[instruments."DCE.p"]
+name = "棕榈油"
+name_en = "Palm Oil"
+exchange = "DCE"
+contract_size = 10
+tick_size = 1
+tick_value = 10
+currency = "CNY"
+trading_unit = "吨"
+product_type = "agriculture"
+margin_rate = 0.08
+
+[instruments."DCE.jd"]
+name = "鸡蛋"
+name_en = "Egg"
+exchange = "DCE"
+contract_size = 10
+tick_size = 1
+tick_value = 10
+currency = "CNY"
+trading_unit = "吨"
+product_type = "agriculture"
+margin_rate = 0.08
+
+[instruments."DCE.l"]
+name = "聚乙烯"
+name_en = "Polyethylene"
+exchange = "DCE"
+contract_size = 5
+tick_size = 1
+tick_value = 5
+currency = "CNY"
+trading_unit = "吨"
+product_type = "chemical"
+margin_rate = 0.07
+
+[instruments."DCE.v"]
+name = "聚氯乙烯"
+name_en = "Polyvinyl Chloride"
+exchange = "DCE"
+contract_size = 5
+tick_size = 1
+tick_value = 5
+currency = "CNY"
+trading_unit = "吨"
+product_type = "chemical"
+margin_rate = 0.07
+
+[instruments."DCE.pp"]
+name = "聚丙烯"
+name_en = "Polypropylene"
+exchange = "DCE"
+contract_size = 5
+tick_size = 1
+tick_value = 5
+currency = "CNY"
+trading_unit = "吨"
+product_type = "chemical"
+margin_rate = 0.07
+
+[instruments."DCE.i"]
+name = "铁矿石"
+name_en = "Iron Ore"
+exchange = "DCE"
+contract_size = 100
+tick_size = 0.5
+tick_value = 50
+currency = "CNY"
+trading_unit = "吨"
+product_type = "metal"
+margin_rate = 0.12
+
+[instruments."DCE.j"]
+name = "焦炭"
+name_en = "Coke"
+exchange = "DCE"
+contract_size = 100
+tick_size = 0.5
+tick_value = 50
+currency = "CNY"
+trading_unit = "吨"
+product_type = "energy"
+margin_rate = 0.12
+
+[instruments."DCE.jm"]
+name = "焦煤"
+name_en = "Coking Coal"
+exchange = "DCE"
+contract_size = 60
+tick_size = 0.5
+tick_value = 30
+currency = "CNY"
+trading_unit = "吨"
+product_type = "energy"
+margin_rate = 0.12
+
+[instruments."DCE.fb"]
+name = "纤维板"
+name_en = "Fiberboard"
+exchange = "DCE"
+contract_size = 500
+tick_size = 0.05
+tick_value = 25
+currency = "CNY"
+trading_unit = "张"
+product_type = "agriculture"
+margin_rate = 0.07
+
+[instruments."DCE.bb"]
+name = "胶合板"
+name_en = "Plywood"
+exchange = "DCE"
+contract_size = 500
+tick_size = 0.05
+tick_value = 25
+currency = "CNY"
+trading_unit = "张"
+product_type = "agriculture"
+margin_rate = 0.07
+
+[instruments."DCE.pg"]
+name = "液化石油气"
+name_en = "LPG"
+exchange = "DCE"
+contract_size = 20
+tick_size = 1
+tick_value = 20
+currency = "CNY"
+trading_unit = "吨"
+product_type = "energy"
+margin_rate = 0.08
+
+[instruments."DCE.eb"]
+name = "苯乙烯"
+name_en = "Styrene"
+exchange = "DCE"
+contract_size = 5
+tick_size = 1
+tick_value = 5
+currency = "CNY"
+trading_unit = "吨"
+product_type = "chemical"
+margin_rate = 0.08
+
+[instruments."DCE.eg"]
+name = "乙二醇"
+name_en = "Ethylene Glycol"
+exchange = "DCE"
+contract_size = 10
+tick_size = 1
+tick_value = 10
+currency = "CNY"
+trading_unit = "吨"
+product_type = "chemical"
+margin_rate = 0.08
+
+[instruments."DCE.lh"]
+name = "生猪"
+name_en = "Live Hog"
+exchange = "DCE"
+contract_size = 16
+tick_size = 5
+tick_value = 80
+currency = "CNY"
+trading_unit = "吨"
+product_type = "agriculture"
+margin_rate = 0.08
+
+# 郑商所 (CZCE) 品种
+[instruments."CZCE.SR"]
+name = "白糖"
+name_en = "White Sugar"
+exchange = "CZCE"
+contract_size = 10
+tick_size = 1
+tick_value = 10
+currency = "CNY"
+trading_unit = "吨"
+product_type = "agriculture"
+margin_rate = 0.07
+
+[instruments."CZCE.CF"]
+name = "棉花"
+name_en = "Cotton"
+exchange = "CZCE"
+contract_size = 5
+tick_size = 5
+tick_value = 25
+currency = "CNY"
+trading_unit = "吨"
+product_type = "agriculture"
+margin_rate = 0.07
+
+[instruments."CZCE.TA"]
+name = "精对苯二甲酸"
+name_en = "PTA"
+exchange = "CZCE"
+contract_size = 5
+tick_size = 2
+tick_value = 10
+currency = "CNY"
+trading_unit = "吨"
+product_type = "chemical"
+margin_rate = 0.07
+
+[instruments."CZCE.MA"]
+name = "甲醇"
+name_en = "Methanol"
+exchange = "CZCE"
+contract_size = 50
+tick_size = 1
+tick_value = 50
+currency = "CNY"
+trading_unit = "吨"
+product_type = "chemical"
+margin_rate = 0.08
+
+[instruments."CZCE.FG"]
+name = "玻璃"
+name_en = "Glass"
+exchange = "CZCE"
+contract_size = 20
+tick_size = 1
+tick_value = 20
+currency = "CNY"
+trading_unit = "吨"
+product_type = "industrial"
+margin_rate = 0.08
+
+[instruments."CZCE.RM"]
+name = "菜籽粕"
+name_en = "Rapeseed Meal"
+exchange = "CZCE"
+contract_size = 10
+tick_size = 1
+tick_value = 10
+currency = "CNY"
+trading_unit = "吨"
+product_type = "agriculture"
+margin_rate = 0.07
+
+[instruments."CZCE.OI"]
+name = "菜籽油"
+name_en = "Rapeseed Oil"
+exchange = "CZCE"
+contract_size = 10
+tick_size = 1
+tick_value = 10
+currency = "CNY"
+trading_unit = "吨"
+product_type = "agriculture"
+margin_rate = 0.07
+
+[instruments."CZCE.RS"]
+name = "菜籽油"
+name_en = "Rapeseed"
+exchange = "CZCE"
+contract_size = 10
+tick_size = 1
+tick_value = 10
+currency = "CNY"
+trading_unit = "吨"
+product_type = "agriculture"
+margin_rate = 0.20
+
+[instruments."CZCE.JR"]
+name = "粳稻谷"
+name_en = "Japonica Rice"
+exchange = "CZCE"
+contract_size = 20
+tick_size = 1
+tick_value = 20
+currency = "CNY"
+trading_unit = "吨"
+product_type = "agriculture"
+margin_rate = 0.06
+
+[instruments."CZCE.LR"]
+name = "晚籼稻"
+name_en = "Late Indica Rice"
+exchange = "CZCE"
+contract_size = 20
+tick_size = 1
+tick_value = 20
+currency = "CNY"
+trading_unit = "吨"
+product_type = "agriculture"
+margin_rate = 0.06
+
+[instruments."CZCE.WH"]
+name = "强麦"
+name_en = "Strong Wheat"
+exchange = "CZCE"
+contract_size = 20
+tick_size = 1
+tick_value = 20
+currency = "CNY"
+trading_unit = "吨"
+product_type = "agriculture"
+margin_rate = 0.06
+
+[instruments."CZCE.PM"]
+name = "普麦"
+name_en = "Common Wheat"
+exchange = "CZCE"
+contract_size = 20
+tick_size = 1
+tick_value = 20
+currency = "CNY"
+trading_unit = "吨"
+product_type = "agriculture"
+margin_rate = 0.06
+
+[instruments."CZCE.SM"]
+name = "硅铁"
+name_en = "Ferrosilicon"
+exchange = "CZCE"
+contract_size = 60
+tick_size = 2
+tick_value = 120
+currency = "CNY"
+trading_unit = "吨"
+product_type = "metal"
+margin_rate = 0.10
+
+[instruments."CZCE.SF"]
+name = "锰硅"
+name_en = "Silicomanganese"
+exchange = "CZCE"
+contract_size = 60
+tick_size = 2
+tick_value = 120
+currency = "CNY"
+trading_unit = "吨"
+product_type = "metal"
+margin_rate = 0.10
+
+[instruments."CZCE.ZC"]
+name = "动力煤"
+name_en = "Thermal Coal"
+exchange = "CZCE"
+contract_size = 60
+tick_size = 0.2
+tick_value = 12
+currency = "CNY"
+trading_unit = "吨"
+product_type = "energy"
+margin_rate = 0.12
+
+[instruments."CZCE.CJ"]
+name = "红枣"
+name_en = "Red Date"
+exchange = "CZCE"
+contract_size = 5
+tick_size = 5
+tick_value = 25
+currency = "CNY"
+trading_unit = "吨"
+product_type = "agriculture"
+margin_rate = 0.12
+
+[instruments."CZCE.PF"]
+name = "短纤"
+name_en = "Short Fiber"
+exchange = "CZCE"
+contract_size = 5
+tick_size = 2
+tick_value = 10
+currency = "CNY"
+trading_unit = "吨"
+product_type = "chemical"
+margin_rate = 0.07
+
+[instruments."CZCE.UR"]
+name = "尿素"
+name_en = "Urea"
+exchange = "CZCE"
+contract_size = 20
+tick_size = 1
+tick_value = 20
+currency = "CNY"
+trading_unit = "吨"
+product_type = "chemical"
+margin_rate = 0.07
+
+[instruments."CZCE.SA"]
+name = "纯碱"
+name_en = "Soda Ash"
+exchange = "CZCE"
+contract_size = 20
+tick_size = 1
+tick_value = 20
+currency = "CNY"
+trading_unit = "吨"
+product_type = "chemical"
+margin_rate = 0.08
+
+[instruments."CZCE.PK"]
+name = "花生"
+name_en = "Peanut"
+exchange = "CZCE"
+contract_size = 5
+tick_size = 2
+tick_value = 10
+currency = "CNY"
+trading_unit = "吨"
+product_type = "agriculture"
+margin_rate = 0.08
+
+# 中金所 (CFFEX) 品种
+[instruments."CFFEX.IF"]
+name = "沪深300指数期货"
+name_en = "CSI 300 Index Futures"
+exchange = "CFFEX"
+contract_size = 300
+tick_size = 0.2
+tick_value = 60
+currency = "CNY"
+trading_unit = "指数点"
+product_type = "financial"
+margin_rate = 0.15
+
+[instruments."CFFEX.IH"]
+name = "上证50指数期货"
+name_en = "SSE 50 Index Futures"
+exchange = "CFFEX"
+contract_size = 300
+tick_size = 0.2
+tick_value = 60
+currency = "CNY"
+trading_unit = "指数点"
+product_type = "financial"
+margin_rate = 0.15
+
+[instruments."CFFEX.IC"]
+name = "中证500指数期货"
+name_en = "CSI 500 Index Futures"
+exchange = "CFFEX"
+contract_size = 200
+tick_size = 0.2
+tick_value = 40
+currency = "CNY"
+trading_unit = "指数点"
+product_type = "financial"
+margin_rate = 0.14
+
+[instruments."CFFEX.IM"]
+name = "中证1000指数期货"
+name_en = "CSI 1000 Index Futures"
+exchange = "CFFEX"
+contract_size = 200
+tick_size = 0.2
+tick_value = 40
+currency = "CNY"
+trading_unit = "指数点"
+product_type = "financial"
+margin_rate = 0.14
+
+[instruments."CFFEX.T"]
+name = "10年期国债期货"
+name_en = "10-year Treasury Bond Futures"
+exchange = "CFFEX"
+contract_size = 10000
+tick_size = 0.005
+tick_value = 50
+currency = "CNY"
+trading_unit = "面值"
+product_type = "bond"
+margin_rate = 0.02
+
+[instruments."CFFEX.TF"]
+name = "5年期国债期货"
+name_en = "5-year Treasury Bond Futures"
+exchange = "CFFEX"
+contract_size = 10000
+tick_size = 0.005
+tick_value = 50
+currency = "CNY"
+trading_unit = "面值"
+product_type = "bond"
+margin_rate = 0.015
+
+[instruments."CFFEX.TS"]
+name = "2年期国债期货"
+name_en = "2-year Treasury Bond Futures"
+exchange = "CFFEX"
+contract_size = 20000
+tick_size = 0.005
+tick_value = 100
+currency = "CNY"
+trading_unit = "面值"
+product_type = "bond"
+margin_rate = 0.01
+
+[instruments."CFFEX.TL"]
+name = "30年期国债期货"
+name_en = "30-year Treasury Bond Futures"
+exchange = "CFFEX"
+contract_size = 10000
+tick_size = 0.01
+tick_value = 100
+currency = "CNY"
+trading_unit = "面值"
+product_type = "bond"
+margin_rate = 0.03
+
+# 上期能源 (INE) 品种
+[instruments."INE.sc"]
+name = "原油"
+name_en = "Crude Oil"
+exchange = "INE"
+contract_size = 1000
+tick_size = 0.1
+tick_value = 100
+currency = "CNY"
+trading_unit = "桶"
+product_type = "energy"
+margin_rate = 0.15
+
+[instruments."INE.lu"]
+name = "低硫燃料油"
+name_en = "Low Sulfur Fuel Oil"
+exchange = "INE"
+contract_size = 10
+tick_size = 1
+tick_value = 10
+currency = "CNY"
+trading_unit = "吨"
+product_type = "energy"
+margin_rate = 0.12
+
+[instruments."INE.bc"]
+name = "20号胶"
+name_en = "TSR 20 Rubber"
+exchange = "INE"
+contract_size = 10
+tick_size = 5
+tick_value = 50
+currency = "CNY"
+trading_unit = "吨"
+product_type = "agriculture"
+margin_rate = 0.10
+
+[instruments."INE.nr"]
+name = "天然橡胶"
+name_en = "Natural Rubber"
+exchange = "INE"
+contract_size = 10
+tick_size = 5
+tick_value = 50
+currency = "CNY"
+trading_unit = "吨"
+product_type = "agriculture"
+margin_rate = 0.09
+
+# 广期所 (GFEX) 品种
+[instruments."GFEX.si"]
+name = "工业硅"
+name_en = "Industrial Silicon"
+exchange = "GFEX"
+contract_size = 5
+tick_size = 5
+tick_value = 25
+currency = "CNY"
+trading_unit = "吨"
+product_type = "metal"
+margin_rate = 0.08
+
+[instruments."GFEX.lc"]
+name = "碳酸锂"
+name_en = "Lithium Carbonate"
+exchange = "GFEX"
+contract_size = 1
+tick_size = 10
+tick_value = 10
+currency = "CNY"
+trading_unit = "吨"
+product_type = "metal"
+margin_rate = 0.12

@@ -12,7 +12,7 @@ from quantbox.adapters.base import BaseDataAdapter
 from quantbox.util.date_utils import DateLike, date_to_int
 from quantbox.util.exchange_utils import denormalize_exchange, validate_exchanges
 from quantbox.util.contract_utils import normalize_contracts, format_contracts, ContractFormat
-from quantbox.util.basic import TSPRO
+from quantbox.config.config_loader import get_config_loader
 
 
 class TSAdapter(BaseDataAdapter):
@@ -30,7 +30,7 @@ class TSAdapter(BaseDataAdapter):
             token: Tushare API token，默认使用全局 TSPRO
         """
         super().__init__("TSAdapter")
-        self.pro = token or TSPRO
+        self.pro = token or get_config_loader().get_tushare_pro()
         if self.pro is None:
             raise ValueError("Tushare API token 未配置")
     

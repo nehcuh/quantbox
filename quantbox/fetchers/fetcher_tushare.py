@@ -6,7 +6,7 @@ from typing import List, Optional, Union, Dict, Any, Tuple
 import pandas as pd
 import numpy as np
 
-from ..util.basic import TSPRO, DATABASE, DEFAULT_START
+from ..config.config_loader import get_config_loader
 from ..util.exchange_utils import validate_exchanges
 from .local_fetcher import LocalFetcher
 
@@ -15,8 +15,9 @@ class TSFetcher:
     
     def __init__(self):
         """初始化"""
-        self.pro = TSPRO
-        self.default_start = DEFAULT_START
+        config_loader = get_config_loader()
+        self.pro = config_loader.get_tushare_pro()
+        self.default_start = "1990-12-19"  # 可以从配置获取
         self.local_fetcher = LocalFetcher()
         
         # 缓存设置

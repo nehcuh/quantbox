@@ -8,7 +8,7 @@ from typing import Dict, List, Union, Optional
 import numpy as np
 import pandas as pd
 
-from quantbox.util.basic import DATABASE, EXCHANGES
+from quantbox.config.config_loader import get_config_loader
 
 
 def util_to_json_from_pandas(data: pd.DataFrame) -> Dict:
@@ -226,6 +226,6 @@ def load_contract_exchange_mapper() -> Dict:
             "$sort": {"fut_code": 1}  # 按 fut_code 排序（可选）
         },
     ]
-    collections = DATABASE.future_contracts
+    collections = get_config_loader().get_mongodb_client().quantbox.future_contracts
     results = list(collections.aggregate(pipeline))
     return {item["fut_code"]: item["exchange"] for item in results}

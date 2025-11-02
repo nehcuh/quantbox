@@ -1,0 +1,772 @@
+# 期货手续费和保证金配置文件
+# 该文件定义了各品种的手续费标准和保证金比例
+
+# 默认手续费配置
+[fees.default]
+open_fee = { type = "fixed", value = 0 }
+close_fee = { type = "fixed", value = 0 }
+close_today_fee = { type = "fixed", value = 0 }
+fee_unit = "per_contract"
+fee_currency = "CNY"
+
+# 默认保证金配置
+[margin.default]
+long_margin_rate = 0.10
+short_margin_rate = 0.10
+margin_type = "percentage"
+margin_currency = "CNY"
+
+# 上期所 (SHFE) 手续费配置
+
+# 螺纹钢 (rb)
+[fees."SHFE.rb"]
+open_fee = { type = "fixed", value = 5 }
+close_fee = { type = "fixed", value = 5 }
+close_today_fee = { type = "fixed", value = 10 }
+fee_unit = "per_contract"
+fee_currency = "CNY"
+
+[margin."SHFE.rb"]
+long_margin_rate = 0.08
+short_margin_rate = 0.08
+margin_type = "percentage"
+margin_currency = "CNY"
+
+# 热轧卷板 (hc)
+[fees."SHFE.hc"]
+open_fee = { type = "fixed", value = 5 }
+close_fee = { type = "fixed", value = 5 }
+close_today_fee = { type = "fixed", value = 10 }
+fee_unit = "per_contract"
+fee_currency = "CNY"
+
+[margin."SHFE.hc"]
+long_margin_rate = 0.08
+short_margin_rate = 0.08
+margin_type = "percentage"
+margin_currency = "CNY"
+
+# 铜 (cu)
+[fees."SHFE.cu"]
+open_fee = { type = "fixed", value = 6 }
+close_fee = { type = "fixed", value = 6 }
+close_today_fee = { type = "fixed", value = 12 }
+fee_unit = "per_contract"
+fee_currency = "CNY"
+
+[margin."SHFE.cu"]
+long_margin_rate = 0.08
+short_margin_rate = 0.08
+margin_type = "percentage"
+margin_currency = "CNY"
+
+# 铝 (al)
+[fees."SHFE.al"]
+open_fee = { type = "fixed", value = 3 }
+close_fee = { type = "fixed", value = 3 }
+close_today_fee = { type = "fixed", value = 6 }
+fee_unit = "per_contract"
+fee_currency = "CNY"
+
+[margin."SHFE.al"]
+long_margin_rate = 0.07
+short_margin_rate = 0.07
+margin_type = "percentage"
+margin_currency = "CNY"
+
+# 锌 (zn)
+[fees."SHFE.zn"]
+open_fee = { type = "fixed", value = 3 }
+close_fee = { type = "fixed", value = 3 }
+close_today_fee = { type = "fixed", value = 6 }
+fee_unit = "per_contract"
+fee_currency = "CNY"
+
+[margin."SHFE.zn"]
+long_margin_rate = 0.08
+short_margin_rate = 0.08
+margin_type = "percentage"
+margin_currency = "CNY"
+
+# 铅 (pb)
+[fees."SHFE.pb"]
+open_fee = { type = "fixed", value = 6 }
+close_fee = { type = "fixed", value = 6 }
+close_today_fee = { type = "fixed", value = 12 }
+fee_unit = "per_contract"
+fee_currency = "CNY"
+
+[margin."SHFE.pb"]
+long_margin_rate = 0.08
+short_margin_rate = 0.08
+margin_type = "percentage"
+margin_currency = "CNY"
+
+# 镍 (ni)
+[fees."SHFE.ni"]
+open_fee = { type = "fixed", value = 3 }
+close_fee = { type = "fixed", value = 3 }
+close_today_fee = { type = "fixed", value = 6 }
+fee_unit = "per_contract"
+fee_currency = "CNY"
+
+[margin."SHFE.ni"]
+long_margin_rate = 0.12
+short_margin_rate = 0.12
+margin_type = "percentage"
+margin_currency = "CNY"
+
+# 锡 (sn)
+[fees."SHFE.sn"]
+open_fee = { type = "fixed", value = 3 }
+close_fee = { type = "fixed", value = 3 }
+close_today_fee = { type = "fixed", value = 6 }
+fee_unit = "per_contract"
+fee_currency = "CNY"
+
+[margin."SHFE.sn"]
+long_margin_rate = 0.10
+short_margin_rate = 0.10
+margin_type = "percentage"
+margin_currency = "CNY"
+
+# 黄金 (au)
+[fees."SHFE.au"]
+open_fee = { type = "fixed", value = 10 }
+close_fee = { type = "fixed", value = 10 }
+close_today_fee = { type = "fixed", value = 0 }
+fee_unit = "per_contract"
+fee_currency = "CNY"
+
+[margin."SHFE.au"]
+long_margin_rate = 0.08
+short_margin_rate = 0.08
+margin_type = "percentage"
+margin_currency = "CNY"
+
+# 白银 (ag)
+[fees."SHFE.ag"]
+open_fee = { type = "fixed", value = 3 }
+close_fee = { type = "fixed", value = 3 }
+close_today_fee = { type = "fixed", value = 0 }
+fee_unit = "per_contract"
+fee_currency = "CNY"
+
+[margin."SHFE.ag"]
+long_margin_rate = 0.10
+short_margin_rate = 0.10
+margin_type = "percentage"
+margin_currency = "CNY"
+
+# 天然橡胶 (ru)
+[fees."SHFE.ru"]
+open_fee = { type = "fixed", value = 3 }
+close_fee = { type = "fixed", value = 3 }
+close_today_fee = { type = "fixed", value = 0 }
+fee_unit = "per_contract"
+fee_currency = "CNY"
+
+[margin."SHFE.ru"]
+long_margin_rate = 0.09
+short_margin_rate = 0.09
+margin_type = "percentage"
+margin_currency = "CNY"
+
+# 燃料油 (fu)
+[fees."SHFE.fu"]
+open_fee = { type = "fixed", value = 2 }
+close_fee = { type = "fixed", value = 2 }
+close_today_fee = { type = "fixed", value = 0 }
+fee_unit = "per_contract"
+fee_currency = "CNY"
+
+[margin."SHFE.fu"]
+long_margin_rate = 0.10
+short_margin_rate = 0.10
+margin_type = "percentage"
+margin_currency = "CNY"
+
+# 石油沥青 (bu)
+[fees."SHFE.bu"]
+open_fee = { type = "fixed", value = 2 }
+close_fee = { type = "fixed", value = 2 }
+close_today_fee = { type = "fixed", value = 0 }
+fee_unit = "per_contract"
+fee_currency = "CNY"
+
+[margin."SHFE.bu"]
+long_margin_rate = 0.10
+short_margin_rate = 0.10
+margin_type = "percentage"
+margin_currency = "CNY"
+
+# 纸浆 (sp)
+[fees."SHFE.sp"]
+open_fee = { type = "fixed", value = 2 }
+close_fee = { type = "fixed", value = 2 }
+close_today_fee = { type = "fixed", value = 0 }
+fee_unit = "per_contract"
+fee_currency = "CNY"
+
+[margin."SHFE.sp"]
+long_margin_rate = 0.07
+short_margin_rate = 0.07
+margin_type = "percentage"
+margin_currency = "CNY"
+
+# 大商所 (DCE) 手续费配置
+
+# 豆粕 (m)
+[fees."DCE.m"]
+open_fee = { type = "fixed", value = 1.5 }
+close_fee = { type = "fixed", value = 1.5 }
+close_today_fee = { type = "fixed", value = 0 }
+fee_unit = "per_contract"
+fee_currency = "CNY"
+
+[margin."DCE.m"]
+long_margin_rate = 0.07
+short_margin_rate = 0.07
+margin_type = "percentage"
+margin_currency = "CNY"
+
+# 豆油 (y)
+[fees."DCE.y"]
+open_fee = { type = "fixed", value = 2.5 }
+close_fee = { type = "fixed", value = 2.5 }
+close_today_fee = { type = "fixed", value = 0 }
+fee_unit = "per_contract"
+fee_currency = "CNY"
+
+[margin."DCE.y"]
+long_margin_rate = 0.07
+short_margin_rate = 0.07
+margin_type = "percentage"
+margin_currency = "CNY"
+
+# 棕榈油 (p)
+[fees."DCE.p"]
+open_fee = { type = "fixed", value = 2.5 }
+close_fee = { type = "fixed", value = 2.5 }
+close_today_fee = { type = "fixed", value = 0 }
+fee_unit = "per_contract"
+fee_currency = "CNY"
+
+[margin."DCE.p"]
+long_margin_rate = 0.08
+short_margin_rate = 0.08
+margin_type = "percentage"
+margin_currency = "CNY"
+
+# 玉米 (c)
+[fees."DCE.c"]
+open_fee = { type = "fixed", value = 6 }
+close_fee = { type = "fixed", value = 6 }
+close_today_fee = { type = "fixed", value = 0 }
+fee_unit = "per_contract"
+fee_currency = "CNY"
+
+[margin."DCE.c"]
+long_margin_rate = 0.06
+short_margin_rate = 0.06
+margin_type = "percentage"
+margin_currency = "CNY"
+
+# 玉米淀粉 (cs)
+[fees."DCE.cs"]
+open_fee = { type = "fixed", value = 6 }
+close_fee = { type = "fixed", value = 6 }
+close_today_fee = { type = "fixed", value = 0 }
+fee_unit = "per_contract"
+fee_currency = "CNY"
+
+[margin."DCE.cs"]
+long_margin_rate = 0.06
+short_margin_rate = 0.06
+margin_type = "percentage"
+margin_currency = "CNY"
+
+# 黄大豆一号 (a)
+[fees."DCE.a"]
+open_fee = { type = "fixed", value = 2 }
+close_fee = { type = "fixed", value = 2 }
+close_today_fee = { type = "fixed", value = 0 }
+fee_unit = "per_contract"
+fee_currency = "CNY"
+
+[margin."DCE.a"]
+long_margin_rate = 0.07
+short_margin_rate = 0.07
+margin_type = "percentage"
+margin_currency = "CNY"
+
+# 黄大豆二号 (b)
+[fees."DCE.b"]
+open_fee = { type = "fixed", value = 1 }
+close_fee = { type = "fixed", value = 1 }
+close_today_fee = { type = "fixed", value = 0 }
+fee_unit = "per_contract"
+fee_currency = "CNY"
+
+[margin."DCE.b"]
+long_margin_rate = 0.07
+short_margin_rate = 0.07
+margin_type = "percentage"
+margin_currency = "CNY"
+
+# 鸡蛋 (jd)
+[fees."DCE.jd"]
+open_fee = { type = "fixed", value = 6 }
+close_fee = { type = "fixed", value = 6 }
+close_today_fee = { type = "fixed", value = 0 }
+fee_unit = "per_contract"
+fee_currency = "CNY"
+
+[margin."DCE.jd"]
+long_margin_rate = 0.08
+short_margin_rate = 0.08
+margin_type = "percentage"
+margin_currency = "CNY"
+
+# 纤维板 (fb)
+[fees."DCE.fb"]
+open_fee = { type = "fixed", value = 1 }
+close_fee = { type = "fixed", value = 1 }
+close_today_fee = { type = "fixed", value = 0 }
+fee_unit = "per_contract"
+fee_currency = "CNY"
+
+[margin."DCE.fb"]
+long_margin_rate = 0.07
+short_margin_rate = 0.07
+margin_type = "percentage"
+margin_currency = "CNY"
+
+# 胶合板 (bb)
+[fees."DCE.bb"]
+open_fee = { type = "fixed", value = 1 }
+close_fee = { type = "fixed", value = 1 }
+close_today_fee = { type = "fixed", value = 0 }
+fee_unit = "per_contract"
+fee_currency = "CNY"
+
+[margin."DCE.bb"]
+long_margin_rate = 0.07
+short_margin_rate = 0.07
+margin_type = "percentage"
+margin_currency = "CNY"
+
+# 聚乙烯 (l)
+[fees."DCE.l"]
+open_fee = { type = "fixed", value = 6 }
+close_fee = { type = "fixed", value = 6 }
+close_today_fee = { type = "fixed", value = 0 }
+fee_unit = "per_contract"
+fee_currency = "CNY"
+
+[margin."DCE.l"]
+long_margin_rate = 0.07
+short_margin_rate = 0.07
+margin_type = "percentage"
+margin_currency = "CNY"
+
+# 聚氯乙烯 (v)
+[fees."DCE.v"]
+open_fee = { type = "fixed", value = 6 }
+close_fee = { type = "fixed", value = 6 }
+close_today_fee = { type = "fixed", value = 0 }
+fee_unit = "per_contract"
+fee_currency = "CNY"
+
+[margin."DCE.v"]
+long_margin_rate = 0.07
+short_margin_rate = 0.07
+margin_type = "percentage"
+margin_currency = "CNY"
+
+# 聚丙烯 (pp)
+[fees."DCE.pp"]
+open_fee = { type = "fixed", value = 6 }
+close_fee = { type = "fixed", value = 6 }
+close_today_fee = { type = "fixed", value = 0 }
+fee_unit = "per_contract"
+fee_currency = "CNY"
+
+[margin."DCE.pp"]
+long_margin_rate = 0.07
+short_margin_rate = 0.07
+margin_type = "percentage"
+margin_currency = "CNY"
+
+# 线型低密度聚乙烯 (l) - 使用上面的聚乙烯 (l) 配置
+
+# 铁矿石 (i)
+[fees."DCE.i"]
+open_fee = { type = "fixed", value = 0.6 }
+close_fee = { type = "fixed", value = 0.6 }
+close_today_fee = { type = "fixed", value = 0.6 }
+fee_unit = "per_contract"
+fee_currency = "CNY"
+
+[margin."DCE.i"]
+long_margin_rate = 0.12
+short_margin_rate = 0.12
+margin_type = "percentage"
+margin_currency = "CNY"
+
+# 焦炭 (j)
+[fees."DCE.j"]
+open_fee = { type = "fixed", value = 0.6 }
+close_fee = { type = "fixed", value = 0.6 }
+close_today_fee = { type = "fixed", value = 1.2 }
+fee_unit = "per_contract"
+fee_currency = "CNY"
+
+[margin."DCE.j"]
+long_margin_rate = 0.12
+short_margin_rate = 0.12
+margin_type = "percentage"
+margin_currency = "CNY"
+
+# 焦煤 (jm)
+[fees."DCE.jm"]
+open_fee = { type = "fixed", value = 0.6 }
+close_fee = { type = "fixed", value = 0.6 }
+close_today_fee = { type = "fixed", value = 1.2 }
+fee_unit = "per_contract"
+fee_currency = "CNY"
+
+[margin."DCE.jm"]
+long_margin_rate = 0.12
+short_margin_rate = 0.12
+margin_type = "percentage"
+margin_currency = "CNY"
+
+# 郑商所 (CZCE) 手续费配置
+
+# 白糖 (SR)
+[fees."CZCE.SR"]
+open_fee = { type = "fixed", value = 3 }
+close_fee = { type = "fixed", value = 3 }
+close_today_fee = { type = "fixed", value = 0 }
+fee_unit = "per_contract"
+fee_currency = "CNY"
+
+[margin."CZCE.SR"]
+long_margin_rate = 0.07
+short_margin_rate = 0.07
+margin_type = "percentage"
+margin_currency = "CNY"
+
+# 棉花 (CF)
+[fees."CZCE.CF"]
+open_fee = { type = "fixed", value = 4.3 }
+close_fee = { type = "fixed", value = 4.3 }
+close_today_fee = { type = "fixed", value = 0 }
+fee_unit = "per_contract"
+fee_currency = "CNY"
+
+[margin."CZCE.CF"]
+long_margin_rate = 0.07
+short_margin_rate = 0.07
+margin_type = "percentage"
+margin_currency = "CNY"
+
+# PTA (TA)
+[fees."CZCE.TA"]
+open_fee = { type = "fixed", value = 3 }
+close_fee = { type = "fixed", value = 3 }
+close_today_fee = { type = "fixed", value = 0 }
+fee_unit = "per_contract"
+fee_currency = "CNY"
+
+[margin."CZCE.TA"]
+long_margin_rate = 0.07
+short_margin_rate = 0.07
+margin_type = "percentage"
+margin_currency = "CNY"
+
+# 甲醇 (MA)
+[fees."CZCE.MA"]
+open_fee = { type = "fixed", value = 2 }
+close_fee = { type = "fixed", value = 2 }
+close_today_fee = { type = "fixed", value = 6 }
+fee_unit = "per_contract"
+fee_currency = "CNY"
+
+[margin."CZCE.MA"]
+long_margin_rate = 0.08
+short_margin_rate = 0.08
+margin_type = "percentage"
+margin_currency = "CNY"
+
+# 菜籽粕 (RM)
+[fees."CZCE.RM"]
+open_fee = { type = "fixed", value = 1.5 }
+close_fee = { type = "fixed", value = 1.5 }
+close_today_fee = { type = "fixed", value = 0 }
+fee_unit = "per_contract"
+fee_currency = "CNY"
+
+[margin."CZCE.RM"]
+long_margin_rate = 0.07
+short_margin_rate = 0.07
+margin_type = "percentage"
+margin_currency = "CNY"
+
+# 菜籽油 (OI)
+[fees."CZCE.OI"]
+open_fee = { type = "fixed", value = 2 }
+close_fee = { type = "fixed", value = 2 }
+close_today_fee = { type = "fixed", value = 0 }
+fee_unit = "per_contract"
+fee_currency = "CNY"
+
+[margin."CZCE.OI"]
+long_margin_rate = 0.07
+short_margin_rate = 0.07
+margin_type = "percentage"
+margin_currency = "CNY"
+
+# 玻璃 (FG)
+[fees."CZCE.FG"]
+open_fee = { type = "fixed", value = 6 }
+close_fee = { type = "fixed", value = 6 }
+close_today_fee = { type = "fixed", value = 0 }
+fee_unit = "per_contract"
+fee_currency = "CNY"
+
+[margin."CZCE.FG"]
+long_margin_rate = 0.08
+short_margin_rate = 0.08
+margin_type = "percentage"
+margin_currency = "CNY"
+
+# 动力煤 (ZC)
+[fees."CZCE.ZC"]
+open_fee = { type = "fixed", value = 4 }
+close_fee = { type = "fixed", value = 4 }
+close_today_fee = { type = "fixed", value = 8 }
+fee_unit = "per_contract"
+fee_currency = "CNY"
+
+[margin."CZCE.ZC"]
+long_margin_rate = 0.12
+short_margin_rate = 0.12
+margin_type = "percentage"
+margin_currency = "CNY"
+
+# 中金所 (CFFEX) 手续费配置
+
+# 沪深300指数期货 (IF)
+[fees."CFFEX.IF"]
+open_fee = { type = "percentage", value = 0.000023 }
+close_fee = { type = "percentage", value = 0.000023 }
+close_today_fee = { type = "percentage", value = 0.000345 }
+fee_unit = "notional_value"
+fee_currency = "CNY"
+
+[margin."CFFEX.IF"]
+long_margin_rate = 0.15
+short_margin_rate = 0.15
+margin_type = "percentage"
+margin_currency = "CNY"
+
+# 上证50指数期货 (IH)
+[fees."CFFEX.IH"]
+open_fee = { type = "percentage", value = 0.000023 }
+close_fee = { type = "percentage", value = 0.000023 }
+close_today_fee = { type = "percentage", value = 0.000345 }
+fee_unit = "notional_value"
+fee_currency = "CNY"
+
+[margin."CFFEX.IH"]
+long_margin_rate = 0.15
+short_margin_rate = 0.15
+margin_type = "percentage"
+margin_currency = "CNY"
+
+# 中证500指数期货 (IC)
+[fees."CFFEX.IC"]
+open_fee = { type = "percentage", value = 0.000023 }
+close_fee = { type = "percentage", value = 0.000023 }
+close_today_fee = { type = "percentage", value = 0.000345 }
+fee_unit = "notional_value"
+fee_currency = "CNY"
+
+[margin."CFFEX.IC"]
+long_margin_rate = 0.14
+short_margin_rate = 0.14
+margin_type = "percentage"
+margin_currency = "CNY"
+
+# 中证1000指数期货 (IM)
+[fees."CFFEX.IM"]
+open_fee = { type = "percentage", value = 0.000023 }
+close_fee = { type = "percentage", value = 0.000023 }
+close_today_fee = { type = "percentage", value = 0.000345 }
+fee_unit = "notional_value"
+fee_currency = "CNY"
+
+[margin."CFFEX.IM"]
+long_margin_rate = 0.14
+short_margin_rate = 0.14
+margin_type = "percentage"
+margin_currency = "CNY"
+
+# 10年期国债期货 (T)
+[fees."CFFEX.T"]
+open_fee = { type = "fixed", value = 3 }
+close_fee = { type = "fixed", value = 3 }
+close_today_fee = { type = "fixed", value = 0 }
+fee_unit = "per_contract"
+fee_currency = "CNY"
+
+[margin."CFFEX.T"]
+long_margin_rate = 0.02
+short_margin_rate = 0.02
+margin_type = "percentage"
+margin_currency = "CNY"
+
+# 5年期国债期货 (TF)
+[fees."CFFEX.TF"]
+open_fee = { type = "fixed", value = 3 }
+close_fee = { type = "fixed", value = 3 }
+close_today_fee = { type = "fixed", value = 0 }
+fee_unit = "per_contract"
+fee_currency = "CNY"
+
+[margin."CFFEX.TF"]
+long_margin_rate = 0.015
+short_margin_rate = 0.015
+margin_type = "percentage"
+margin_currency = "CNY"
+
+# 2年期国债期货 (TS)
+[fees."CFFEX.TS"]
+open_fee = { type = "fixed", value = 3 }
+close_fee = { type = "fixed", value = 3 }
+close_today_fee = { type = "fixed", value = 0 }
+fee_unit = "per_contract"
+fee_currency = "CNY"
+
+[margin."CFFEX.TS"]
+long_margin_rate = 0.01
+short_margin_rate = 0.01
+margin_type = "percentage"
+margin_currency = "CNY"
+
+# 30年期国债期货 (TL)
+[fees."CFFEX.TL"]
+open_fee = { type = "fixed", value = 3 }
+close_fee = { type = "fixed", value = 3 }
+close_today_fee = { type = "fixed", value = 0 }
+fee_unit = "per_contract"
+fee_currency = "CNY"
+
+[margin."CFFEX.TL"]
+long_margin_rate = 0.03
+short_margin_rate = 0.03
+margin_type = "percentage"
+margin_currency = "CNY"
+
+# 上期能源 (INE) 手续费配置
+
+# 原油 (sc)
+[fees."INE.sc"]
+open_fee = { type = "fixed", value = 20 }
+close_fee = { type = "fixed", value = 20 }
+close_today_fee = { type = "fixed", value = 0 }
+fee_unit = "per_contract"
+fee_currency = "CNY"
+
+[margin."INE.sc"]
+long_margin_rate = 0.15
+short_margin_rate = 0.15
+margin_type = "percentage"
+margin_currency = "CNY"
+
+# 20号胶 (bc)
+[fees."INE.bc"]
+open_fee = { type = "fixed", value = 10 }
+close_fee = { type = "fixed", value = 10 }
+close_today_fee = { type = "fixed", value = 0 }
+fee_unit = "per_contract"
+fee_currency = "CNY"
+
+[margin."INE.bc"]
+long_margin_rate = 0.10
+short_margin_rate = 0.10
+margin_type = "percentage"
+margin_currency = "CNY"
+
+# 低硫燃料油 (lu)
+[fees."INE.lu"]
+open_fee = { type = "fixed", value = 2 }
+close_fee = { type = "fixed", value = 2 }
+close_today_fee = { type = "fixed", value = 0 }
+fee_unit = "per_contract"
+fee_currency = "CNY"
+
+[margin."INE.lu"]
+long_margin_rate = 0.12
+short_margin_rate = 0.12
+margin_type = "percentage"
+margin_currency = "CNY"
+
+# 广期所 (GFEX) 手续费配置
+
+# 工业硅 (si)
+[fees."GFEX.si"]
+open_fee = { type = "fixed", value = 5 }
+close_fee = { type = "fixed", value = 5 }
+close_today_fee = { type = "fixed", value = 0 }
+fee_unit = "per_contract"
+fee_currency = "CNY"
+
+[margin."GFEX.si"]
+long_margin_rate = 0.08
+short_margin_rate = 0.08
+margin_type = "percentage"
+margin_currency = "CNY"
+
+# 碳酸锂 (lc)
+[fees."GFEX.lc"]
+open_fee = { type = "fixed", value = 4 }
+close_fee = { type = "fixed", value = 4 }
+close_today_fee = { type = "fixed", value = 0 }
+fee_unit = "per_contract"
+fee_currency = "CNY"
+
+[margin."GFEX.lc"]
+long_margin_rate = 0.12
+short_margin_rate = 0.12
+margin_type = "percentage"
+margin_currency = "CNY"
+
+# 股票手续费配置 (仅供参考)
+[fees.stock]
+open_fee = { type = "percentage", value = 0.0003 }
+close_fee = { type = "percentage", value = 0.0003 }
+close_today_fee = { type = "percentage", value = 0.0015 }
+fee_unit = "trade_value"
+fee_currency = "CNY"
+min_fee = 5
+
+# 交易所统一手续费率
+[exchange_fee_rates]
+SHFE = { type = "percentage", value = 0.0001 }
+DCE = { type = "percentage", value = 0.0001 }
+CZCE = { type = "percentage", value = 0.0001 }
+CFFEX = { type = "percentage", value = 0.000023 }
+INE = { type = "percentage", value = 0.0001 }
+GFEX = { type = "percentage", value = 0.0001 }
+
+# 结算费率
+[clearing_fee_rates]
+SHFE = { type = "percentage", value = 0.000005 }
+DCE = { type = "percentage", value = 0.000005 }
+CZCE = { type = "percentage", value = 0.000005 }
+CFFEX = { type = "percentage", value = 0.000005 }
+INE = { type = "percentage", value = 0.000005 }
+GFEX = { type = "percentage", value = 0.000005 }

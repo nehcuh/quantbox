@@ -7,7 +7,7 @@ from typing import List, Optional, Union, Dict, Any
 from abc import ABC
 import pymongo
 from quantbox.fetchers.base import BaseFetcher
-from quantbox.util.basic import DATABASE, DEFAULT_START, EXCHANGES, FUTURE_EXCHANGES, STOCK_EXCHANGES
+from quantbox.config.config_loader import get_config_loader
 from quantbox.util.date_utils import util_make_date_stamp
 from quantbox.util.tools import util_format_future_symbols
 from quantbox.fetchers.monitoring import PerformanceMonitor, monitor_performance
@@ -20,11 +20,12 @@ class LocalBaseFetcher(ABC):
     Base class for local data fetchers that do not require external data fetching methods.
     """
     def __init__(self):
-        self.exchanges = EXCHANGES
-        self.stock_exchanges = STOCK_EXCHANGES
-        self.future_exchanges = FUTURE_EXCHANGES
-        self.client = DATABASE
-        self.default_start = DEFAULT_START
+        config_loader = get_config_loader()
+        self.exchanges = config_loader.list_exchanges()
+        self.stock_exchanges = config_loader.list_exchanges(market_type='stock')
+        self.future_exchanges = config_loader.list_exchanges(market_type='futures')
+        self.client = config_loader.get_mongodb_client().quantbox
+        self.default_start = "1990-12-19"  # 可以从配置获取
 
     def _save_trade_dates(self, df: pd.DataFrame) -> None:
         """保存交易日历数据到数据库

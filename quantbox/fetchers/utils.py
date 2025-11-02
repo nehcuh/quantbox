@@ -3,7 +3,7 @@ Utility functions for fetchers
 """
 from typing import Union, List, Dict, Any, Optional
 import datetime
-from quantbox.util.basic import DATABASE, EXCHANGES, STOCK_EXCHANGES, FUTURE_EXCHANGES
+from quantbox.config.config_loader import get_config_loader
 from quantbox.util.date_utils import util_make_date_stamp
 
 
@@ -22,7 +22,7 @@ class QueryBuilder:
             List[str]: 标准化后的交易所列表
         """
         if exchanges is None:
-            return EXCHANGES.copy()
+            return get_config_loader().list_exchanges().copy()
         if isinstance(exchanges, str):
             return exchanges.split(",")
         return exchanges
@@ -148,7 +148,7 @@ class ExchangeValidator:
         Raises:
             ValueError: 交易所无效时抛出异常
         """
-        if exchange not in STOCK_EXCHANGES:
+        if exchange not in get_config_loader().list_exchanges(market_type='stock'):
             raise ValueError(f"无效的股票交易所: {exchange}")
 
     @staticmethod
@@ -162,7 +162,7 @@ class ExchangeValidator:
         Raises:
             ValueError: 交易所无效时抛出异常
         """
-        if exchange not in FUTURE_EXCHANGES:
+        if exchange not in get_config_loader().list_exchanges(market_type='futures'):
             raise ValueError(f"无效的期货交易所: {exchange}")
 
     @staticmethod
@@ -176,6 +176,6 @@ class ExchangeValidator:
         Raises:
             ValueError: 交易所无效时抛出异常
         """
-        invalid_exchanges = set(exchanges) - set(EXCHANGES)
+        invalid_exchanges = set(exchanges) - set(get_config_loader().list_exchanges())
         if invalid_exchanges:
             raise ValueError(f"无效的交易所: {invalid_exchanges}")

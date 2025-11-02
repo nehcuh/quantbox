@@ -1,0 +1,358 @@
+# 期货交易时间配置文件
+# 该文件定义了各交易所和品种的交易时间配置
+
+# 默认交易时间模板
+[trading_hours.default]
+pre_market = { start = "08:55", end = "09:00" }
+morning = { start = "09:00", end = "11:30" }
+afternoon = { start = "13:30", end = "15:00" }
+night = { start = "", end = "" }
+has_night_trading = false
+timezone = "Asia/Shanghai"
+
+# 上期所 (SHFE) 交易时间
+[trading_hours.SHFE]
+pre_market = { start = "08:55", end = "09:00" }
+morning = { start = "09:00", end = "11:30" }
+afternoon = { start = "13:30", end = "15:00" }
+night = { start = "21:00", end = "23:00" }
+has_night_trading = true
+timezone = "Asia/Shanghai"
+
+# 上期所特定品种交易时间
+[trading_hours."SHFE.au"]
+pre_market = { start = "20:55", end = "21:00" }
+morning = { start = "09:00", end = "11:30" }
+afternoon = { start = "13:30", end = "15:00" }
+night = { start = "21:00", end = "02:30" }
+has_night_trading = true
+timezone = "Asia/Shanghai"
+
+[trading_hours."SHFE.ag"]
+pre_market = { start = "20:55", end = "21:00" }
+morning = { start = "09:00", end = "11:30" }
+afternoon = { start = "13:30", end = "15:00" }
+night = { start = "21:00", end = "02:30" }
+has_night_trading = true
+timezone = "Asia/Shanghai"
+
+[trading_hours."SHFE.cu"]
+pre_market = { start = "20:55", end = "21:00" }
+morning = { start = "09:00", end = "11:30" }
+afternoon = { start = "13:30", end = "15:00" }
+night = { start = "21:00", end = "01:00" }
+has_night_trading = true
+timezone = "Asia/Shanghai"
+
+[trading_hours."SHFE.al"]
+pre_market = { start = "20:55", end = "21:00" }
+morning = { start = "09:00", end = "11:30" }
+afternoon = { start = "13:30", end = "15:00" }
+night = { start = "21:00", end = "01:00" }
+has_night_trading = true
+timezone = "Asia/Shanghai"
+
+[trading_hours."SHFE.zn"]
+pre_market = { start = "20:55", end = "21:00" }
+morning = { start = "09:00", end = "11:30" }
+afternoon = { start = "13:30", end = "15:00" }
+night = { start = "21:00", end = "01:00" }
+has_night_trading = true
+timezone = "Asia/Shanghai"
+
+[trading_hours."SHFE.pb"]
+pre_market = { start = "20:55", end = "21:00" }
+morning = { start = "09:00", end = "11:30" }
+afternoon = { start = "13:30", end = "15:00" }
+night = { start = "21:00", end = "01:00" }
+has_night_trading = true
+timezone = "Asia/Shanghai"
+
+[trading_hours."SHFE.ni"]
+pre_market = { start = "20:55", end = "21:00" }
+morning = { start = "09:00", end = "11:30" }
+afternoon = { start = "13:30", end = "15:00" }
+night = { start = "21:00", end = "01:00" }
+has_night_trading = true
+timezone = "Asia/Shanghai"
+
+[trading_hours."SHFE.sn"]
+pre_market = { start = "20:55", end = "21:00" }
+morning = { start = "09:00", end = "11:30" }
+afternoon = { start = "13:30", end = "15:00" }
+night = { start = "21:00", end = "01:00" }
+has_night_trading = true
+timezone = "Asia/Shanghai"
+
+[trading_hours."SHFE.ru"]
+pre_market = { start = "20:55", end = "21:00" }
+morning = { start = "09:00", end = "11:30" }
+afternoon = { start = "13:30", end = "15:00" }
+night = { start = "21:00", end = "23:00" }
+has_night_trading = true
+timezone = "Asia/Shanghai"
+
+[trading_hours."SHFE.bu"]
+pre_market = { start = "20:55", end = "21:00" }
+morning = { start = "09:00", end = "11:30" }
+afternoon = { start = "13:30", end = "15:00" }
+night = { start = "21:00", end = "23:00" }
+has_night_trading = true
+timezone = "Asia/Shanghai"
+
+[trading_hours."SHFE.fu"]
+pre_market = { start = "20:55", end = "21:00" }
+morning = { start = "09:00", end = "11:30" }
+afternoon = { start = "13:30", end = "15:00" }
+night = { start = "21:00", end = "23:00" }
+has_night_trading = true
+timezone = "Asia/Shanghai"
+
+# 大商所 (DCE) 交易时间
+[trading_hours.DCE]
+pre_market = { start = "08:55", end = "09:00" }
+morning = { start = "09:00", end = "11:30" }
+afternoon = { start = "13:30", end = "15:00" }
+night = { start = "21:00", end = "23:00" }
+has_night_trading = true
+timezone = "Asia/Shanghai"
+
+# 大商所特定品种交易时间
+[trading_hours."DCE.i"]
+pre_market = { start = "20:55", end = "21:00" }
+morning = { start = "09:00", end = "11:30" }
+afternoon = { start = "13:30", end = "15:00" }
+night = { start = "21:00", end = "23:00" }
+has_night_trading = true
+timezone = "Asia/Shanghai"
+
+[trading_hours."DCE.j"]
+pre_market = { start = "20:55", end = "21:00" }
+morning = { start = "09:00", end = "11:30" }
+afternoon = { start = "13:30", end = "15:00" }
+night = { start = "21:00", end = "23:00" }
+has_night_trading = true
+timezone = "Asia/Shanghai"
+
+[trading_hours."DCE.jm"]
+pre_market = { start = "20:55", end = "21:00" }
+morning = { start = "09:00", end = "11:30" }
+afternoon = { start = "13:30", end = "15:00" }
+night = { start = "21:00", end = "23:00" }
+has_night_trading = true
+timezone = "Asia/Shanghai"
+
+[trading_hours."DCE.a"]
+pre_market = { start = "08:55", end = "09:00" }
+morning = { start = "09:00", end = "11:30" }
+afternoon = { start = "13:30", end = "15:00" }
+night = { start = "", end = "" }
+has_night_trading = false
+timezone = "Asia/Shanghai"
+
+[trading_hours."DCE.c"]
+pre_market = { start = "08:55", end = "09:00" }
+morning = { start = "09:00", end = "11:30" }
+afternoon = { start = "13:30", end = "15:00" }
+night = { start = "", end = "" }
+has_night_trading = false
+timezone = "Asia/Shanghai"
+
+[trading_hours."DCE.y"]
+pre_market = { start = "08:55", end = "09:00" }
+morning = { start = "09:00", end = "11:30" }
+afternoon = { start = "13:30", end = "15:00" }
+night = { start = "", end = "" }
+has_night_trading = false
+timezone = "Asia/Shanghai"
+
+[trading_hours."DCE.m"]
+pre_market = { start = "08:55", end = "09:00" }
+morning = { start = "09:00", end = "11:30" }
+afternoon = { start = "13:30", end = "15:00" }
+night = { start = "", end = "" }
+has_night_trading = false
+timezone = "Asia/Shanghai"
+
+[trading_hours."DCE.jd"]
+pre_market = { start = "08:55", end = "09:00" }
+morning = { start = "09:00", end = "11:30" }
+afternoon = { start = "13:30", end = "15:00" }
+night = { start = "", end = "" }
+has_night_trading = false
+timezone = "Asia/Shanghai"
+
+# 郑商所 (CZCE) 交易时间
+[trading_hours.CZCE]
+pre_market = { start = "08:55", end = "09:00" }
+morning = { start = "09:00", end = "11:30" }
+afternoon = { start = "13:30", end = "15:00" }
+night = { start = "21:00", end = "23:00" }
+has_night_trading = true
+timezone = "Asia/Shanghai"
+
+# 郑商所特定品种交易时间
+[trading_hours."CZCE.SR"]
+pre_market = { start = "20:55", end = "21:00" }
+morning = { start = "09:00", end = "11:30" }
+afternoon = { start = "13:30", end = "15:00" }
+night = { start = "21:00", end = "23:00" }
+has_night_trading = true
+timezone = "Asia/Shanghai"
+
+[trading_hours."CZCE.CF"]
+pre_market = { start = "20:55", end = "21:00" }
+morning = { start = "09:00", end = "11:30" }
+afternoon = { start = "13:30", end = "15:00" }
+night = { start = "21:00", end = "23:00" }
+has_night_trading = true
+timezone = "Asia/Shanghai"
+
+[trading_hours."CZCE.TA"]
+pre_market = { start = "20:55", end = "21:00" }
+morning = { start = "09:00", end = "11:30" }
+afternoon = { start = "13:30", end = "15:00" }
+night = { start = "21:00", end = "23:00" }
+has_night_trading = true
+timezone = "Asia/Shanghai"
+
+[trading_hours."CZCE.MA"]
+pre_market = { start = "20:55", end = "21:00" }
+morning = { start = "09:00", end = "11:30" }
+afternoon = { start = "13:30", end = "15:00" }
+night = { start = "21:00", end = "23:00" }
+has_night_trading = true
+timezone = "Asia/Shanghai"
+
+[trading_hours."CZCE.RM"]
+pre_market = { start = "20:55", end = "21:00" }
+morning = { start = "09:00", end = "11:30" }
+afternoon = { start = "13:30", end = "15:00" }
+night = { start = "21:00", end = "23:00" }
+has_night_trading = true
+timezone = "Asia/Shanghai"
+
+[trading_hours."CZCE.OI"]
+pre_market = { start = "20:55", end = "21:00" }
+morning = { start = "09:00", end = "11:30" }
+afternoon = { start = "13:30", end = "15:00" }
+night = { start = "21:00", end = "23:00" }
+has_night_trading = true
+timezone = "Asia/Shanghai"
+
+[trading_hours."CZCE.FG"]
+pre_market = { start = "20:55", end = "21:00" }
+morning = { start = "09:00", end = "11:30" }
+afternoon = { start = "13:30", end = "15:00" }
+night = { start = "21:00", end = "23:00" }
+has_night_trading = true
+timezone = "Asia/Shanghai"
+
+[trading_hours."CZCE.SF"]
+pre_market = { start = "20:55", end = "21:00" }
+morning = { start = "09:00", end = "11:30" }
+afternoon = { start = "13:30", end = "15:00" }
+night = { start = "21:00", end = "23:00" }
+has_night_trading = true
+timezone = "Asia/Shanghai"
+
+[trading_hours."CZCE.SM"]
+pre_market = { start = "20:55", end = "21:00" }
+morning = { start = "09:00", end = "11:30" }
+afternoon = { start = "13:30", end = "15:00" }
+night = { start = "21:00", end = "23:00" }
+has_night_trading = true
+timezone = "Asia/Shanghai"
+
+[trading_hours."CZCE.ZC"]
+pre_market = { start = "20:55", end = "21:00" }
+morning = { start = "09:00", end = "11:30" }
+afternoon = { start = "13:30", end = "15:00" }
+night = { start = "21:00", end = "23:00" }
+has_night_trading = true
+timezone = "Asia/Shanghai"
+
+# 中金所 (CFFEX) 交易时间
+[trading_hours.CFFEX]
+pre_market = { start = "09:25", end = "09:30" }
+morning = { start = "09:30", end = "11:30" }
+afternoon = { start = "13:00", end = "15:00" }
+night = { start = "", end = "" }
+has_night_trading = false
+timezone = "Asia/Shanghai"
+
+# 上期能源 (INE) 交易时间
+[trading_hours.INE]
+pre_market = { start = "08:55", end = "09:00" }
+morning = { start = "09:00", end = "11:30" }
+afternoon = { start = "13:30", end = "15:00" }
+night = { start = "21:00", end = "02:30" }
+has_night_trading = true
+timezone = "Asia/Shanghai"
+
+# 上期能源特定品种交易时间
+[trading_hours."INE.sc"]
+pre_market = { start = "20:55", end = "21:00" }
+morning = { start = "09:00", end = "11:30" }
+afternoon = { start = "13:30", end = "15:00" }
+night = { start = "21:00", end = "02:30" }
+has_night_trading = true
+timezone = "Asia/Shanghai"
+
+[trading_hours."INE.lu"]
+pre_market = { start = "20:55", end = "21:00" }
+morning = { start = "09:00", end = "11:30" }
+afternoon = { start = "13:30", end = "15:00" }
+night = { start = "21:00", end = "23:00" }
+has_night_trading = true
+timezone = "Asia/Shanghai"
+
+[trading_hours."INE.bc"]
+pre_market = { start = "20:55", end = "21:00" }
+morning = { start = "09:00", end = "11:30" }
+afternoon = { start = "13:30", end = "15:00" }
+night = { start = "21:00", end = "23:00" }
+has_night_trading = true
+timezone = "Asia/Shanghai"
+
+[trading_hours."INE.nr"]
+pre_market = { start = "20:55", end = "21:00" }
+morning = { start = "09:00", end = "11:30" }
+afternoon = { start = "13:30", end = "15:00" }
+night = { start = "21:00", end = "23:00" }
+has_night_trading = true
+timezone = "Asia/Shanghai"
+
+# 广期所 (GFEX) 交易时间
+[trading_hours.GFEX]
+pre_market = { start = "08:55", end = "09:00" }
+morning = { start = "09:00", end = "11:30" }
+afternoon = { start = "13:30", end = "15:00" }
+night = { start = "21:00", end = "23:00" }
+has_night_trading = true
+timezone = "Asia/Shanghai"
+
+# 股票交易时间
+[trading_hours.stock]
+pre_market = { start = "09:15", end = "09:30" }
+morning = { start = "09:30", end = "11:30" }
+afternoon = { start = "13:00", end = "15:00" }
+night = { start = "", end = "" }
+has_night_trading = false
+timezone = "Asia/Shanghai"
+
+# 特殊节假日交易时间调整
+[holiday_adjustments.spring_festival]
+description = "春节期间部分品种调整交易时间"
+adjustments = [
+    { exchange = "DCE", date_range = "春节前3天", morning_end = "11:00", afternoon_start = "13:30" },
+    { exchange = "CZCE", date_range = "春节前3天", morning_end = "11:00", afternoon_start = "13:30" }
+]
+
+# 国庆节期间交易时间调整
+[holiday_adjustments.national_day]
+description = "国庆节期间部分品种调整交易时间"
+adjustments = [
+    { exchange = "DCE", date_range = "国庆节前1天", morning_end = "11:00", afternoon_start = "13:30" },
+    { exchange = "CZCE", date_range = "国庆节前1天", morning_end = "11:00", afternoon_start = "13:30" }
+]
