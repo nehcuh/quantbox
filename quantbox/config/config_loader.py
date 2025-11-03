@@ -319,13 +319,13 @@ class ConfigLoader:
         import pymongo
         import os
 
-        # 从环境变量或配置获取 MongoDB URI
+        # 从环境变量或用户配置获取 MongoDB URI
         mongodb_uri = os.getenv('MONGODB_URI', 'mongodb://localhost:27017')
 
         try:
-            config = self.load_config('exchanges')
-            if 'mongodb' in config:
-                mongodb_uri = config['mongodb'].get('uri', mongodb_uri)
+            config = self._load_user_config()
+            if 'MONGODB' in config:
+                mongodb_uri = config['MONGODB'].get('uri', mongodb_uri)
         except:
             pass
 
@@ -335,42 +335,78 @@ class ConfigLoader:
         """获取 MongoDB URI"""
         import os
 
-        # 从环境变量或配置获取 MongoDB URI
+        # 从环境变量或用户配置获取 MongoDB URI
         mongodb_uri = os.getenv('MONGODB_URI', 'mongodb://localhost:27017')
 
         try:
-            config = self.load_config('exchanges')
-            if 'mongodb' in config:
-                mongodb_uri = config['mongodb'].get('uri', mongodb_uri)
+            config = self._load_user_config()
+            if 'MONGODB' in config:
+                mongodb_uri = config['MONGODB'].get('uri', mongodb_uri)
         except:
             pass
 
         return mongodb_uri
 
     def get_tushare_token(self):
-        """获取 Tushare token"""
+        """获取 Tushare Pro token"""
         try:
-            config = self.load_config('exchanges')
-            if 'tushare' in config:
-                return config['tushare'].get('token')
+            config = self._load_user_config()
+            if 'TSPRO' in config:
+                return config['TSPRO'].get('token')
         except Exception as e:
-            logger.error(f"获取 Tushare token 失败: {e}")
+            logger.error(f"获取 Tushare Pro token 失败: {e}")
             return None
 
     def get_tushare_pro(self):
-        """获取 Tushare Pro 接口"""
+        """获取 Tushare Pro 接口实例"""
         import tushare as ts
         token = self.get_tushare_token()
         if token:
             return ts.pro_api(token)
-        return None
+        else:
+            logger.warning("未找到有效的 Tushare Pro token，请检查 ~/.quantbox/settings/config.toml 配置")
+            return None
+
+    def _load_user_config(self) -> Dict[str, Any]:
+        """
+        加载用户配置文件
+
+        优先加载 ~/.quantbox/settings/config.toml，如果不存在则初始化配置
+
+        Returns:
+            Dict[str, Any]: 配置数据
+        """
+        from pathlib import Path
+
+        # 用户配置目录
+        user_config_dir = Path.home() / ".quantbox" / "settings"
+        user_config_file = user_config_dir / "config.toml"
+
+        # 如果配置文件不存在，初始化用户配置
+        if not user_config_file.exists():
+            logger.info("检测到用户配置文件不存在，正在初始化...")
+            from ..user_config import init_user_config
+            success = init_user_config(user_config_dir=user_config_dir)
+            if not success:
+                logger.error("用户配置初始化失败")
+                return {}
+
+        # 加载配置
+        try:
+            import toml
+            with open(user_config_file, 'r', encoding='utf-8') as f:
+                config = toml.load(f)
+            return config
+        except Exception as e:
+            logger.error(f"加载用户配置文件失败: {e}")
+            return {}
 
     def get_gm_token(self):
         """获取掘金 token"""
         try:
-            config = self.load_config('exchanges')
-            if 'goldminer' in config:
-                return config['goldminer'].get('token')
+            config = self._load_user_config()
+            if 'GM' in config:
+                return config['GM'].get('token')
         except Exception as e:
             logger.error(f"获取掘金 token 失败: {e}")
             return None

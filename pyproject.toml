@@ -43,6 +43,7 @@ build = [
 quantbox = "quantbox.shell:main"
 quantbox-save = "quantbox.savers.data_saver:save_data"
 quantbox-gui = "scripts.run_gui:main"
+quantbox-config = "quantbox.user_config:main"
 
 [build-system]
 requires = ["hatchling"]

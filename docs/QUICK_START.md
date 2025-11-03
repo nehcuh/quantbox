@@ -25,33 +25,47 @@ pip install -e .
 
 ## 配置
 
-### 1. 设置 Tushare Token
+### 配置（自动初始化）
 
-```bash
-# 方式1：环境变量 (推荐)
-export TUSHARE_TOKEN="your_tushare_token_here"
+Quantbox 会在首次使用时自动初始化配置，您只需要：
 
-# 方式2：配置文件
-# 编辑 ~/.quantbox/config.yml 或 quantbox/config/config.yml
-tushare:
-  token: "your_tushare_token_here"
+1. **首次运行** - 系统会自动创建配置文件并显示说明
+2. **设置 Token** - 编辑生成的配置文件，填入您的 API tokens
+
+#### 自动配置示例
+
+```python
+# 首次运行会自动初始化配置
+from quantbox.fetchers import TSFetcher
+fetcher = TSFetcher()  # 自动创建配置文件
 ```
 
-### 2. 配置 MongoDB (可选)
+#### 手动配置（可选）
+
+如需重新初始化配置：
 
 ```bash
-# 方式1：环境变量
-export MONGO_HOST="localhost"
-export MONGO_PORT="27017"
-export MONGO_DB="quantbox"
+quantbox-config
+```
 
-# 方式2：配置文件
-mongodb:
-  host: localhost
-  port: 27017
-  database: quantbox
-  username: ""
-  password: ""
+#### 配置 Token
+
+1. **获取 Tushare Pro token**：
+   - 访问 https://tushare.pro/register
+   - 登录后获取 token
+   - 编辑 `~/.quantbox/settings/config.toml`
+   - 将 token 填入 `[TSPRO]` 部分
+
+2. **配置文件格式**：
+```toml
+[TSPRO]
+token = "your_tushare_token_here"
+
+[GM]
+token = ""
+
+[MONGODB]
+uri = "mongodb://localhost:27017"
 ```
 
 如果不配置 MongoDB，系统将只使用远程数据源 (Tushare)。

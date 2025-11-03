@@ -81,16 +81,44 @@ pip install -e .
 
 ### 配置
 
-创建配置文件 `~/.quantbox/config.toml`：
+Quantbox 会在首次使用时自动初始化配置文件，无需手动创建。
+
+#### 自动配置
+
+首次运行时，系统会自动：
+1. 创建配置目录：`~/.quantbox/settings/`
+2. 生成配置文件：`~/.quantbox/settings/config.toml`
+3. 显示配置说明和下一步操作
+
+#### 手动配置（可选）
+
+如需重新初始化配置，可运行：
+
+```bash
+# 初始化配置
+quantbox-config
+
+# 强制覆盖现有配置
+quantbox-config --force
+
+# 使用自定义配置目录
+quantbox-config --config-dir /path/to/config
+```
+
+#### 配置文件格式
 
 ```toml
-[tushare]
+# Tushare Pro API 配置
+[TSPRO]
 token = "your_tushare_token_here"
 
-[mongodb]
-host = "localhost"
-port = 27017
-database = "quantbox"
+# 掘金量化 API 配置
+[GM]
+token = ""
+
+# MongoDB 数据库配置
+[MONGODB]
+uri = "mongodb://localhost:27017"
 ```
 
 ### 启动 MongoDB
@@ -275,6 +303,7 @@ data = fetcher.fetch_get_trade_dates(exchanges="SSE")
 5. 创建 Pull Request
 
 请确保：
+
 - 所有测试通过
 - 新增代码有相应的测试
 - 遵循项目编码规范

@@ -13,6 +13,8 @@ from quantbox.util.tools import util_format_future_symbols
 from quantbox.fetchers.monitoring import PerformanceMonitor, monitor_performance
 from quantbox.fetchers.cache import cache_result
 from quantbox.fetchers.utils import QueryBuilder, DateRangeValidator, ExchangeValidator
+from quantbox.util.exchange_utils import STANDARD_EXCHANGES, STOCK_EXCHANGES, FUTURES_EXCHANGES
+from quantbox.config.config_loader import get_config_loader
 
 
 class LocalBaseFetcher(ABC):
@@ -125,11 +127,12 @@ class LocalFetcher(LocalBaseFetcher):
     """
     def __init__(self):
         super().__init__()
-        self.exchanges = EXCHANGES.copy()
+        config_loader = get_config_loader()
+        self.exchanges = STANDARD_EXCHANGES.copy()
         self.stock_exchanges = STOCK_EXCHANGES.copy()
-        self.future_exchanges = FUTURE_EXCHANGES.copy()
-        self.client = DATABASE
-        self.default_start = DEFAULT_START
+        self.future_exchanges = FUTURES_EXCHANGES.copy()
+        self.client = config_loader.get_mongodb_client().quantbox
+        self.default_start = "1990-12-19"  # 默认起始日期
         self.monitor = PerformanceMonitor(slow_query_threshold=2.0)  # 设置 2 秒为慢查询阈值
 
     @cache_result(ttl=3600)  # 缓存 1 小时，因为交易日历数据变化不频繁
