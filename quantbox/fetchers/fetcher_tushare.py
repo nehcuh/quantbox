@@ -7,8 +7,12 @@ from typing import List, Optional, Union, Dict, Any, Tuple
 import pandas as pd
 import numpy as np
 
-from ..config.config_loader import get_config_loader
-from ..util.exchange_utils import validate_exchanges
+from ..config.config_loader import get_config_loader, list_futures_exchanges
+from ..util.exchange_utils import (
+    validate_exchanges,
+    get_exchange_for_data_source,
+    convert_exchanges_for_data_source
+)
 from ..util.date_utils import date_to_int, int_to_date_str, util_make_date_stamp
 from ..util.tools import util_format_stock_symbols, util_format_future_symbols
 from .local_fetcher import LocalFetcher
@@ -231,41 +235,50 @@ class TSFetcher(BaseFetcher):
             pd.DataFrame: 合并后的交易日历数据
         """
         try:
+            # 转换为 Tushare 格式（convert_exchanges_for_data_source 内部已包含验证）
+            tushare_exchanges = convert_exchanges_for_data_source(exchanges, "tushare")
+            # 获取标准化的交易所代码用于日志记录
+            standard_exchanges = validate_exchanges(exchanges)
+
             # 找出最早的开始日期和最晚的结束日期
             min_start = min(start_dates)
             max_end = max(end_dates)
 
-            # 获取完整日期范围数据，包含速率限制
-            df = self._api_call_with_rate_limit(
-                self.pro.trade_cal,
-                exchange='',
-                start_date=str(min_start),
-                end_date=str(max_end),
-                is_open='1'
-            )
+            df_list = []
+            # 为每个交易所分别获取数据，确保使用正确的交易所格式
+            for i, tushare_exchange in enumerate(tushare_exchanges):
+                try:
+                    original_exchange = standard_exchanges[i]
+                    # 获取特定交易所的交易日历数据
+                    df = self._api_call_with_rate_limit(
+                        self.pro.trade_cal,
+                        exchange=tushare_exchange,
+                        start_date=str(min_start),
+                        end_date=str(max_end),
+                        is_open='1'
+                    )
 
-            if df.empty:
+                    if df.empty:
+                        continue
+
+                    # 重命名列并添加交易所信息
+                    df = df.rename(columns={
+                        'cal_date': 'date_int',
+                        'pretrade_date': 'pretrade_date'
+                    })
+                    df['exchange'] = original_exchange  # 使用标准化的交易所代码
+                    df['date_int'] = df['date_int'].astype(int)
+
+                    df_list.append(df)
+
+                except Exception as e:
+                    logger.warning(f"Failed to fetch trade calendar for exchange {original_exchange}: {str(e)}")
+                    continue
+
+            if not df_list:
                 return pd.DataFrame()
 
-            # 重命名列
-            df = df.rename(columns={
-                'cal_date': 'date_int',
-                'pretrade_date': 'pretrade_date'
-            })
-
-            # 确保日期是整数类型
-            df['date_int'] = df['date_int'].astype(int)
-
-            # 添加交易所列
-            exchanges = validate_exchanges(exchanges)
-
-            # 为每个交易所创建行来展开数据
-            df_list = []
-            for exchange in exchanges:
-                df_exchange = df.copy()
-                df_exchange['exchange'] = exchange
-                df_list.append(df_exchange)
-
+            # 合并所有交易所的数据
             df = pd.concat(df_list, ignore_index=True)
 
             # 使用统一的日期格式化函数
@@ -274,8 +287,8 @@ class TSFetcher(BaseFetcher):
                 lambda x: int_to_date_str(int(x)) if pd.notna(x) else None
             )
 
-            # 使用向量化操作添加时间戳
-            df['datestamp'] = pd.to_datetime(df['trade_date']).astype(int) // 10**9
+            # 使用项目的日期工具函数添加时间戳（性能更好）
+            df['datestamp'] = df['trade_date'].apply(util_make_date_stamp)
 
             return df[['exchange', 'trade_date', 'pretrade_date', 'datestamp', 'date_int']]
 
@@ -564,10 +577,10 @@ class TSFetcher(BaseFetcher):
         fields: Optional[str] = None
     ) -> pd.DataFrame:
         """
-        Fetch stocks by exchanges
+        Fetch stocks by exchanges with proper format conversion
 
         Args:
-            exchanges: Exchange codes or list of exchange codes
+            exchanges: Exchange codes or list of exchange codes (standard format)
             list_status: Listing status
             is_hs: Whether it's a Shanghai-Hong Kong Stock Connect stock
             fields: Fields to return
@@ -575,18 +588,36 @@ class TSFetcher(BaseFetcher):
         Returns:
             DataFrame of stock information
         """
-        if isinstance(exchanges, str):
-            exchanges = exchanges.split(",")
+        try:
+            # 转换为 Tushare 格式（convert_exchanges_for_data_source 内部已包含验证）
+            tushare_exchanges = convert_exchanges_for_data_source(exchanges, "tushare")
+            # 获取标准化的交易所代码用于日志记录
+            standard_exchanges = validate_exchanges(exchanges)
 
-        results = pd.DataFrame()
-        for exchange in exchanges:
-            try:
-                df = self._fetch_single_exchange_data(exchange, list_status, is_hs)
-                results = pd.concat([results, df], axis=0, ignore_index=True)
-            except Exception as e:
-                self._handle_error(e, f"Failed to fetch stocks for exchange: {exchange}")
+            results = pd.DataFrame()
+            for i, exchange in enumerate(tushare_exchanges):
+                try:
+                    original_exchange = standard_exchanges[i]
+                    df = self._fetch_single_exchange_data(exchange, list_status, is_hs)
+                    logger.debug(f"Successfully fetched stocks for exchange: {original_exchange} -> {exchange}")
+                    results = pd.concat([results, df], axis=0, ignore_index=True)
+                except Exception as e:
+                    self._handle_error(e, f"Failed to fetch stocks for exchange: {original_exchange}", reraise=False)
 
-        return results[fields] if fields else results
+            # Filter fields if specified
+            if fields:
+                if isinstance(fields, str):
+                    field_list = [f.strip() for f in fields.split(',')]
+                else:
+                    field_list = fields
+                # Only return columns that exist in the DataFrame
+                available_fields = [f for f in field_list if f in results.columns]
+                return results[available_fields] if available_fields else results
+            else:
+                return results
+
+        except Exception as e:
+            self._handle_error(e, "fetch_stocks_by_exchanges")
 
     def _fetch_single_exchange_data(
         self,
@@ -598,35 +629,44 @@ class TSFetcher(BaseFetcher):
         Fetch data for a single exchange
 
         Args:
-            exchange: Exchange code
+            exchange: Exchange code (already converted to Tushare format)
             list_status: Listing status
             is_hs: Whether it's a Shanghai-Hong Kong Stock Connect stock
 
         Returns:
             DataFrame of stock information for the exchange
         """
-        if list_status:
-            return self.pro.stock_basic(
-                exchange=exchange,
-                list_status=list_status,
-                is_hs=is_hs
-            )
-        else:
-            # Fetch all listing statuses
-            statuses = ["L", "D", "P"]
-            results = pd.DataFrame()
-            for status in statuses:
-                try:
-                    df = self.pro.stock_basic(
-                        exchange=exchange,
-                        list_status=status,
-                        is_hs=is_hs
-                    )
-                    results = pd.concat([results, df], axis=0, ignore_index=True)
-                except Exception:
-                    # Skip if no data for this status
-                    continue
-            return results
+        try:
+            if list_status:
+                result = self._api_call_with_rate_limit(
+                    self.pro.stock_basic,
+                    exchange=exchange,
+                    list_status=list_status,
+                    is_hs=is_hs
+                )
+            else:
+                # Fetch all listing statuses
+                statuses = ["L", "D", "P"]
+                results = pd.DataFrame()
+                for status in statuses:
+                    try:
+                        df = self._api_call_with_rate_limit(
+                            self.pro.stock_basic,
+                            exchange=exchange,
+                            list_status=status,
+                            is_hs=is_hs
+                        )
+                        results = pd.concat([results, df], axis=0, ignore_index=True)
+                    except Exception:
+                        # Skip if no data for this status
+                        continue
+                result = results
+
+            return result if not result.empty else pd.DataFrame()
+
+        except Exception as e:
+            logger.error(f"Failed to fetch data for exchange {exchange}: {str(e)}")
+            return pd.DataFrame()
 
     def _fetch_all_stocks(
         self,
@@ -634,7 +674,7 @@ class TSFetcher(BaseFetcher):
         fields: Optional[str] = None
     ) -> pd.DataFrame:
         """
-        Fetch all stocks
+        Fetch all stocks with API rate limiting
 
         Args:
             list_status: Listing status
@@ -645,21 +685,30 @@ class TSFetcher(BaseFetcher):
         """
         try:
             if list_status:
-                return self.pro.stock_basic(list_status=list_status)
+                result = self._api_call_with_rate_limit(
+                    self.pro.stock_basic,
+                    list_status=list_status
+                )
             else:
                 # Fetch all listing statuses
                 statuses = ["L", "D", "P"]
                 results = pd.DataFrame()
                 for status in statuses:
                     try:
-                        df = self.pro.stock_basic(list_status=status)
+                        df = self._api_call_with_rate_limit(
+                            self.pro.stock_basic,
+                            list_status=status
+                        )
                         results = pd.concat([results, df], axis=0, ignore_index=True)
                     except Exception:
                         # Skip if no data for this status
                         continue
-                return results[fields] if fields else results
+                result = results
+
+            return result[fields] if fields else result
+
         except Exception as e:
-            self._handle_error(e, "Failed to fetch all stocks")
+            self._handle_error(e, "fetch_all_stocks")
             return pd.DataFrame()
 
     def fetch_get_stock_list(
@@ -740,15 +789,19 @@ class TSFetcher(BaseFetcher):
             self._handle_error(e, "fetch_get_stock_list")
 
     def fetch_get_future_contracts(
-        fields: Optional[List[str]] = None,
+        self,
+        exchange: Optional[str] = None,
+        spec_name: Optional[Union[str, List[str]]] = None,
+        cursor_date: Optional[Union[str, int, datetime.datetime]] = None,
+        fields: Optional[List[str]] = None
     ) -> pd.DataFrame:
         """
         Fetch future contract information from TuShare.
         从 Tushare 获取期货合约信息。
 
         Args:
-            exchange: Exchange to fetch data from, defaults to DCE
-                    要获取数据的交易所，默认为大商所
+            exchange: Exchange to fetch data from, defaults to first futures exchange in config
+                    要获取数据的交易所，默认为配置中的第一个期货交易所
                 Supported: ['SHFE', 'DCE', 'CFFEX', 'CZCE', 'INE']
                 支持: ['SHFE', 'DCE', 'CFFEX', 'CZCE', 'INE']
             spec_name: Chinese name of contract, defaults to None to fetch all
@@ -774,28 +827,42 @@ class TSFetcher(BaseFetcher):
             RuntimeError: If API call fails
                         当API调用失败时
         """
-        # 确保必要字段存在
-        required_fields = ["list_date", "delist_date", "name", "ts_code"]
-        if fields:
-            fields.extend([f for f in required_fields if f not in fields])
-            # 获取合约信息，没有必要导入主力和连续合约，压根没有 list_date 和 delist_date
-            data = self.pro.fut_basic(exchange=exchange, fut_type="1", fields=fields)
-        else:
-            data = self.pro.fut_basic(exchange=exchange, fut_type="1")
+        try:
+            # 如果没有指定交易所，使用配置中的第一个期货交易所
+            if exchange is None:
+                futures_exchanges = list_futures_exchanges()
+                exchange = futures_exchanges[0] if futures_exchanges else "DCE"
 
-        # 处理日期
-        for date_col in ["list_date", "delist_date"]:
-            data[f"{date_col}stamp"] = pd.to_datetime(data[date_col].astype(str)).astype(np.int64) // 10**9
-            data[date_col] = pd.to_datetime(data[date_col]).dt.strftime("%Y-%m-%d")
+            # 转换为 Tushare 格式（convert_exchanges_for_data_source 内部已包含验证）
+            tushare_exchanges = convert_exchanges_for_data_source(exchange, "tushare")
+            tushare_exchange = tushare_exchanges[0] if tushare_exchanges else exchange
 
-        # 提取中文名称
-        data["chinese_name"] = data["name"].str.extract(r'(.+?)(?=\d{3,})')
-        
-        # 处理合约代码
-        data["qbcode"] = data["ts_code"].str.split(".").str[0]
-        if exchange not in ["CZCE", "CFFEX"]:
-            # Tushare 中 symbol 都默认使用大写了，与交易所实际不一致，做特殊处理
-            data["symbol"] = data["symbol"].str.lower()
+            logger.debug(f"Fetching future contracts: {exchange} -> {tushare_exchange}")
+
+            # 确保必要字段存在
+            required_fields = ["list_date", "delist_date", "name", "ts_code"]
+            if fields:
+                fields.extend([f for f in required_fields if f not in fields])
+                # 获取合约信息，没有必要导入主力和连续合约，压根没有 list_date 和 delist_date
+                data = self._api_call_with_rate_limit(
+                    self.pro.fut_basic,
+                    exchange=tushare_exchange,
+                    fut_type="1",
+                    fields=fields
+                )
+            else:
+                data = self._api_call_with_rate_limit(
+                    self.pro.fut_basic,
+                    exchange=tushare_exchange,
+                    fut_type="1"
+                )
+
+        except Exception as e:
+            logger.error(f"Failed to fetch future contracts for exchange {exchange}: {str(e)}")
+            return pd.DataFrame()
+
+        # 使用标准化函数处理期货合约数据
+        data = self._standardize_future_contract_data(data, exchange)
 
         # 按品种名称过滤
         if spec_name:
@@ -817,7 +884,107 @@ class TSFetcher(BaseFetcher):
 
         return data
 
-    
+    def _standardize_future_contract_data(
+        self,
+        data: pd.DataFrame,
+        exchange: str
+    ) -> pd.DataFrame:
+        """
+        标准化期货合约数据格式
+
+        Args:
+            data: 原始期货合约数据
+            exchange: 标准化的交易所代码
+
+        Returns:
+            pd.DataFrame: 标准化后的期货合约数据
+        """
+        if data.empty:
+            return data
+
+        # 处理日期 - 使用项目的日期工具函数替代 pd.to_datetime
+        for date_col in ["list_date", "delist_date"]:
+            if date_col in data.columns:
+                # 使用项目的日期工具函数，性能更好
+                data[f"{date_col}stamp"] = data[date_col].apply(lambda x: util_make_date_stamp(x) if pd.notna(x) else None)
+                data[date_col] = data[f"{date_col}stamp"].apply(lambda x: int_to_date_str(x) if x is not None else None)
+
+        # 提取中文名称
+        data["chinese_name"] = data["name"].str.extract(r'(.+?)(?=\d{3,})')
+
+        # 使用项目工具函数标准化合约代码
+        if "ts_code" in data.columns:
+            # 使用 util_format_future_symbols 进行标准化处理
+            data["qbcode"] = data["ts_code"].apply(
+                lambda x: util_format_future_symbols(x, format="standard", include_exchange=False)[0]
+                if pd.notna(x) else x
+            )
+
+        # 使用配置模块进行交易所代码大小写处理
+        # 获取交易所特定的大小写规则
+        try:
+            from ..config.config_loader import get_exchange_info
+            exchange_info = get_exchange_info(exchange)
+            # 对于某些交易所，symbol 需要转换为小写（与交易所实际格式一致）
+            if exchange_info["code"] not in ["CZCE", "CFFEX"]:
+                if "symbol" in data.columns:
+                    data["symbol"] = data["symbol"].str.lower()
+        except Exception as e:
+            logger.warning(f"Failed to get exchange info for {exchange}: {e}")
+            # 降级处理：保持原有的硬编码逻辑
+            if exchange not in ["CZCE", "CFFEX"]:
+                if "symbol" in data.columns:
+                    data["symbol"] = data["symbol"].str.lower()
+
+        return data
+
+    def _standardize_future_daily_data(
+        self,
+        data: pd.DataFrame
+    ) -> pd.DataFrame:
+        """
+        标准化期货日线数据格式
+
+        Args:
+            data: 原始期货日线数据
+
+        Returns:
+            pd.DataFrame: 标准化后的期货日线数据
+        """
+        if data.empty:
+            return data
+
+        # 处理日期 - 使用项目的日期工具函数
+        if "trade_date" in data.columns:
+            data["datestamp"] = data["trade_date"].map(str).apply(
+                lambda x: util_make_date_stamp(x)
+            )
+            data["trade_date"] = data["trade_date"].apply(
+                lambda x: int_to_date_str(date_to_int(x)) if pd.notna(x) else None
+            )
+
+        # 处理 ts_code 分解为 symbol 和 exchange
+        if "ts_code" in data.columns:
+            columns = data.columns.tolist()
+
+            # 使用项目工具函数提取 symbol
+            data["symbol"] = data["ts_code"].apply(
+                lambda x: util_format_future_symbols(x, format="standard", include_exchange=False)[0]
+                if pd.notna(x) else x
+            )
+
+            # 使用项目工具函数获取标准交易所代码
+            data["exchange"] = data["ts_code"].apply(
+                lambda x: util_format_future_symbols(x, format="standard", include_exchange=True)[0].split('.')[0]
+                if pd.notna(x) else x
+            )
+
+            # 重新组织列顺序
+            columns = ["symbol", "exchange"] + [col for col in columns if col not in ["symbol", "exchange", "ts_code"]]
+            data = data[columns]
+
+        return data
+
     def fetch_get_holdings(
         self,
         exchanges: Union[List[str], str, None] = None,
@@ -869,20 +1036,8 @@ class TSFetcher(BaseFetcher):
                         当API调用失败时
         """
         try:
-            # Validate and normalize exchanges
-            # 验证并标准化交易所参数
-            if exchanges is None:
-                exchanges = ['SHFE', 'DCE', 'CFFEX', 'CZCE', 'INE']
-            elif isinstance(exchanges, str):
-                exchanges = [ex.strip() for ex in exchanges.split(",")]
-
-            # Validate exchanges
-            # 验证交易所代码
-            invalid_exchanges = [ex for ex in exchanges if ex not in ['SHFE', 'DCE', 'CFFEX', 'CZCE', 'INE']]
-            if invalid_exchanges:
-                raise ValueError(
-                    f"Invalid exchanges: {invalid_exchanges}. Supported exchanges: ['SHFE', 'DCE', 'CFFEX', 'CZCE', 'INE']"
-                )
+            # Convert to Tushare format for API calls (convert_exchanges_for_data_source handles validation internally)
+            tushare_exchanges = convert_exchanges_for_data_source(exchanges or list_futures_exchanges(), "tushare")
 
             # Normalize symbols
             # 标准化合约代码
@@ -907,8 +1062,11 @@ class TSFetcher(BaseFetcher):
                 raise ValueError(f"Start date ({start_date}) must be before end date ({end_date})")
 
             results = []
-            for exchange in exchanges:
+            for i, exchange in enumerate(validated_exchanges):
                 try:
+                    tushare_exchange = tushare_exchanges[i]
+                    logger.debug(f"Processing holdings for exchange: {exchange} -> {tushare_exchange}")
+
                     if start_date is None:
                         # Single date query
                         # 单日查询
@@ -924,10 +1082,11 @@ class TSFetcher(BaseFetcher):
                             try:
                                 # Fetch holdings data
                                 # 获取持仓数据
-                                data = self.pro.fut_holding(
+                                data = self._api_call_with_rate_limit(
+                                    self.pro.fut_holding,
                                     trade_date=trade_date.strftime("%Y%m%d"),
                                     symbol=symbol,
-                                    exchange=exchange,
+                                    exchange=tushare_exchange,
                                 )
 
                                 if not data.empty:
@@ -963,10 +1122,11 @@ class TSFetcher(BaseFetcher):
                                     try:
                                         # Fetch holdings data
                                         # 获取持仓数据
-                                        data = self.pro.fut_holding(
+                                        data = self._api_call_with_rate_limit(
+                                            self.pro.fut_holding,
                                             trade_date=trade_date.strftime("%Y%m%d"),
                                             symbol=symbol,
-                                            exchange=exchange,
+                                            exchange=tushare_exchange,
                                         )
 
                                         if not data.empty:
@@ -1000,7 +1160,10 @@ class TSFetcher(BaseFetcher):
             # Combine results and format dates
             # 合并结果并格式化日期
             result_df = pd.concat(results, axis=0)
-            result_df["trade_date"] = pd.to_datetime(result_df["trade_date"]).dt.strftime("%Y-%m-%d")
+            # 使用项目的日期工具函数进行格式化（性能更好）
+            result_df["trade_date"] = result_df["trade_date"].apply(
+                lambda x: int_to_date_str(date_to_int(x)) if pd.notna(x) else None
+            )
 
             # Ensure column order
             # 确保列顺序
@@ -1126,24 +1289,31 @@ class TSFetcher(BaseFetcher):
                         end_date=pd.Timestamp(str(end_date)).strftime("%Y%m%d"),
                     )
             else:
-                if exchanges is None:
-                    exchanges = ['SHFE', 'DCE', 'CFFEX', 'CZCE', 'INE']
-                elif isinstance(exchanges, str):
-                    exchanges = exchanges.split(",")
+                # Convert to Tushare format for API calls (convert_exchanges_for_data_source handles validation internally)
+                default_futures_exchanges = list_futures_exchanges()
+                tushare_exchanges = convert_exchanges_for_data_source(exchanges or default_futures_exchanges, "tushare")
+                # Get standard exchanges for logging
+                standard_exchanges = validate_exchanges(exchanges or default_futures_exchanges)
+
                 results = pd.DataFrame()
-                for exchange in exchanges:
+                for i, exchange in enumerate(tushare_exchanges):
+                    original_exchange = standard_exchanges[i]
+                    logger.debug(f"Fetching future daily for exchange: {original_exchange} -> {exchange}")
+
                     if fields:
-                        df_local = self.pro.fut_daily(
+                        df_local = self._api_call_with_rate_limit(
+                            self.pro.fut_daily,
                             exchange=exchange,
                             start_date=pd.Timestamp(str(start_date)).strftime("%Y%m%d"),
                             end_date=pd.Timestamp(str(end_date)).strftime("%Y%m%d"),
                             fields=fields,
                         )
                     else:
-                        df_local = self.pro.fut_daily(
+                        df_local = self._api_call_with_rate_limit(
+                            self.pro.fut_daily,
+                            exchange=exchange,
                             start_date=pd.Timestamp(str(start_date)).strftime("%Y%m%d"),
                             end_date=pd.Timestamp(str(end_date)).strftime("%Y%m%d"),
-                            exchange=exchange,
                         )
                     results = pd.concat([results, df_local], axis=0)
         else:
@@ -1168,11 +1338,15 @@ class TSFetcher(BaseFetcher):
                     )
             else:
                 if exchanges is None:
-                    exchanges = ['SHFE', 'DCE', 'CFFEX', 'CZCE', 'INE']
+                    exchanges = list_futures_exchanges()
                 elif isinstance(exchanges, str):
                     exchanges = exchanges.split(",")
+
+                # 转换为 Tushare 格式
+                tushare_exchanges = convert_exchanges_for_data_source(exchanges, "tushare")
+
                 results = pd.DataFrame()
-                for exchange in exchanges:
+                for i, exchange in enumerate(tushare_exchanges):
                     if fields:
                         df_local = self.pro.fut_daily(
                             trade_date=latest_trade_date.replace("-", ""),
@@ -1185,30 +1359,8 @@ class TSFetcher(BaseFetcher):
                             exchange=exchange,
                         )
                     results = pd.concat([results, df_local], axis=0)
-        if "trade_date" in results.columns:
-            results["datestamp"] = results.trade_date.map(str).apply(
-                lambda x: util_make_date_stamp(x)
-            )
-            results.trade_date = pd.to_datetime(results["trade_date"]).dt.strftime(
-                "%Y-%m-%d"
-            )
-        if "ts_code" in results.columns:
-            columns = results.columns.tolist()
-            results["symbol"] = (
-                results.ts_code.map(str).str.split(".").apply(lambda x: x[0])
-            )
-            results["exchange"] = (
-                results.ts_code.map(str).str.split(".").apply(lambda x: x[1])
-            )
-            replace_dict = {
-                r'SHF$': 'SHFE',
-                r'ZCE$': 'CZCE'
-            }
-            results.exchange = results.exchange.replace(replace_dict, regex=True)
-            columns = ["symbol", "exchange"] + columns
-            if "ts_code" in columns:
-                columns.remove("ts_code")
-            results = results[columns]
+        # 使用标准化函数处理期货日线数据
+        results = self._standardize_future_daily_data(results)
         return results
 
 

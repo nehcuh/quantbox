@@ -10,6 +10,9 @@ Exchange utilities
 """
 from typing import Dict, Set, Optional, Union, List
 from enum import Enum
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class ExchangeType(Enum):
@@ -358,3 +361,153 @@ def get_all_exchanges(exchange_type: Optional[str] = None) -> List[str]:
             f"Invalid exchange_type: '{exchange_type}'. "
             f"Valid types: None, 'stock', 'futures'"
         )
+
+
+def get_exchange_for_data_source(exchange: str, data_source: str = "tushare", usage: str = "api") -> str:
+    """
+    获取特定数据源的交易所代码格式
+
+    Args:
+        exchange: 标准交易所代码（如 'SHSE', 'SZSE'）
+        data_source: 数据源名称，默认为 'tushare'
+        usage: 使用模式，"api" 用于API查询参数，"suffix" 用于返回值后缀，默认为 "api"
+
+    Returns:
+        str: 特定数据源的交易所代码
+
+    Raises:
+        ValueError: 当交易所代码无效或数据源不支持时
+
+    Examples:
+        >>> get_exchange_for_data_source("SHSE", "tushare", usage="api")
+        'SSE'
+        >>> get_exchange_for_data_source("SHSE", "tushare", usage="suffix")
+        'SH'
+        >>> get_exchange_for_data_source("SHFE", "tushare", usage="suffix")
+        'SHF'
+        >>> get_exchange_for_data_source("SHFE", "joinquant", usage="api")
+        'XSGE'
+    """
+    try:
+        import toml
+        from pathlib import Path
+
+        # 标准化交易所代码
+        standard_exchange = normalize_exchange(exchange)
+
+        # 加载数据源映射配置
+        config_path = Path(__file__).parent.parent / "config" / "exchanges.toml"
+        if not config_path.exists():
+            # 如果配置文件不存在，返回标准代码
+            logger.warning(f"Data source config file not found: {config_path}")
+            return standard_exchange
+
+        config = toml.load(config_path)
+        data_sources = config.get('data_sources', {})
+
+        if data_source not in data_sources:
+            logger.warning(f"Data source '{data_source}' not found in config")
+            return standard_exchange
+
+        # 对于 Tushare，需要区分 API 参数和返回值后缀
+        if data_source == "tushare" and usage == "suffix":
+            # 使用后缀映射配置
+            suffix_key = f"data_sources.{data_source}_suffix"
+
+            # 检查后缀映射配置是否存在
+            if 'data_sources' in config and f"{data_source}_suffix" in config['data_sources']:
+                suffix_mappings = config['data_sources'][f"{data_source}_suffix"]
+                if standard_exchange in suffix_mappings:
+                    return suffix_mappings[standard_exchange]
+                else:
+                    # 如果没有后缀映射，尝试使用默认映射
+                    logger.debug(f"No suffix mapping for {standard_exchange} in {suffix_key}")
+                    source_mappings = data_sources[data_source]
+                    if standard_exchange in source_mappings:
+                        return source_mappings[standard_exchange]
+            else:
+                logger.warning(f"Tushare suffix config '{suffix_key}' not found in config file")
+        else:
+            # 使用标准映射配置
+            source_mappings = data_sources[data_source]
+            if standard_exchange in source_mappings:
+                return source_mappings[standard_exchange]
+
+        # 如果没有特定映射，返回标准代码
+        logger.debug(f"No specific mapping for {standard_exchange} in {data_source} (usage: {usage})")
+        return standard_exchange
+
+    except Exception as e:
+        logger.error(f"Error getting exchange for data source '{data_source}' (usage: {usage}): {e}")
+        # 发生错误时返回标准代码
+        return normalize_exchange(exchange)
+
+
+def convert_exchanges_for_data_source(
+    exchanges: Union[str, List[str]],
+    data_source: str = "tushare"
+) -> List[str]:
+    """
+    将交易所代码列表转换为特定数据源的格式
+
+    Args:
+        exchanges: 交易所代码或代码列表
+        data_source: 数据源名称，默认为 'tushare'
+
+    Returns:
+        List[str]: 转换后的交易所代码列表
+
+    Examples:
+        >>> convert_exchanges_for_data_source(["SHFE", "DCE"], "tushare")
+        ['SHF', 'DCE']
+        >>> convert_exchanges_for_data_source("SHFE,DCE", "tushare")
+        ['SHF', 'DCE']
+    """
+    if isinstance(exchanges, str):
+        if "," in exchanges:
+            exchanges = [e.strip() for e in exchanges.split(",")]
+        else:
+            exchanges = [exchanges]
+
+    # 验证并标准化交易所代码
+    validated_exchanges = validate_exchanges(exchanges)
+
+    # 转换为特定数据源格式
+    converted_exchanges = []
+    for exchange in validated_exchanges:
+        converted_exchange = get_exchange_for_data_source(exchange, data_source)
+        converted_exchanges.append(converted_exchange)
+
+    return converted_exchanges
+
+
+def warm_exchange_cache():
+    """预热 exchange_utils 模块的缓存
+
+    该函数会在应用启动时被调用来预热关键缓存。
+    """
+    from quantbox.util.cache_warmup import get_cache_warmer
+
+    cache_warmer = get_cache_warmer()
+
+    # 预热常用交易所标准化
+    common_exchanges = [
+        "SHSE", "SZSE", "BSE",  # 股票交易所
+        "SHFE", "DCE", "CZCE", "CFFEX", "INE", "GFEX",  # 期货交易所
+        "SSE", "SH", "SZ", "BJ", "SHF", "ZCE"  # 常用别名
+    ]
+
+    for exchange in common_exchanges:
+        cache_warmer.register_function(normalize_exchange, exchange)
+
+    # 预热常用数据源映射
+    standard_exchanges = ["SHFE", "DCE", "CZCE", "CFFEX", "INE", "GFEX", "SSE", "SZSE", "BSE"]
+    data_sources = ["tushare", "goldminer", "joinquant"]
+
+    for exchange in standard_exchanges:
+        for data_source in data_sources:
+            cache_warmer.register_function(get_exchange_for_data_source, exchange, data_source)
+
+    # 预热批量转换
+    cache_warmer.register_function(convert_exchanges_for_data_source, "SHFE,DCE,CZCE", "tushare")
+    cache_warmer.register_function(convert_exchanges_for_data_source, "SSE,SZSE", "tushare")

@@ -123,19 +123,31 @@ CZCE = "CZCE"
 CFFEX = "CFFEX"
 INE = "INE"
 GFEX = "GFEX"
-SSE = "SSE"
+SHSE = "SHSE"
 SZSE = "SZSE"
 
 # Tushare 数据源
 [data_sources.tushare]
-SHFE = "SHF"
+# API 参数映射（用于查询条件）
+SHFE = "SHFE"
 DCE = "DCE"
-CZCE = "ZCE"
+CZCE = "CZCE"
 CFFEX = "CFFEX"
 INE = "INE"
 GFEX = "GFEX"
-SSE = "SSE"
-SZSE = "SZSE"
+SHSE = "SSE"      # 修正：上海证券交易所 API 参数使用 "SSE"
+SZSE = "SZSE"     # 修正：深圳证券交易所 API 参数使用 "SZSE"
+
+# Tushare 返回值后缀映射（用于股票代码后缀）
+[data_sources.tushare_suffix]
+SHSE = "SH"       # 上海股票后缀：600000.SH
+SZSE = "SZ"       # 深圳股票后缀：000001.SZ
+SHFE = "SHF"      # 期货合约后缀：rb2501.SHF
+DCE = "DCE"       # 期货合约后缀：m2501.DCE
+CZCE = "ZCE"      # 期货合约后缀：TA501.ZCE
+CFFEX = "CFFEX"   # 期货合约后缀：IF2412.CFFEX
+INE = "INE"       # 期货合约后缀：sc2501.INE
+GFEX = "GFEX"     # 期货合约后缀：px2501.GFEX
 
 # 聚宽/JoinQuant 数据源
 [data_sources.joinquant]
@@ -145,5 +157,5 @@ CZCE = "XZCE"
 CFFEX = "XCFE"
 INE = "XINE"
 GFEX = "XGF"
-SSE = "XSHG"
+SHSE = "XSHG"
 SZSE = "XSHE"
