@@ -54,7 +54,7 @@ class MockAdapter(BaseDataAdapter):
             'delist_date': [20250115]
         })
 
-    def get_future_daily(self, symbols=None, exchanges=None, start_date=None, end_date=None, date=None):
+    def get_future_daily(self, symbols=None, exchanges=None, start_date=None, end_date=None, date=None, **kwargs):
         """模拟日线数据查询"""
         self.call_history.append(('get_future_daily', symbols, exchanges, start_date, end_date, date))
         if self.return_empty:
@@ -71,7 +71,7 @@ class MockAdapter(BaseDataAdapter):
             'amount': [385000000.0]
         })
 
-    def get_future_holdings(self, symbols=None, exchanges=None, spec_names=None, start_date=None, end_date=None, date=None):
+    def get_future_holdings(self, symbols=None, exchanges=None, spec_names=None, start_date=None, end_date=None, date=None, **kwargs):
         """模拟持仓数据查询"""
         self.call_history.append(('get_future_holdings', symbols, exchanges, spec_names, start_date, end_date, date))
         if self.return_empty:

@@ -45,7 +45,7 @@ def save_all():
     注意：使用新架构（DataSaverService），默认使用 Tushare 数据源
     股票列表数据使用旧架构（新架构暂未实现此功能）
     """
-    saver = DataSaverService()
+    saver = DataSaverService(show_progress=True)
     legacy_saver = MarketDataSaver()
 
     click.echo("开始保存所有数据...")
@@ -83,7 +83,7 @@ def save_trade_dates(exchanges, start_date, end_date):
 
     默认保存今年所有交易所的数据
     """
-    saver = DataSaverService()
+    saver = DataSaverService(show_progress=True)
 
     # 处理逗号分隔的交易所列表
     if exchanges:
@@ -108,7 +108,7 @@ def save_future_contracts(exchanges, symbols, spec_names, date):
 
     默认保存所有期货交易所的合约
     """
-    saver = DataSaverService()
+    saver = DataSaverService(show_progress=True)
 
     # 处理逗号分隔的列表
     if exchanges:
@@ -140,7 +140,7 @@ def save_future_holdings(exchanges, symbols, spec_names, date, start_date, end_d
 
     默认保存从 1990-01-01 到今天所有期货交易所的历史持仓数据
     """
-    saver = DataSaverService()
+    saver = DataSaverService(show_progress=True)
 
     # 处理逗号分隔的列表
     if exchanges:
@@ -173,7 +173,7 @@ def save_future_daily(exchanges, symbols, date, start_date, end_date):
 
     默认保存从 1990-01-01 到今天所有期货交易所的历史数据
     """
-    saver = DataSaverService()
+    saver = DataSaverService(show_progress=True)
 
     # 处理逗号分隔的列表
     if exchanges:

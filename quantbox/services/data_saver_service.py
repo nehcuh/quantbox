@@ -84,19 +84,22 @@ class DataSaverService:
         self,
         remote_adapter: Optional[BaseDataAdapter] = None,
         local_adapter: Optional[LocalAdapter] = None,
-        database=None
+        database=None,
+        show_progress: bool = False
     ):
         """
         初始化数据保存服务
-        
+
         Args:
             remote_adapter: 远程数据适配器，默认使用 TSAdapter
             local_adapter: 本地数据适配器，默认使用 LocalAdapter
             database: MongoDB 数据库实例，默认使用全局 DATABASE
+            show_progress: 是否显示进度条，默认 False
         """
         self.remote_adapter = remote_adapter or TSAdapter()
         self.local_adapter = local_adapter or LocalAdapter()
         self.database = database or get_config_loader().get_mongodb_client().quantbox
+        self.show_progress = show_progress
     
     def _create_index(self, collection, index_keys, unique=False):
         """
@@ -338,7 +341,8 @@ class DataSaverService:
                 exchanges=exchanges,
                 start_date=start_date,
                 end_date=end_date,
-                date=date
+                date=date,
+                show_progress=self.show_progress
             )
             
             if df.empty:
@@ -421,7 +425,8 @@ class DataSaverService:
                 spec_names=spec_names,
                 start_date=start_date,
                 end_date=end_date,
-                date=date
+                date=date,
+                show_progress=self.show_progress
             )
             
             if df.empty:

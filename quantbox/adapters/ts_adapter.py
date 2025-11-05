@@ -7,6 +7,7 @@ TSAdapter - Tushare 数据适配器
 from typing import Optional, Union, List
 import datetime
 import pandas as pd
+from tqdm import tqdm
 
 from quantbox.adapters.base import BaseDataAdapter
 from quantbox.util.date_utils import DateLike, date_to_int
@@ -174,8 +175,18 @@ class TSAdapter(BaseDataAdapter):
         start_date: Optional[DateLike] = None,
         end_date: Optional[DateLike] = None,
         date: Optional[DateLike] = None,
+        show_progress: bool = False,
     ) -> pd.DataFrame:
-        """从 Tushare 获取期货日线数据"""
+        """从 Tushare 获取期货日线数据
+
+        Args:
+            symbols: 合约代码或列表
+            exchanges: 交易所代码或列表
+            start_date: 起始日期
+            end_date: 结束日期
+            date: 单日查询日期
+            show_progress: 是否显示进度条，默认 False
+        """
         try:
             # 标准化合约代码
             if symbols:
@@ -212,9 +223,10 @@ class TSAdapter(BaseDataAdapter):
                         exchanges = validate_exchanges(None, "futures")
                     elif isinstance(exchanges, str):
                         exchanges = [exchanges]
-                    
+
                     all_data = []
-                    for exchange in exchanges:
+                    exchanges_iter = tqdm(exchanges, desc="获取期货日线", disable=not show_progress)
+                    for exchange in exchanges_iter:
                         ts_exchange = denormalize_exchange(exchange, "tushare")
                         df = self.pro.fut_daily(
                             trade_date=trade_date_str,
@@ -222,7 +234,7 @@ class TSAdapter(BaseDataAdapter):
                         )
                         if not df.empty:
                             all_data.append(df)
-                    
+
                     data = pd.concat(all_data, ignore_index=True) if all_data else pd.DataFrame()
             
             else:
@@ -246,10 +258,13 @@ class TSAdapter(BaseDataAdapter):
                         exchanges = validate_exchanges(None, "futures")
                     elif isinstance(exchanges, str):
                         exchanges = [exchanges]
-                    
+
                     all_data = []
-                    for exchange in exchanges:
+                    exchanges_iter = tqdm(exchanges, desc="获取期货日线", disable=not show_progress)
+                    for exchange in exchanges_iter:
                         ts_exchange = denormalize_exchange(exchange, "tushare")
+                        if show_progress:
+                            exchanges_iter.set_postfix({"交易所": exchange})
                         df = self.pro.fut_daily(
                             exchange=ts_exchange,
                             start_date=start_str,
@@ -257,7 +272,7 @@ class TSAdapter(BaseDataAdapter):
                         )
                         if not df.empty:
                             all_data.append(df)
-                    
+
                     data = pd.concat(all_data, ignore_index=True) if all_data else pd.DataFrame()
             
             if data.empty:
@@ -315,8 +330,19 @@ class TSAdapter(BaseDataAdapter):
         start_date: Optional[DateLike] = None,
         end_date: Optional[DateLike] = None,
         date: Optional[DateLike] = None,
+        show_progress: bool = False,
     ) -> pd.DataFrame:
-        """从 Tushare 获取期货持仓数据"""
+        """从 Tushare 获取期货持仓数据
+
+        Args:
+            symbols: 合约代码或列表
+            exchanges: 交易所代码或列表
+            spec_names: 品种名称或列表
+            start_date: 起始日期
+            end_date: 结束日期
+            date: 单日查询日期
+            show_progress: 是否显示进度条，默认 False
+        """
         try:
             # 验证和标准化交易所参数
             if exchanges is None:
@@ -396,12 +422,15 @@ class TSAdapter(BaseDataAdapter):
                         trade_dates.extend(cal_df['cal_date'].tolist())
                 
                 trade_dates = sorted(set(trade_dates))
-                
+
                 # 逐日查询
-                for trade_date in trade_dates:
+                dates_iter = tqdm(trade_dates, desc="获取期货持仓", disable=not show_progress)
+                for trade_date in dates_iter:
+                    if show_progress:
+                        dates_iter.set_postfix({"日期": str(trade_date)})
                     for exchange in exchanges:
                         ts_exchange = denormalize_exchange(exchange, "tushare")
-                        
+
                         if symbols:
                             for symbol in symbols:
                                 try:

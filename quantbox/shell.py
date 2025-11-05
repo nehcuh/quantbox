@@ -87,7 +87,7 @@ Welcome to Quantbox Shell (新架构)!
     
     def __init__(self):
         super().__init__()
-        self.saver = DataSaverService()  # 新架构
+        self.saver = DataSaverService(show_progress=True)  # 新架构，启用进度条
         self.legacy_saver = MarketDataSaver()  # 仅用于 save_stock_list
         
     @handle_errors

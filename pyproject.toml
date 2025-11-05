@@ -22,6 +22,7 @@ dependencies = [
     "toml>=0.10.0",
     "numpy>=1.24.0",
     "click>=8.0.0",
+    "tqdm>=4.65.0",
 ]
 
 [project.optional-dependencies]

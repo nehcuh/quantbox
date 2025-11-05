@@ -771,6 +771,7 @@ dependencies = [
     { name = "pandas" },
     { name = "pymongo" },
     { name = "toml" },
+    { name = "tqdm" },
     { name = "tushare" },
 ]
 
@@ -803,6 +804,7 @@ requires-dist = [
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=4.0.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
     { name = "toml", specifier = ">=0.10.0" },
+    { name = "tqdm", specifier = ">=4.65.0" },
     { name = "tushare", specifier = ">=1.4.0" },
 ]
 provides-extras = ["dev", "gui", "build"]

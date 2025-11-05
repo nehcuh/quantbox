@@ -53,6 +53,7 @@ class MockAdapter(BaseDataAdapter):
         start_date: Optional[DateLike] = None,
         end_date: Optional[DateLike] = None,
         date: Optional[DateLike] = None,
+        show_progress: bool = False,
     ) -> pd.DataFrame:
         return pd.DataFrame({
             "date": [20250101],
@@ -75,6 +76,7 @@ class MockAdapter(BaseDataAdapter):
         start_date: Optional[DateLike] = None,
         end_date: Optional[DateLike] = None,
         date: Optional[DateLike] = None,
+        show_progress: bool = False,
     ) -> pd.DataFrame:
         return pd.DataFrame({
             "date": [20250101],
