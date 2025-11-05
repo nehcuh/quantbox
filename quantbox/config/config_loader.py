@@ -223,7 +223,7 @@ class ConfigLoader:
         获取数据源交易所映射
 
         Args:
-            data_source: 数据源名称 ('goldminer', 'tushare', 'joinquant')
+            data_source: 数据源名称 ('goldminer', 'tushare', 'vnpy')
 
         Returns:
             Dict[str, str]: 交易所代码映射

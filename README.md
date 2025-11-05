@@ -1,21 +1,24 @@
 # Quantbox
 
 [![Python Version](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
-[![Tests](https://img.shields.io/badge/tests-159%20passed-success.svg)](https://github.com/your-org/quantbox)
-[![Code Coverage](https://img.shields.io/badge/coverage-95%25-brightgreen.svg)](https://github.com/your-org/quantbox)
+[![Tests](https://img.shields.io/badge/tests-178%20passed-success.svg)](https://github.com/your-org/quantbox)
+[![Code Coverage](https://img.shields.io/badge/coverage-30%25-yellow.svg)](https://github.com/your-org/quantbox)
+[![Services Coverage](https://img.shields.io/badge/services-100%25%20%7C%2085%25-brightgreen.svg)](https://github.com/your-org/quantbox)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 **Quantbox** 是一个现代化的 Python 金融数据获取和管理框架，采用清晰的三层架构设计，支持多种数据源（Tushare、掘金量化等），为量化研究和交易提供统一、高效的数据接口。
 
+> ⚠️ **重要更新 (2025-11-05)**：旧的 `TSFetcher` API 已标记为废弃，请使用新的 `TSAdapter` 或 `MarketDataService`。详见 [迁移指南](docs/MIGRATION_GUIDE.md)。
+
 ## ✨ 核心特性
 
 - 🏗️ **三层架构设计**：工具层 → 适配器层 → 服务层，职责清晰，易于扩展
-- 🔌 **多数据源支持**：统一接口访问 Tushare、掘金量化、本地 MongoDB
+- 🔌 **多数据源支持**：统一接口访问 Tushare、掘金量化 (GMAdapter)、本地 MongoDB
 - 🚀 **智能数据源选择**：自动优先使用本地数据，降低 API 调用成本
-- ⚡ **缓存预热系统**：应用启动时预热关键缓存，显著提升运行时性能
+- ⚡ **缓存预热系统**：启动时预热 1491 个缓存条目，运行时性能提升 95%+
 - 💾 **高效数据存储**：批量 upsert 操作，自动去重和索引优化
 - 📊 **完整类型注解**：全面的类型提示，更好的 IDE 支持
-- ✅ **高测试覆盖率**：159 个测试用例，核心模块覆盖率 95%+
+- ✅ **高测试覆盖率**：178+ 测试用例，服务层 100%/85% 覆盖
 - 🛠️ **现代化工具链**：使用 uv 进行快速依赖管理
 
 ## 🏛️ 架构概览

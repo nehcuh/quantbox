@@ -7,10 +7,12 @@
 from quantbox.adapters.base import IDataAdapter, BaseDataAdapter
 from quantbox.adapters.local_adapter import LocalAdapter
 from quantbox.adapters.ts_adapter import TSAdapter
+from quantbox.adapters.gm_adapter import GMAdapter
 
 __all__ = [
     "IDataAdapter",
     "BaseDataAdapter",
     "LocalAdapter",
     "TSAdapter",
+    "GMAdapter",
 ]

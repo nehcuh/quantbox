@@ -145,17 +145,29 @@ SZSE = "SZ"       # 深圳股票后缀：000001.SZ
 SHFE = "SHF"      # 期货合约后缀：rb2501.SHF
 DCE = "DCE"       # 期货合约后缀：m2501.DCE
 CZCE = "ZCE"      # 期货合约后缀：TA501.ZCE
-CFFEX = "CFFEX"   # 期货合约后缀：IF2412.CFFEX
+CFFEX = "CFX"     # 期货合约后缀：IF2412.CFX (CFX为实际返回值后缀)
 INE = "INE"       # 期货合约后缀：sc2501.INE
-GFEX = "GFEX"     # 期货合约后缀：px2501.GFEX
+GFEX = "GFE"      # 期货合约后缀：px2501.GFE
 
-# 聚宽/JoinQuant 数据源
-[data_sources.joinquant]
-SHFE = "XSGE"
-DCE = "XDCE"
-CZCE = "XZCE"
-CFFEX = "XCFE"
-INE = "XINE"
-GFEX = "XGF"
-SHSE = "XSHG"
-SZSE = "XSHE"
+# 聚宽/JoinQuant 数据源（已弃用）
+# [data_sources.joinquant]
+# SHFE = "XSGE"
+# DCE = "XDCE"
+# CZCE = "XZCE"
+# CFFEX = "XCFE"
+# INE = "XINE"
+# GFEX = "XGF"
+# SHSE = "XSHG"
+# SZSE = "XSHE"
+
+# vnpy 数据源
+[data_sources.vnpy]
+SHFE = "SHFE"
+DCE = "DCE"
+CZCE = "CZCE"
+CFFEX = "CFFEX"
+INE = "INE"
+GFEX = "GFEX"
+SSE = "SSE"
+SZSE = "SZSE"
+BSE = "BSE"

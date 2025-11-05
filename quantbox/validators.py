@@ -27,7 +27,7 @@ from typing import Any, Callable, Dict, List, Optional, Union
 
 import pandas as pd
 
-from quantbox.config import load_config
+from quantbox.config.config_loader import get_config_loader
 from quantbox.logger import setup_logger
 
 
@@ -64,7 +64,7 @@ def validate_dataframe(collection_name: str) -> Callable:
                 return df
 
             # 获取必需字段配置
-            config = load_config()
+            config = get_config_loader()._load_user_config()
             required_fields = config['validation']['required_fields'].get(collection_name, [])
 
             # 验证必需字段

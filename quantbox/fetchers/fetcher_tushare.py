@@ -1,3 +1,24 @@
+"""
+⚠️  DEPRECATED - 本模块已废弃 (DEPRECATED)
+=====================================
+
+本模块(fetcher_tushare.py)已被新架构废弃，请使用新的 TSAdapter:
+    from quantbox.adapters.ts_adapter import TSAdapter
+
+迁移说明:
+- TSFetcher → TSAdapter
+- fetch_get_trade_dates() → get_trade_calendar()
+- fetch_get_future_contracts() → get_future_contracts()
+- fetch_get_future_daily() → get_future_daily()
+- fetch_get_holdings() → get_future_holdings()
+
+注意：本模块将在未来版本中移除，请尽快迁移到新架构。
+For new code, please use quantbox.adapters.ts_adapter.TSAdapter instead.
+
+最后更新: 2025-11-05
+"""
+
+import warnings
 import datetime
 import time
 import re
@@ -6,6 +27,15 @@ import logging
 from typing import List, Optional, Union, Dict, Any, Tuple
 import pandas as pd
 import numpy as np
+
+# 发出废弃警告
+warnings.warn(
+    "quantbox.fetchers.fetcher_tushare.TSFetcher 已废弃，"
+    "请使用 quantbox.adapters.ts_adapter.TSAdapter 替代。"
+    "本模块将在未来版本中移除。",
+    DeprecationWarning,
+    stacklevel=2
+)
 
 from ..config.config_loader import get_config_loader, list_futures_exchanges
 from ..util.exchange_utils import (
@@ -905,9 +935,18 @@ class TSFetcher(BaseFetcher):
         # 处理日期 - 使用项目的日期工具函数替代 pd.to_datetime
         for date_col in ["list_date", "delist_date"]:
             if date_col in data.columns:
-                # 使用项目的日期工具函数，性能更好
-                data[f"{date_col}stamp"] = data[date_col].apply(lambda x: util_make_date_stamp(x) if pd.notna(x) else None)
-                data[date_col] = data[f"{date_col}stamp"].apply(lambda x: int_to_date_str(x) if x is not None else None)
+                # 确保日期格式为 YYYY-MM-DD 字符串格式
+                data[date_col] = data[date_col].apply(
+                    lambda x: int_to_date_str(date_to_int(x)) if pd.notna(x) else None
+                )
+                # 生成时间戳用于其他用途
+                data[f"{date_col}stamp"] = data[date_col].apply(
+                    lambda x: util_make_date_stamp(x) if x is not None else None
+                )
+
+        # 添加通用的 datestamp 字段，使用 list_date 的时间戳
+        if "list_date" in data.columns and "list_datestamp" in data.columns:
+            data["datestamp"] = data["list_datestamp"]
 
         # 提取中文名称
         data["chinese_name"] = data["name"].str.extract(r'(.+?)(?=\d{3,})')

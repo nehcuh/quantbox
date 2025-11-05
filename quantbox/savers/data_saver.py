@@ -32,15 +32,14 @@ from bson import ObjectId
 if platform.system() != 'Darwin':  # Not macOS
     from quantbox.fetchers.fetcher_goldminer import GMFetcher
 from quantbox.fetchers.fetcher_tushare import TSFetcher
-from quantbox.fetchers.local_fetcher import LocalFetcher, fetch_next_trade_date
-from quantbox.util.basic import DATABASE, EXCHANGES, FUTURE_EXCHANGES, STOCK_EXCHANGES
+from quantbox.fetchers.local_fetcher import LocalFetcher
+from quantbox.util.exchange_utils import ALL_EXCHANGES, STOCK_EXCHANGES, FUTURES_EXCHANGES
+from quantbox.config.config_loader import get_config_loader
 from quantbox.util.date_utils import util_make_date_stamp
 from quantbox.util.tools import (
     util_format_stock_symbols,
-    util_to_json_from_pandas,
-    is_trade_date
+    util_to_json_from_pandas
 )
-from quantbox.config import load_config
 from quantbox.logger import setup_logger
 from quantbox.validators import retry
 
@@ -373,10 +372,10 @@ class MarketDataSaver:
         else:
             self.gm_fetcher = None
         self.local_fetcher = LocalFetcher()
-        self.client = DATABASE
-        self.config = load_config()
-        self.exchanges = EXCHANGES.copy()
-        self.future_exchanges = FUTURE_EXCHANGES.copy()
+        self.client = get_config_loader().get_mongodb_client().quantbox
+        self.config = get_config_loader()._load_user_config()
+        self.exchanges = ALL_EXCHANGES.copy()
+        self.future_exchanges = FUTURES_EXCHANGES.copy()
         self.stock_exchanges = STOCK_EXCHANGES.copy()
         self.integrity_checker = DataIntegrityChecker(self.client, self.config)
 
@@ -1337,69 +1336,67 @@ class MarketDataSaver:
         return result
 
 
-def _save_operation_log(self, operation, result):
-    """保存操作日志。
+    def _save_operation_log(self, operation, result):
+        """保存操作日志。
 
-    Args:
-        operation (str): 操作名称
-        result (SaveResult): 操作结果
-    """
-    try:
-        log_data = {
-            "operation": operation,
-            "timestamp": datetime.datetime.now(),
-            **result.to_dict()
-        }
-        self.client.operation_logs.insert_one(log_data)
-    except Exception as e:
-        logger.error(f"保存操作日志失败: {str(e)}")
+        Args:
+            operation (str): 操作名称
+            result (SaveResult): 操作结果
+        """
+        try:
+            log_data = {
+                "operation": operation,
+                "timestamp": datetime.datetime.now(),
+                **result.to_dict()
+            }
+            self.client.operation_logs.insert_one(log_data)
+        except Exception as e:
+            logger.error(f"保存操作日志失败: {str(e)}")
 
+    def _create_save_checkpoint(self, collections, operation):
+        """创建保存检查点。
 
-def _create_save_checkpoint(self, collections, operation):
-    """创建保存检查点。
+        Args:
+            collections: MongoDB 集合对象
+            operation (str): 操作名称
 
-    Args:
-        collections: MongoDB 集合对象
-        operation (str): 操作名称
+        Returns:
+            str: 检查点 ID
+        """
+        try:
+            checkpoint = {
+                "operation": operation,
+                "timestamp": datetime.datetime.now(),
+                "status": "started"
+            }
+            result = self.client.save_checkpoints.insert_one(checkpoint)
+            return str(result.inserted_id)
+        except Exception as e:
+            logger.error(f"创建检查点失败: {str(e)}")
+            raise
 
-    Returns:
-        str: 检查点 ID
-    """
-    try:
-        checkpoint = {
-            "operation": operation,
-            "timestamp": datetime.datetime.now(),
-            "status": "started"
-        }
-        result = self.client.save_checkpoints.insert_one(checkpoint)
-        return str(result.inserted_id)
-    except Exception as e:
-        logger.error(f"创建检查点失败: {str(e)}")
-        raise
+    def _update_save_checkpoint(self, checkpoint_id, status, result=None):
+        """更新保存检查点。
 
+        Args:
+            checkpoint_id (str): 检查点 ID
+            status (str): 状态
+            result (SaveResult, optional): 操作结果
+        """
+        try:
+            update_data = {
+                "status": status,
+                "updated_at": datetime.datetime.now()
+            }
+            if result:
+                update_data["result"] = result.to_dict()
 
-def _update_save_checkpoint(self, checkpoint_id, status, result=None):
-    """更新保存检查点。
-
-    Args:
-        checkpoint_id (str): 检查点 ID
-        status (str): 状态
-        result (SaveResult, optional): 操作结果
-    """
-    try:
-        update_data = {
-            "status": status,
-            "updated_at": datetime.datetime.now()
-        }
-        if result:
-            update_data["result"] = result.to_dict()
-
-        self.client.save_checkpoints.update_one(
-            {"_id": ObjectId(checkpoint_id)},
-            {"$set": update_data}
-        )
-    except Exception as e:
-        logger.error(f"更新检查点失败: {str(e)}")
+            self.client.save_checkpoints.update_one(
+                {"_id": ObjectId(checkpoint_id)},
+                {"$set": update_data}
+            )
+        except Exception as e:
+            logger.error(f"更新检查点失败: {str(e)}")
 
 
 if __name__ == "__main__":

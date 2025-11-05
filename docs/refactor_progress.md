@@ -104,7 +104,7 @@
 - ✅ 创建 `exchange_utils_new.py` 模块
 - ✅ 实现 `ExchangeType` 枚举和标准代码映射
 - ✅ 添加 `normalize_exchange()` 和 `denormalize_exchange()` 函数
-- ✅ 支持 Tushare/掘金/JoinQuant 多种格式
+- ✅ 支持 Tushare/掘金/vnpy 多种格式
 - ✅ 实现交易所类型判断函数
 - ✅ 创建完整的单元测试（32/32，99%覆盖率）
 
@@ -212,7 +212,7 @@
 **第一阶段 - 交易所代码工具**
 - 🚀 成功重构了交易所代码工具模块（270行）
 - 🏛️ 实现了标准交易所代码管理（SHSE/SZSE/SHFE/DCE/CZCE/CFFEX/INE/BSE）
-- 🔄 支持多数据源格式（Tushare/掘金/JoinQuant）
+- 🔄 支持多数据源格式（Tushare/掘金/vnpy）
 - ✅ 实现了交易所类型判断（股票/期货）
 - 📝 创建了完整的单元测试（32个测试）
 - ✅ 所有测试通过（32/32，99%覆盖率）
@@ -221,7 +221,7 @@
 - 🚀 成功重构了合约代码工具模块（633行）
 - 📄 实现了 `ContractInfo` 类封装合约信息
 - 🔍 支持多种格式解析（EXCHANGE.symbol / symbol.EXCHANGE）
-- 🔄 支持多格式转换（标准/Tushare/掘金/聚宽/纯代码）
+- 🔄 支持多格式转换（标准/Tushare/掘金/vnpy/纯代码）
 - ⭐ 支持主力合约识别（888/000标识）
 - 🏪 兼容郑商所 3/4 位年月格式
 - 📦 实现批量操作和验证函数

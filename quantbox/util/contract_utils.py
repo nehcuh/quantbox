@@ -25,7 +25,7 @@ Contract utilities
 外部格式：
     - 掘金/GoldMiner: SHFE.rb2501, CZCE.SR2501
     - Tushare: RB2501.SHF, SR2501.ZCE（所有品种代码大写）
-    - 聚宽/JoinQuant: RB2501.XSGE, SR2501.XZCE（所有品种代码大写）
+    - vnpy: RB2501.SHFE, SR2501.CZCE（所有品种代码大写，交易所使用标准代码）
 """
 
 from typing import Optional, List, Dict, Tuple, Union, Any
@@ -68,7 +68,7 @@ class ContractFormat(str, Enum):
     STANDARD = "standard"  # 标准格式: EXCHANGE.symbol
     GOLDMINER = "goldminer"  # 掘金格式: EXCHANGE.symbol
     TUSHARE = "tushare"  # Tushare格式: SYMBOL.EXCHANGE
-    JOINQUANT = "joinquant"  # 聚宽格式: symbol.XEXCHANGE
+    VNPy = "vnpy"  # vnpy格式: symbol.EXCHANGE
     PLAIN = "plain"  # 纯代码: symbol (不含交易所)
 
 
@@ -563,15 +563,16 @@ def _get_data_source_exchange_mapping(data_source: str) -> Dict[str, str]:
             "SHSE": "SH",  # 上交所
             "SZSE": "SZ",  # 深交所
         },
-        "joinquant": {
-            "SHFE": "XSGE",
-            "DCE": "XDCE",
-            "CZCE": "XZCE",
-            "CFFEX": "XCFE",
-            "INE": "XINE",
-            "GFEX": "XGF",
-            "SHSE": "XSHG",
-            "SZSE": "XSHE"
+        "vnpy": {
+            "SHFE": "SHFE",
+            "DCE": "DCE",
+            "CZCE": "CZCE",
+            "CFFEX": "CFFEX",
+            "INE": "INE",
+            "GFEX": "GFEX",
+            "SSE": "SSE",
+            "SZSE": "SZSE",
+            "BSE": "BSE"
         }
     }
     return mappings.get(data_source, {})
@@ -638,12 +639,12 @@ def format_contract(
         # Tushare 所有合约品种都使用大写
         return f"{info.symbol.upper()}.{exchange_ts}"
 
-    elif target_format == ContractFormat.JOINQUANT:
-        mapping = _get_data_source_exchange_mapping("joinquant")
-        exchange_jq = mapping.get(info.exchange, info.exchange)
+    elif target_format == ContractFormat.VNPy:
+        mapping = _get_data_source_exchange_mapping("vnpy")
+        exchange_vnpy = mapping.get(info.exchange, info.exchange)
 
-        # 聚宽也使用大写品种代码
-        return f"{info.symbol.upper()}.{exchange_jq}"
+        # vnpy也使用大写品种代码
+        return f"{info.symbol.upper()}.{exchange_vnpy}"
 
     elif target_format == ContractFormat.PLAIN:
         return info.symbol

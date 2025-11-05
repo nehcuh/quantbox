@@ -39,20 +39,46 @@ def warm_tools_cache():
     该函数会在应用启动时被调用来预热关键缓存。
     """
     from quantbox.util.cache_warmup import get_cache_warmer
+    from quantbox.util.exchange_utils import get_all_exchanges
+    from quantbox.config.config_loader import get_config_loader
 
     cache_warmer = get_cache_warmer()
 
-    # 预热常用交易所映射
-    common_exchanges = ["SSE", "SZSE", "BSE", "SHFE", "DCE", "CZCE", "CFFEX", "INE", "GFEX"]
-    data_sources = ["tushare", "goldminer", "joinquant"]
+    try:
+        # 从 exchange_utils 获取所有标准交易所
+        common_exchanges = get_all_exchanges()
 
-    for exchange in common_exchanges:
-        for data_source in data_sources:
-            # 预热 API 参数映射
-            cache_warmer.register_function(_get_cached_exchange_mapping, exchange, data_source, "api")
-            # 对于 Tushare，还需要预热后缀映射
-            if data_source == "tushare":
-                cache_warmer.register_function(_get_cached_exchange_mapping, exchange, data_source, "suffix")
+        # 从配置中获取数据源列表
+        config_loader = get_config_loader()
+        config = config_loader.load_config('exchanges')
+        data_sources_config = config.get('data_sources', {})
+        data_sources = [
+            ds for ds in data_sources_config.keys()
+            if not ds.endswith('_suffix')
+        ]
+
+        for exchange in common_exchanges:
+            for data_source in data_sources:
+                # 预热 API 参数映射
+                cache_warmer.register_function(_get_cached_exchange_mapping, exchange, data_source, "api")
+                # 对于 Tushare，还需要预热后缀映射
+                if data_source == "tushare":
+                    cache_warmer.register_function(_get_cached_exchange_mapping, exchange, data_source, "suffix")
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning(f"Failed to load exchanges and data sources from config for cache warming: {e}")
+        # 回退到硬编码的默认值（包含 BSE）
+        common_exchanges = ["SHSE", "SZSE", "BSE", "SHFE", "DCE", "CZCE", "CFFEX", "INE", "GFEX"]
+        data_sources = ["tushare", "goldminer", "vnpy"]
+
+        for exchange in common_exchanges:
+            for data_source in data_sources:
+                # 预热 API 参数映射
+                cache_warmer.register_function(_get_cached_exchange_mapping, exchange, data_source, "api")
+                # 对于 Tushare，还需要预热后缀映射
+                if data_source == "tushare":
+                    cache_warmer.register_function(_get_cached_exchange_mapping, exchange, data_source, "suffix")
 
     # 预热合约映射函数
     cache_warmer.register_function(_load_contract_exchange_mapper_from_config)
@@ -100,10 +126,12 @@ def util_to_json_from_pandas(data: pd.DataFrame) -> Dict:
 def util_format_stock_symbols(
     symbols: Union[str, List[str]], format: str = "standard"
 ) -> List[str]:
-    """格式化股票代码（优化版）
+    """格式化股票代码
 
     使用配置文件进行交易所映射，支持更多数据源格式。
     通过缓存提高性能。
+
+    优化：优先使用输入中的交易所信息，避免不必要的推断。
 
     Args:
         symbols: 股票代码或股票代码列表
@@ -111,7 +139,7 @@ def util_format_stock_symbols(
                 - "standard": 标准格式（如 "SHSE.600000"）
                 - "tushare": Tushare格式（如 "000001.SZ"）
                 - "goldminer": 掘金格式（如 "SHSE.600000"）
-                - "joinquant": 聚宽格式（如 "000001.XSHG"）
+                - "vnpy": vnpy格式（如 "600000.SSE"）
 
     Returns:
         List[str]: 格式化后的股票代码列表
@@ -119,33 +147,67 @@ def util_format_stock_symbols(
     if isinstance(symbols, str):
         symbols = symbols.split(",")
 
-    # 提取数字部分
-    numbers = []
-    for symbol in symbols:
-        # 匹配各种格式的数字部分
-        match = re.search(r"\d+", symbol)
-        if match:
-            numbers.append(match.group())
-        else:
-            # 如果没有找到数字，可能是其他格式，直接使用
-            numbers.append(symbol)
+    # 预编译正则表达式以提高性能
+    digit_pattern = re.compile(r"\d+")
 
     # 使用配置文件进行交易所格式转换
     formatted_symbols = []
-    for number in numbers:
-        # 根据数字第一位推断交易所（基于配置文件中的股票代码规则）
-        first_digit = number[0] if number else ""
+    for symbol in symbols:
+        # 提取数字部分
+        digit_match = digit_pattern.search(symbol)
+        if not digit_match:
+            # 如果没有找到数字，直接使用原符号
+            formatted_symbols.append(symbol)
+            continue
 
-        # 获取标准交易所代码（基于配置文件中的定义）
-        if first_digit == "6":  # 6开头，上海证券交易所
-            standard_exchange = "SHSE"  # 标准化的交易所代码
-        elif first_digit in ["0", "3"]:  # 0或3开头，深圳证券交易所
-            standard_exchange = "SZSE"
-        elif first_digit in ["4", "8", "9"]:  # 4、8或9开头，北京证券交易所
-            standard_exchange = "BSE"  # 北京证券交易所
-        else:
-            # 未知交易所，使用数字本身
-            standard_exchange = f"UNKNOWN_{first_digit}"
+        number = digit_match.group()
+        standard_exchange = None
+
+        # 检查是否包含交易所信息
+        if '.' in symbol:
+            parts = symbol.split('.')
+            if len(parts) == 2:
+                first_part, second_part = parts[0], parts[1]
+
+                # 尝试识别格式类型
+                standard_exchange = None
+
+                # 情况1: 掘金格式 - 交易所.股票代码 (如 SZSE.000001)
+                # 检查第一部分是否为有效交易所
+                try:
+                    from quantbox.util.exchange_utils import normalize_exchange
+                    first_as_exchange = normalize_exchange(first_part)
+                    if first_as_exchange in ["SHSE", "SZSE", "BSE"]:
+                        # 第一部分是有效的股票交易所
+                        standard_exchange = first_as_exchange
+                        # 确保第二部分是数字
+                        if digit_pattern.match(second_part):
+                            number = second_part
+                except ValueError:
+                    pass
+
+                # 情况2: Tushare/vnpy 格式 - 股票代码.后缀 (如 600000.SH 或 600000.SZSE)
+                if standard_exchange is None and digit_pattern.match(first_part):
+                    # 第一部分是数字，第二部分可能是交易所后缀
+                    try:
+                        second_as_exchange = normalize_exchange(second_part)
+                        if second_as_exchange in ["SHSE", "SZSE", "BSE"]:
+                            standard_exchange = second_as_exchange
+                            number = first_part
+                    except ValueError:
+                        pass
+
+        # 如果没有从输入中解析出有效的股票交易所，才进行推断
+        if standard_exchange is None:
+            standard_exchange = _infer_stock_exchange_from_config(number)
+
+            if standard_exchange is None:
+                # 无法推断交易所，记录警告并返回原始代码
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(f"Cannot infer exchange for stock code: {symbol}, returning original")
+                formatted_symbols.append(symbol)
+                continue
 
         # 转换为目标格式（使用缓存的数据源映射）
         if format in ["standard", "normal", "goldminer", "gm"]:
@@ -156,10 +218,10 @@ def util_format_stock_symbols(
             # Tushare格式 - 使用后缀映射（股票代码后缀）
             tushare_suffix = _get_cached_exchange_mapping(standard_exchange, "tushare", "suffix")
             formatted_symbols.append(f"{number}.{tushare_suffix}")
-        elif format in ["joinquant", "jq"]:
-            # 聚宽格式
-            joinquant_exchange = _get_cached_exchange_mapping(standard_exchange, "joinquant")
-            formatted_symbols.append(f"{number}.{joinquant_exchange}")
+        elif format in ["vnpy", "vn"]:
+            # vnpy格式
+            vnpy_exchange = _get_cached_exchange_mapping(standard_exchange, "vnpy")
+            formatted_symbols.append(f"{number}.{vnpy_exchange}")
         else:
             # 默认使用标准格式（掘金格式）
             default_exchange = _get_cached_exchange_mapping(standard_exchange, "goldminer")
@@ -191,6 +253,8 @@ def util_format_future_symbols(
         ['DCE.m2501']
         >>> util_format_future_symbols("SHFE.rb2501", format="tushare")
         ['rb2501.SHF']
+        >>> util_format_future_symbols("rb2501", format="vnpy")
+        ['rb2501.SHFE']
     """
     if isinstance(symbols, str):
         symbols = symbols.split(",")
@@ -206,20 +270,64 @@ def util_format_future_symbols(
 
     for symbol in symbols:
         try:
-            if "." in symbol:  # 包含交易所前缀（如 SHFE.rb2501）
-                exchange, contract = symbol.split(".", 1)
+            if "." in symbol:  # 包含交易所前缀（如 SHFE.rb2501 或 TF2212.CFX）
+                parts = symbol.split(".", 1)
+                first_part, second_part = parts[0], parts[1]
 
                 # 标准化交易所代码
                 from quantbox.util.exchange_utils import normalize_exchange
-                standard_exchange = normalize_exchange(exchange)
 
-                # 转换为Tushare格式
+                # 尝试判断哪个部分是交易所代码，哪个部分是合约代码
+                # 对于期货合约，通常交易所代码是纯字母，合约代码包含字母+数字
+                try:
+                    # 方法1：尝试将第一部分作为交易所代码
+                    standard_exchange = normalize_exchange(first_part)
+                    contract = second_part
+                except ValueError:
+                    # 方法2：尝试将第二部分作为交易所代码
+                    try:
+                        standard_exchange = normalize_exchange(second_part)
+                        contract = first_part
+                    except ValueError:
+                        # 方法3：检查是否为 Tushare 返回值后缀格式
+                        # 对于一些特殊的 Tushare 后缀，建立映射关系
+                        # 注意：这里映射到标准交易所代码是为了内部处理一致性
+                        tushare_suffix_to_exchange = {
+                            'CFX': 'CFFEX',  # 中金所的旧后缀
+                            'SHF': 'SHFE',   # 上期所
+                            'DCE': 'DCE',    # 大商所
+                            'ZCE': 'CZCE',   # 郑商所
+                            'INE': 'INE',    # 上期能源
+                            'GFE': 'GFEX',   # 广期所（Tushare返回值后缀）
+                            'GFEX': 'GFEX',  # 广期所（保留兼容性）
+                            'CFFEX': 'CFFEX',  # 中金所标准后缀
+                        }
+
+                        if second_part.upper() in tushare_suffix_to_exchange:
+                            standard_exchange = tushare_suffix_to_exchange[second_part.upper()]
+                            contract = first_part
+                            # 保存原始的 Tushare 后缀，用于输出时保持原格式
+                            original_tushare_suffix = second_part.upper()
+                            is_tushare_format = True
+                        else:
+                            # 都无法识别，抛出异常让外层处理
+                            raise ValueError(f"Cannot identify exchange in symbol '{symbol}', parts: '{first_part}', '{second_part}'")
+
+                # 根据格式要求进行转换
                 if format == "tushare":
-                    tushare_exchange = _get_cached_exchange_mapping(standard_exchange, "tushare")
-                    # 使用Tushare格式：contract.exchange
-                    formatted_symbol = f"{contract}.{tushare_exchange}"
+                    # 如果输入本身就是 Tushare 格式且包含原始后缀，保持原样
+                    if 'is_tushare_format' in locals() and is_tushare_format and 'original_tushare_suffix' in locals():
+                        formatted_symbol = f"{contract}.{original_tushare_suffix}"
+                    else:
+                        # 否则转换为标准 Tushare 格式（使用后缀映射）
+                        tushare_exchange = _get_cached_exchange_mapping(standard_exchange, "tushare", "suffix")
+                        formatted_symbol = f"{contract}.{tushare_exchange}"
+                elif format in ["vnpy", "vn"]:
+                    # vnpy格式：contract.exchange
+                    vnpy_exchange = _get_cached_exchange_mapping(standard_exchange, "vnpy")
+                    formatted_symbol = f"{contract}.{vnpy_exchange}"
                 else:
-                    # 使用标准格式或保持原样
+                    # 使用标准格式：exchange.contract
                     formatted_symbol = f"{standard_exchange}.{contract}"
 
                 formatted_symbols.append(formatted_symbol)
@@ -238,10 +346,15 @@ def util_format_future_symbols(
                         standard_exchange = normalize_exchange(exchange)
 
                         if format == "tushare":
-                            tushare_exchange = _get_cached_exchange_mapping(standard_exchange, "tushare")
-                            # 使用Tushare格式：contract.exchange
+                            tushare_exchange = _get_cached_exchange_mapping(standard_exchange, "tushare", "suffix")
+                            # 使用Tushare格式：contract.exchange（使用后缀映射）
                             formatted_symbol = f"{symbol}.{tushare_exchange}"
+                        elif format in ["vnpy", "vn"]:
+                            # vnpy格式：contract.exchange
+                            vnpy_exchange = _get_cached_exchange_mapping(standard_exchange, "vnpy")
+                            formatted_symbol = f"{symbol}.{vnpy_exchange}"
                         else:
+                            # 使用标准格式：exchange.symbol
                             formatted_symbol = f"{standard_exchange}.{symbol}"
                         formatted_symbols.append(formatted_symbol)
                     else:
@@ -256,9 +369,11 @@ def util_format_future_symbols(
 
     # 移除交易所前缀（如果需要）
     if not include_exchange and formatted_symbols:
-        if format in ["tushare", "ts"]:
+        if format in ["tushare", "ts", "vnpy", "vn"]:
+            # 对于 tushare 和 vnpy 格式，交易所代码在后缀，所以取第一个部分
             formatted_symbols = [sym.split('.')[0] for sym in formatted_symbols]
         else:
+            # 对于其他格式，交易所代码在前缀，所以取第二个部分
             formatted_symbols = [sym.split('.')[1] if '.' in sym else sym for sym in formatted_symbols]
 
     return formatted_symbols
@@ -359,3 +474,84 @@ def util_make_dataframe_consistent(df: pd.DataFrame) -> pd.DataFrame:
         )
 
     return df
+
+
+@lru_cache(maxsize=1024)
+def _infer_stock_exchange_from_config(stock_code: str) -> Optional[str]:
+    """基于配置文件推断股票代码对应的交易所
+
+    使用 exchanges.toml 中的 stock_index_rules 配置进行精确匹配。
+
+    Args:
+        stock_code: 6位股票代码
+
+    Returns:
+        Optional[str]: 标准交易所代码（SHSE/SZSE/BSE）或 None
+    """
+    if not stock_code or len(stock_code) != 6:
+        return None
+
+    try:
+        # 尝试转换为整数进行范围比较
+        code_num = int(stock_code)
+    except ValueError:
+        return None
+
+    try:
+        config_loader = get_config_loader()
+        config = config_loader.load_config('exchanges')
+        rules = config.get('stock_index_rules', {})
+
+        # 检查上交所规则
+        shse_stocks = rules.get('shse_stocks', {})
+        for market_range in shse_stocks.values():
+            if isinstance(market_range, str) and '-' in market_range:
+                try:
+                    start_str, end_str = market_range.split('-')
+                    start, end = int(start_str), int(end_str)
+                    if start <= code_num <= end:
+                        return "SHSE"
+                except (ValueError, TypeError):
+                    continue
+
+        # 检查深交所规则
+        szse_stocks = rules.get('szse_stocks', {})
+        for market_range in szse_stocks.values():
+            if isinstance(market_range, str) and '-' in market_range:
+                try:
+                    start_str, end_str = market_range.split('-')
+                    start, end = int(start_str), int(end_str)
+                    if start <= code_num <= end:
+                        return "SZSE"
+                except (ValueError, TypeError):
+                    continue
+
+        # 北交所规则（4、8、9开头，但需要更精确的范围）
+        # 目前配置文件中没有北交所详细规则，使用简单判断
+        if stock_code.startswith(('4', '8', '9')):
+            return "BSE"
+
+        return None
+
+    except Exception as e:
+        # 配置加载失败时回退到硬编码逻辑
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning(f"Failed to load stock exchange config, falling back to hardcoded rules: {e}")
+        return _infer_stock_exchange_hardcoded(stock_code)
+
+
+def _infer_stock_exchange_hardcoded(stock_code: str) -> Optional[str]:
+    """硬编码的股票交易所推断（后备方案）"""
+    if not stock_code:
+        return None
+
+    first_digit = stock_code[0]
+    if first_digit == "6":
+        return "SHSE"
+    elif first_digit in ["0", "3"]:
+        return "SZSE"
+    elif first_digit in ["4", "8", "9"]:
+        return "BSE"
+    else:
+        return None

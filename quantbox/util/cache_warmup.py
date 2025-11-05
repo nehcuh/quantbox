@@ -92,7 +92,7 @@ def warm_exchange_caches():
     ]
 
     # 数据源列表
-    data_sources = ["tushare", "goldminer", "joinquant"]
+    data_sources = ["tushare", "goldminer", "vnpy"]
 
     # 预热交易所标准化
     for exchange in standard_exchanges:
@@ -118,7 +118,7 @@ def warm_tools_caches():
     ]
 
     # 数据源列表
-    data_sources = ["tushare", "goldminer", "joinquant"]
+    data_sources = ["tushare", "goldminer", "vnpy"]
 
     # 预热工具函数的交易所映射缓存
     for exchange in standard_exchanges:

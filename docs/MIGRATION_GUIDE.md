@@ -132,3 +132,271 @@ print(res.inserted_count, res.modified_count)
 
 - 参考：[API_REFERENCE.md](API_REFERENCE.md) 与 [QUICK_START.md](QUICK_START.md)
 - 提 Issue：GitHub 仓库 Issues
+
+---
+
+## 9. 最新更新 (2025-11-05)
+
+### ⚠️ 重要：废弃警告
+
+**TSFetcher 已正式标记为废弃！**
+
+从 2025-11-05 开始，使用 `quantbox.fetchers.fetcher_tushare.TSFetcher` 会收到 DeprecationWarning：
+
+```python
+# ❌ 将触发警告
+from quantbox.fetchers.fetcher_tushare import TSFetcher
+# DeprecationWarning: quantbox.fetchers.fetcher_tushare.TSFetcher 已废弃，
+# 请使用 quantbox.adapters.ts_adapter.TSAdapter 替代。
+# 本模块将在未来版本中移除。
+```
+
+**请尽快迁移！**
+
+### 🆕 GMAdapter 已添加
+
+新增掘金量化数据源支持框架：
+
+```python
+from quantbox.adapters import GMAdapter
+
+# 初始化（需要掘金量化 token）
+gm_adapter = GMAdapter(token="your_gm_token")
+
+# 接口框架已就绪，核心实现需要掘金 API 访问
+# 查看 quantbox/adapters/gm_adapter.py 中的 TODO 注释
+```
+
+GMAdapter 实现了完整的接口签名，可以在 `MarketDataService` 中使用：
+
+```python
+from quantbox.services import MarketDataService
+from quantbox.adapters import GMAdapter
+
+# 使用掘金作为远程数据源
+service = MarketDataService(
+    remote_adapter=GMAdapter(token="your_token")
+)
+```
+
+### ✅ 服务层测试覆盖
+
+新架构现已拥有完善的测试覆盖：
+
+| 模块 | 测试数量 | 覆盖率 |
+|------|----------|--------|
+| **MarketDataService** | 20 个测试 | **100%** |
+| **DataSaverService** | 17 个测试 | **85%** |
+| 工具层 (utils/) | 126 个测试 | 85%+ |
+| **总计** | **178+ 个测试** | 30%+ |
+
+运行测试：
+```bash
+# 运行所有测试
+uv run pytest tests/ -v
+
+# 运行服务层测试
+uv run pytest tests/test_market_data_service.py tests/test_data_saver_service.py -v
+
+# 生成覆盖率报告
+uv run pytest --cov=quantbox --cov-report=html
+```
+
+### 📊 新旧 API 详细对照
+
+#### TSFetcher → TSAdapter
+
+```python
+# ========== 旧代码 ==========
+from quantbox.fetchers.fetcher_tushare import TSFetcher
+
+fetcher = TSFetcher()
+
+# 获取交易日历
+df = fetcher.fetch_get_trade_dates(
+    exchanges=['SSE'],  # 使用旧交易所代码
+    start_date=20250101,
+    end_date=20250131
+)
+
+# 获取期货合约
+df = fetcher.fetch_get_future_contracts(
+    exchange='SHFE',
+    spec_name='rb'  # 单数
+)
+
+# 获取日线数据
+df = fetcher.fetch_get_future_daily(
+    symbol='SHFE.rb2501',  # 单数
+    start_date=20250101,
+    end_date=20250131
+)
+
+# ========== 新代码 ==========
+from quantbox.adapters import TSAdapter
+
+adapter = TSAdapter()
+
+# 获取交易日历
+df = adapter.get_trade_calendar(
+    exchanges=['SHSE'],  # 使用标准交易所代码
+    start_date=20250101,
+    end_date=20250131
+)
+
+# 获取期货合约
+df = adapter.get_future_contracts(
+    exchanges='SHFE',
+    spec_names='rb'  # 复数（参数名变化）
+)
+
+# 获取日线数据
+df = adapter.get_future_daily(
+    symbols='SHFE.rb2501',  # 复数（参数名变化）
+    start_date=20250101,
+    end_date=20250131
+)
+```
+
+#### 推荐：使用 MarketDataService
+
+```python
+from quantbox.services import MarketDataService
+
+# 初始化服务（自动配置本地和远程适配器）
+service = MarketDataService(prefer_local=True)
+
+# 自动选择数据源（本地优先，远程备用）
+df = service.get_trade_calendar(
+    exchanges='SHSE',
+    start_date=20250101,
+    end_date=20250131
+)
+
+# 显式指定数据源
+df_local = service.get_future_contracts(use_local=True)
+df_remote = service.get_future_contracts(use_local=False)
+```
+
+### 🔧 主要参数变化
+
+| 类别 | 旧参数名 | 新参数名 | 说明 |
+|------|----------|----------|------|
+| 方法名 | `fetch_get_*` | `get_*` | 移除 fetch 前缀 |
+| 交易所 | `exchanges=['SSE']` | `exchanges=['SHSE']` | 使用标准代码 |
+| 合约 | `symbol='rb2501'` | `symbols='SHFE.rb2501'` | 参数名复数化 |
+| 品种 | `spec_name='rb'` | `spec_names='rb'` | 参数名复数化 |
+
+### 📦 SaveResult 结果对象
+
+`DataSaverService` 现在返回详细的保存结果：
+
+```python
+from quantbox.services import DataSaverService
+
+saver = DataSaverService()
+result = saver.save_trade_calendar(
+    exchanges='SHSE',
+    start_date=20250101,
+    end_date=20250131
+)
+
+# 检查结果
+if result.success:
+    print(f"✅ 成功!")
+    print(f"   插入: {result.inserted_count} 条")
+    print(f"   更新: {result.modified_count} 条")
+    print(f"   耗时: {result.duration}")
+else:
+    print(f"❌ 失败: {result.error_count} 个错误")
+    for error in result.errors:
+        print(f"   - {error['type']}: {error['message']}")
+
+# 转换为字典
+result_dict = result.to_dict()
+```
+
+### 🚀 迁移检查清单
+
+- [ ] 将所有 `from quantbox.fetchers.fetcher_tushare import TSFetcher` 替换为 `from quantbox.adapters import TSAdapter`
+- [ ] 更新方法调用：`fetch_get_*()` → `get_*()`
+- [ ] 更新参数名：`symbol` → `symbols`, `spec_name` → `spec_names`
+- [ ] 更新交易所代码：`SSE` → `SHSE`, `SZ` → `SZSE`
+- [ ] 使用 `SaveResult` 对象检查保存结果
+- [ ] 运行测试验证无回归：`uv run pytest tests/ -v`
+- [ ] 考虑使用 `MarketDataService` 获得自动数据源选择
+
+### 📅 时间线
+
+| 日期 | 事件 |
+|------|------|
+| 2025-10-30 | 新架构发布 |
+| 2025-11-05 | TSFetcher 标记废弃 ✅ |
+| 2026-01-01 | TSFetcher 计划移除 ⏳ |
+
+**尽快迁移以避免未来版本中的兼容性问题！**
+
+### 🔧 CLI 和 Shell 已更新为新架构 (2025-11-05)
+
+**quantbox-shell 和 CLI 命令现已使用新的 DataSaverService！**
+
+#### 变化说明
+
+从 2025-11-05 开始，所有 CLI 和 Shell 命令已迁移到新架构：
+
+**Shell (交互式命令行)**：
+```bash
+# 启动 Shell
+python -m quantbox.shell
+
+# 或者使用命令
+quantbox> save_future_daily
+quantbox> save_trade_dates
+quantbox> save_all
+```
+
+**CLI (命令行工具)**：
+```bash
+# 使用 CLI 命令
+quantbox-cli save-future-daily
+quantbox-cli save-trade-dates
+quantbox-cli save-all
+```
+
+#### 主要变化
+
+| 变化点 | 旧架构 | 新架构 |
+|--------|--------|--------|
+| **数据保存类** | `MarketDataSaver` | `DataSaverService` |
+| **Engine 参数** | 支持 `--engine ts/gm` | 已移除，默认使用 Tushare |
+| **返回结果** | 无详细反馈 | 显示插入/更新条数 |
+| **save_stock_list** | 正常支持 | 临时使用旧架构（新架构待实现）|
+
+#### 不再支持的功能
+
+- ❌ **Engine 参数**: `save_future_daily --engine gm` 不再支持
+- ⚠️ **GMAdapter**: 新架构默认使用 Tushare，GM 支持需单独配置
+
+#### 兼容性说明
+
+**命令名称保持不变**：
+- `save_future_daily` ✅
+- `save_trade_dates` ✅ (内部调用 save_trade_calendar)
+- `save_future_contracts` ✅
+- `save_future_holdings` ✅
+- `save_stock_list` ✅ (临时使用旧架构)
+- `save_all` ✅
+
+**用户无需修改使用方式**，但会看到更详细的输出：
+
+```bash
+# 新架构输出示例
+quantbox> save_future_daily
+期货日线数据保存完成: 插入 1250 条，更新 48 条
+```
+
+#### 注意事项
+
+1. **stock_list 命令**：由于新架构暂未实现 `save_stock_list`，该命令临时使用旧的 `MarketDataSaver`
+2. **数据源**：所有命令默认使用 Tushare 数据源
+3. **性能提升**：新架构使用批量 upsert，性能更好

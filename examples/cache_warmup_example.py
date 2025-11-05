@@ -83,7 +83,7 @@ def example_performance_comparison():
 
     # 测试数据
     test_symbols = ["000001", "000002", "600000", "600001", "300001"] * 100  # 500个股票代码
-    data_sources = ["tushare", "goldminer", "joinquant"]
+    data_sources = ["tushare", "goldminer", "vnpy"]
 
     # 测试1：未预热的性能
     print("1. 测试未预热性能...")

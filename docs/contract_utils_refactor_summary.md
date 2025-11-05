@@ -30,7 +30,7 @@ class ContractFormat(str, Enum):
     STANDARD = "standard"
     GOLDMINER = "goldminer"
     TUSHARE = "tushare"
-    JOINQUANT = "joinquant"
+    VNPy = "vnpy"
     PLAIN = "plain"
 
 class AssetType(str, Enum):
@@ -102,7 +102,7 @@ _MAIN_CONTRACT_CODES = {"888", "000"}
 标准格式:      SHFE.rb2501
 掘金格式:      SHFE.rb2501
 Tushare格式:   RB2501.SHF
-聚宽格式:      RB2501.XSGE
+vnpy格式:      RB2501.SHFE
 郑商所特殊:    CZCE.SR501 (3位年月)
 ```
 

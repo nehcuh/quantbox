@@ -1,0 +1,83 @@
+# 期货合约代码与交易所映射配置
+# 该文件定义了期货合约代码前缀与对应交易所的映射关系
+
+[contract_mappings]
+# 广州期货交易所（GFEX）
+LC = "GFEX"    # 工业硅
+PX = "GFEX"    # 对苯二甲酸
+SI = "GFEX"    # 多晶硅
+
+# 上海期货交易所（SHFE）
+RB = "SHFE"    # 螺纹钢
+CU = "SHFE"    # 铜
+AL = "SHFE"    # 铝
+ZN = "SHFE"    # 锌
+PB = "SHFE"    # 铅
+NI = "SHFE"    # 镍
+SN = "SHFE"    # 锡
+AU = "SHFE"    # 黄金
+AG = "SHFE"    # 白银
+BU = "SHFE"    # 石油沥青
+RU = "SHFE"    # 天然橡胶
+SP = "SHFE"    # 纸浆
+FU = "SHFE"    # 燃料油
+WR = "SHFE"    # 线材
+HC = "SHFE"    # 热轧卷板
+
+# 大连商品交易所（DCE）
+M = "DCE"      # 豆粕
+A = "DCE"      # 黄大豆1号
+B = "DCE"      # 黄大豆2号
+C = "DCE"      # 玉米
+Y = "DCE"      # 豆油
+P = "DCE"      # 棕榈油
+V = "DCE"      # 聚氯乙烯
+L = "DCE"      # 聚乙烯
+S = "DCE"      # 豆粕
+JD = "DCE"     # 鸡蛋
+FB = "DCE"     # 纤维板
+BB = "DCE"     # 胶合板
+PP = "DCE"     # 聚丙烯
+J = "DCE"      # 焦炭
+JM = "DCE"     # 焦煤
+I = "DCE"      # 铁矿石
+PG = "DCE"     # 液化石油气
+EB = "DCE"     # 苯乙烯
+EG = "DCE"     # 乙二醇
+RR = "DCE"     # 粳米
+LH = "DCE"     # 生猪
+PK = "DCE"     # 花生
+
+# 郑州商品交易所（CZCE）
+CF = "CZCE"    # 棉花
+SR = "CZCE"    # 白糖
+TA = "CZCE"    # PTA
+OI = "CZCE"    # 菜籽油
+MA = "CZCE"    # 甲醇
+FG = "CZCE"    # 玻璃
+RM = "CZCE"    # 菜籽粕
+ZC = "CZCE"    # 动力煤
+JR = "CZCE"    # 粳稻
+LR = "CZCE"    # 晚籼稻
+WH = "CZCE"    # 强麦
+PM = "CZCE"    # 普麦
+SF = "CZCE"    # 硅铁
+SM = "CZCE"    # 锰硅
+UR = "CZCE"    # 尿素
+SA = "CZCE"    # 纯碱
+
+# 中国金融期货交易所（CFFEX）
+IF = "CFFEX"   # 沪深300股指期货
+IC = "CFFEX"   # 中证500股指期货
+IH = "CFFEX"   # 上证50股指期货
+IM = "CFFEX"   # 中证1000股指期货
+T = "CFFEX"    # 10年期国债期货
+TF = "CFFEX"   # 5年期国债期货
+TS = "CFFEX"   # 2年期国债期货
+TL = "CFFEX"   # 30年期国债期货
+
+# 上海国际能源交易中心（INE）
+SC = "INE"     # 原油
+BC = "INE"     # 低硫燃料油
+LU = "INE"     # 液化天然气
+NR = "INE"     # 20号胶

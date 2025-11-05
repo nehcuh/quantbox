@@ -111,7 +111,7 @@ def denormalize_exchange(exchange: str, target: str = "tushare") -> str:
 
     Args:
         exchange: 标准化的交易所代码
-        target: 目标数据源，支持 "tushare", "goldminer", "joinquant"
+        target: 目标数据源，支持 "tushare", "goldminer", "vnpy"
 
     Returns:
         str: 转换后的交易所代码
@@ -124,8 +124,8 @@ def denormalize_exchange(exchange: str, target: str = "tushare") -> str:
         'SH'
         >>> denormalize_exchange("SHFE", "tushare")
         'SHF'
-        >>> denormalize_exchange("SHFE", "joinquant")
-        'XSGE'
+        >>> denormalize_exchange("SHFE", "vnpy")
+        'SHFE'
     """
     if not exchange:
         raise ValueError("Exchange code cannot be empty")
@@ -149,29 +149,19 @@ def denormalize_exchange(exchange: str, target: str = "tushare") -> str:
             "DCE": "DCE",
             "CFFEX": "CFFEX",
             "INE": "INE",
+            "GFEX": "GFEX",
         }
         return tushare_mapping.get(exchange, exchange)
     elif target.lower() == "goldminer":
         # 掘金使用标准代码
         return exchange
-    elif target.lower() == "joinquant":
-        # 聚宽特殊映射：X前缀
-        joinquant_mapping = {
-            "SHSE": "XSHG",
-            "SZSE": "XSHE",
-            "BSE": "BJSE",
-            "SHFE": "XSGE",
-            "CZCE": "XZCE",
-            "DCE": "XDCE",
-            "CFFEX": "CCFX",
-            "INE": "XINE",
-            "GFEX": "XGFEX",
-        }
-        return joinquant_mapping.get(exchange, exchange)
+    elif target.lower() == "vnpy":
+        # vnpy使用标准交易所代码
+        return exchange
     else:
         raise ValueError(
             f"Unsupported target: '{target}'. "
-            f"Supported targets: 'tushare', 'goldminer', 'joinquant'"
+            f"Supported targets: 'tushare', 'goldminer', 'vnpy'"
         )
 
 
