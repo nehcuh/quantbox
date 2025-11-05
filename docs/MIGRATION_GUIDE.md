@@ -411,14 +411,23 @@ quantbox> save_future_daily
 |------|---------------|
 | `save_trade_dates` | 保存今年所有交易所的交易日历（1月1日至今天）|
 | `save_future_contracts` | 保存所有期货交易所的合约信息 |
-| `save_future_daily` | 保存今天所有期货交易所的日线数据 |
-| `save_future_holdings` | 保存今天所有期货交易所的持仓数据 |
+| `save_future_daily` | **保存从 1990-01-01 到今天所有期货交易所的历史日线数据** |
+| `save_future_holdings` | **保存从 1990-01-01 到今天所有期货交易所的历史持仓数据** |
+
+**设计理念**：
+- ✅ **历史数据优先**：日线和持仓数据默认保存完整历史，方便量化回测和分析
+- ✅ **一次性完整**：无参数调用即可获取从 1990 年以来的所有数据
+- ✅ **灵活定制**：如需单日或特定范围，使用参数指定
 
 **示例**：
 ```bash
 # Shell 中无参数调用
 quantbox> save_future_daily
-# ↑ 自动保存今天所有期货交易所（SHFE, DCE, CZCE, CFFEX, INE, GFEX）的数据
+# ↑ 自动保存从 1990-01-01 到今天所有期货交易所（SHFE, DCE, CZCE, CFFEX, INE, GFEX）的历史数据
+期货日线数据保存完成: 插入 125000 条，更新 4800 条
+
+# 如需保存单日数据
+quantbox> save_future_daily --date 2025-01-15
 期货日线数据保存完成: 插入 1250 条，更新 48 条
 ```
 
@@ -475,36 +484,51 @@ quantbox-cli save-future-daily --start-date 2025-01-01 --end-date 2025-01-31
 **save_future_daily**：
 - `--exchanges`: 交易所代码（默认：所有期货交易所）
 - `--symbols`: 合约代码
-- `--date`: 单日查询（默认：今天）
-- `--start-date`: 起始日期
-- `--end-date`: 结束日期
+- `--date`: 单日查询（使用此参数时忽略 start-date/end-date）
+- `--start-date`: 起始日期（默认：**1990-01-01**）
+- `--end-date`: 结束日期（默认：今天）
 
 **save_future_holdings**：
 - `--exchanges`: 交易所代码（默认：所有期货交易所）
 - `--symbols`: 合约代码
 - `--spec-names`: 品种名称
-- `--date`: 单日查询（默认：今天）
-- `--start-date`: 起始日期
-- `--end-date`: 结束日期
+- `--date`: 单日查询（使用此参数时忽略 start-date/end-date）
+- `--start-date`: 起始日期（默认：**1990-01-01**）
+- `--end-date`: 结束日期（默认：今天）
 
 #### 使用技巧
 
-1. **快速保存今天数据**：无参数调用即可
+1. **快速保存所有历史数据**：无参数调用（推荐用于首次初始化）
    ```bash
    save_future_daily
+   # 保存从 1990-01-01 到今天的所有历史数据
    ```
 
-2. **保存特定交易所**：使用 `--exchanges`
+2. **保存今天单日数据**：使用 `--date` 参数（推荐用于日常增量更新）
+   ```bash
+   save_future_daily --date 2025-01-15
+   ```
+
+3. **保存特定交易所**：使用 `--exchanges`
    ```bash
    save_future_daily --exchanges SHFE,DCE
+   # 保存上期所和大商所从 1990 年以来的历史数据
    ```
 
-3. **保存特定合约**：使用 `--symbols`
+4. **保存特定合约**：使用 `--symbols`
    ```bash
    save_future_daily --symbols SHFE.rb2501,SHFE.rb2505
+   # 保存指定合约从 1990 年以来的历史数据
    ```
 
-4. **历史数据回填**：使用日期范围
+5. **保存特定日期范围**：使用 `--start-date` 和 `--end-date`
    ```bash
    save_future_daily --start-date 2024-01-01 --end-date 2024-12-31
+   # 仅保存 2024 年的数据
+   ```
+
+6. **组合使用**：灵活定制
+   ```bash
+   save_future_daily --exchanges SHFE --date 2025-01-15
+   # 保存上期所今天的数据
    ```

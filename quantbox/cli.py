@@ -131,14 +131,14 @@ def save_future_contracts(exchanges, symbols, spec_names, date):
 @click.option('--symbols', help='合约代码，多个用逗号分隔')
 @click.option('--spec-names', help='品种名称，多个用逗号分隔')
 @click.option('--date', help='单日查询（如：2025-01-15）')
-@click.option('--start-date', help='起始日期（如：2025-01-01）')
-@click.option('--end-date', help='结束日期（如：2025-01-31）')
+@click.option('--start-date', help='起始日期（如：2025-01-01，默认 1990-01-01）')
+@click.option('--end-date', help='结束日期（如：2025-01-31，默认今天）')
 @handle_errors
 def save_future_holdings(exchanges, symbols, spec_names, date, start_date, end_date):
     """
     保存期货持仓数据
 
-    默认保存今天所有期货交易所的持仓数据
+    默认保存从 1990-01-01 到今天所有期货交易所的历史持仓数据
     """
     saver = DataSaverService()
 
@@ -164,14 +164,14 @@ def save_future_holdings(exchanges, symbols, spec_names, date, start_date, end_d
 @click.option('--exchanges', help='交易所代码，多个用逗号分隔（如：SHFE,DCE,CZCE）')
 @click.option('--symbols', help='合约代码，多个用逗号分隔（如：SHFE.rb2501,DCE.m2505）')
 @click.option('--date', help='单日查询（如：2025-01-15 或 20250115）')
-@click.option('--start-date', help='起始日期（如：2025-01-01）')
-@click.option('--end-date', help='结束日期（如：2025-01-31）')
+@click.option('--start-date', help='起始日期（如：2025-01-01，默认 1990-01-01）')
+@click.option('--end-date', help='结束日期（如：2025-01-31，默认今天）')
 @handle_errors
 def save_future_daily(exchanges, symbols, date, start_date, end_date):
     """
     保存期货日线数据
 
-    默认保存今天所有期货交易所的数据
+    默认保存从 1990-01-01 到今天所有期货交易所的历史数据
     """
     saver = DataSaverService()
 

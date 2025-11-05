@@ -312,13 +312,13 @@ class DataSaverService:
         Args:
             symbols: 合约代码或列表，默认 None（获取所有合约）
             exchanges: 交易所代码或列表，默认 None（使用所有期货交易所）
-            start_date: 起始日期，默认 None
-            end_date: 结束日期，默认 None
-            date: 单日查询日期，默认 None（使用今天）
+            start_date: 起始日期，默认 None（从 1990-01-01 开始）
+            end_date: 结束日期，默认 None（到今天）
+            date: 单日查询日期，默认 None
 
         智能默认行为：
-            - 如果 symbols、exchanges、start_date、end_date、date 都为 None，
-              则默认保存今天所有期货交易所的数据
+            - 如果所有参数都为 None，默认保存从 1990-01-01 到今天所有期货交易所的历史数据
+            - 这样可以一次性获取完整的历史行情数据
 
         Returns:
             SaveResult: 保存结果
@@ -326,9 +326,10 @@ class DataSaverService:
         result = SaveResult()
 
         try:
-            # 智能默认：如果没有指定任何参数，默认保存今天的数据
+            # 智能默认：如果没有指定任何参数，默认保存历史所有数据
             if all(x is None for x in [symbols, exchanges, start_date, end_date, date]):
-                date = datetime.datetime.today().strftime("%Y%m%d")
+                start_date = "1990-01-01"  # 从 1990 年开始
+                end_date = datetime.datetime.today().strftime("%Y%m%d")
                 exchanges = FUTURES_EXCHANGES  # 默认使用所有期货交易所
 
             # 从远程获取数据
@@ -393,12 +394,13 @@ class DataSaverService:
             symbols: 合约代码或列表
             exchanges: 交易所代码或列表，默认 None（使用所有期货交易所）
             spec_names: 品种名称或列表
-            start_date: 起始日期
-            end_date: 结束日期
-            date: 单日查询日期，默认 None（使用今天）
+            start_date: 起始日期，默认 None（从 1990-01-01 开始）
+            end_date: 结束日期，默认 None（到今天）
+            date: 单日查询日期，默认 None
 
         智能默认行为：
-            - 如果所有参数都为 None，默认保存今天所有期货交易所的持仓数据
+            - 如果所有参数都为 None，默认保存从 1990-01-01 到今天所有期货交易所的历史持仓数据
+            - 这样可以一次性获取完整的持仓历史数据，便于分析趋势
 
         Returns:
             SaveResult: 保存结果
@@ -406,9 +408,10 @@ class DataSaverService:
         result = SaveResult()
 
         try:
-            # 智能默认：如果没有指定任何参数，默认保存今天的数据
+            # 智能默认：如果没有指定任何参数，默认保存历史所有数据
             if all(x is None for x in [symbols, exchanges, spec_names, start_date, end_date, date]):
-                date = datetime.datetime.today().strftime("%Y%m%d")
+                start_date = "1990-01-01"  # 从 1990 年开始
+                end_date = datetime.datetime.today().strftime("%Y%m%d")
                 exchanges = FUTURES_EXCHANGES
 
             # 从远程获取数据

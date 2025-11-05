@@ -171,19 +171,19 @@ Welcome to Quantbox Shell (新架构)!
         """保存期货持仓数据
 
         用法:
-            save_future_holdings                                 # 默认保存今天所有期货交易所
+            save_future_holdings                                 # 默认保存从 1990-01-01 到今天所有期货交易所的历史持仓数据
             save_future_holdings --exchanges SHFE,DCE            # 指定交易所
             save_future_holdings --symbols SHFE.rb2501           # 指定合约
-            save_future_holdings --date 2025-01-15               # 指定日期
-            save_future_holdings --start-date 2025-01-01 --end-date 2025-01-31  # 日期范围
+            save_future_holdings --date 2025-01-15               # 指定单日
+            save_future_holdings --start-date 2025-01-01 --end-date 2025-01-31  # 指定日期范围
 
         参数:
             --exchanges: 交易所代码，多个用逗号分隔
             --symbols: 合约代码，多个用逗号分隔
             --spec-names: 品种名称，多个用逗号分隔
             --date: 单日查询
-            --start-date: 起始日期
-            --end-date: 结束日期
+            --start-date: 起始日期（默认 1990-01-01）
+            --end-date: 结束日期（默认今天）
         """
         params = parse_args(arg)
         result = self.saver.save_future_holdings(**params)
@@ -195,18 +195,18 @@ Welcome to Quantbox Shell (新架构)!
         """保存期货日线数据
 
         用法:
-            save_future_daily                                    # 默认保存今天所有期货交易所
+            save_future_daily                                    # 默认保存从 1990-01-01 到今天所有期货交易所的历史数据
             save_future_daily --exchanges SHFE,DCE              # 指定交易所
             save_future_daily --symbols SHFE.rb2501,DCE.m2505  # 指定合约
-            save_future_daily --date 2025-01-15                 # 指定日期
-            save_future_daily --start-date 2025-01-01 --end-date 2025-01-31  # 日期范围
+            save_future_daily --date 2025-01-15                 # 指定单日
+            save_future_daily --start-date 2025-01-01 --end-date 2025-01-31  # 指定日期范围
 
         参数:
             --exchanges: 交易所代码，多个用逗号分隔（如：SHFE,DCE,CZCE）
             --symbols: 合约代码，多个用逗号分隔（如：SHFE.rb2501,DCE.m2505）
             --date: 单日查询（如：2025-01-15 或 20250115）
-            --start-date: 起始日期（如：2025-01-01）
-            --end-date: 结束日期（如：2025-01-31）
+            --start-date: 起始日期（如：2025-01-01，默认 1990-01-01）
+            --end-date: 结束日期（如：2025-01-31，默认今天）
         """
         params = parse_args(arg)
         result = self.saver.save_future_daily(**params)
