@@ -73,51 +73,121 @@ def save_all():
     click.echo("\n所有数据保存完成！")
 
 @click.command()
+@click.option('--exchanges', help='交易所代码，多个用逗号分隔（如：SHFE,DCE,CZCE）')
+@click.option('--start-date', help='起始日期（如：2025-01-01 或 20250101）')
+@click.option('--end-date', help='结束日期（如：2025-12-31 或 20251231）')
 @handle_errors
-def save_trade_dates():
+def save_trade_dates(exchanges, start_date, end_date):
     """
     保存交易日期数据
 
-    注意：使用新架构（DataSaverService），默认使用 Tushare 数据源
+    默认保存今年所有交易所的数据
     """
     saver = DataSaverService()
-    result = saver.save_trade_calendar()
+
+    # 处理逗号分隔的交易所列表
+    if exchanges:
+        exchanges = exchanges.split(',')
+
+    result = saver.save_trade_calendar(
+        exchanges=exchanges,
+        start_date=start_date,
+        end_date=end_date
+    )
     click.echo(f"交易日期数据保存完成: 插入 {result.inserted_count} 条，更新 {result.modified_count} 条")
 
 @click.command()
+@click.option('--exchanges', help='交易所代码，多个用逗号分隔（如：SHFE,DCE,CZCE）')
+@click.option('--symbols', help='合约代码，多个用逗号分隔（如：SHFE.rb2501,DCE.m2505）')
+@click.option('--spec-names', help='品种名称，多个用逗号分隔（如：rb,cu,al）')
+@click.option('--date', help='查询日期（如：2025-01-15 或 20250115）')
 @handle_errors
-def save_future_contracts():
+def save_future_contracts(exchanges, symbols, spec_names, date):
     """
     保存期货合约数据
 
-    注意：使用新架构（DataSaverService），默认使用 Tushare 数据源
+    默认保存所有期货交易所的合约
     """
     saver = DataSaverService()
-    result = saver.save_future_contracts()
+
+    # 处理逗号分隔的列表
+    if exchanges:
+        exchanges = exchanges.split(',')
+    if symbols:
+        symbols = symbols.split(',')
+    if spec_names:
+        spec_names = spec_names.split(',')
+
+    result = saver.save_future_contracts(
+        exchanges=exchanges,
+        symbols=symbols,
+        spec_names=spec_names,
+        date=date
+    )
     click.echo(f"期货合约数据保存完成: 插入 {result.inserted_count} 条，更新 {result.modified_count} 条")
 
 @click.command()
+@click.option('--exchanges', help='交易所代码，多个用逗号分隔')
+@click.option('--symbols', help='合约代码，多个用逗号分隔')
+@click.option('--spec-names', help='品种名称，多个用逗号分隔')
+@click.option('--date', help='单日查询（如：2025-01-15）')
+@click.option('--start-date', help='起始日期（如：2025-01-01）')
+@click.option('--end-date', help='结束日期（如：2025-01-31）')
 @handle_errors
-def save_future_holdings():
+def save_future_holdings(exchanges, symbols, spec_names, date, start_date, end_date):
     """
     保存期货持仓数据
 
-    注意：使用新架构（DataSaverService），默认使用 Tushare 数据源
+    默认保存今天所有期货交易所的持仓数据
     """
     saver = DataSaverService()
-    result = saver.save_future_holdings()
+
+    # 处理逗号分隔的列表
+    if exchanges:
+        exchanges = exchanges.split(',')
+    if symbols:
+        symbols = symbols.split(',')
+    if spec_names:
+        spec_names = spec_names.split(',')
+
+    result = saver.save_future_holdings(
+        exchanges=exchanges,
+        symbols=symbols,
+        spec_names=spec_names,
+        date=date,
+        start_date=start_date,
+        end_date=end_date
+    )
     click.echo(f"期货持仓数据保存完成: 插入 {result.inserted_count} 条，更新 {result.modified_count} 条")
 
 @click.command()
+@click.option('--exchanges', help='交易所代码，多个用逗号分隔（如：SHFE,DCE,CZCE）')
+@click.option('--symbols', help='合约代码，多个用逗号分隔（如：SHFE.rb2501,DCE.m2505）')
+@click.option('--date', help='单日查询（如：2025-01-15 或 20250115）')
+@click.option('--start-date', help='起始日期（如：2025-01-01）')
+@click.option('--end-date', help='结束日期（如：2025-01-31）')
 @handle_errors
-def save_future_daily():
+def save_future_daily(exchanges, symbols, date, start_date, end_date):
     """
     保存期货日线数据
 
-    注意：使用新架构（DataSaverService），默认使用 Tushare 数据源
+    默认保存今天所有期货交易所的数据
     """
     saver = DataSaverService()
-    result = saver.save_future_daily()
+
+    # 处理逗号分隔的列表
+    if exchanges:
+        exchanges = exchanges.split(',')
+    if symbols:
+        symbols = symbols.split(',')
+
+    result = saver.save_future_daily(
+        exchanges=exchanges,
+        symbols=symbols,
+        date=date,
+        start_date=start_date,
+        end_date=end_date
+    )
     click.echo(f"期货日线数据保存完成: 插入 {result.inserted_count} 条，更新 {result.modified_count} 条")
 
 @click.command()

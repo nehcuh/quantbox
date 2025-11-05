@@ -25,14 +25,40 @@ def handle_errors(f: Callable) -> Callable:
             print(error_msg)
     return wrapper
 
-def parse_engine(arg: str) -> Optional[str]:
-    """解析引擎参数"""
+def parse_args(arg: str) -> dict:
+    """解析命令行参数
+
+    支持格式：
+        --exchanges SHFE,DCE
+        --symbols SHFE.rb2501,DCE.m2505
+        --start-date 2025-01-01
+        --end-date 2025-01-31
+        --date 2025-01-01
+
+    Returns:
+        dict: 解析后的参数字典
+    """
     args = shlex.split(arg)
-    if not args:
-        return 'ts'  # 默认使用 Tushare
-    if args[0] not in ['ts', 'gm']:
-        raise ValueError("引擎参数必须是 'ts' 或 'gm'")
-    return args[0]
+    params = {}
+
+    i = 0
+    while i < len(args):
+        if args[i].startswith('--'):
+            key = args[i][2:].replace('-', '_')  # --start-date -> start_date
+            if i + 1 < len(args) and not args[i + 1].startswith('--'):
+                value = args[i + 1]
+                # 处理逗号分隔的列表
+                if ',' in value:
+                    params[key] = value.split(',')
+                else:
+                    params[key] = value
+                i += 2
+            else:
+                i += 1
+        else:
+            i += 1
+
+    return params
 
 class QuantboxShell(cmd.Cmd):
     """Quantbox 交互式命令行环境 (新架构)
@@ -103,22 +129,40 @@ Welcome to Quantbox Shell (新架构)!
     def do_save_trade_dates(self, arg: str):
         """保存交易日期数据
 
-        用法: save_trade_dates
-        注意：新架构默认使用 Tushare 数据源
+        用法:
+            save_trade_dates                                    # 默认保存今年所有交易所
+            save_trade_dates --exchanges SHFE,DCE              # 指定交易所
+            save_trade_dates --start-date 2025-01-01           # 指定起始日期
+            save_trade_dates --start-date 2025-01-01 --end-date 2025-12-31  # 指定日期范围
+
+        参数:
+            --exchanges: 交易所代码，多个用逗号分隔
+            --start-date: 起始日期，默认今年年初
+            --end-date: 结束日期，默认今天
         """
-        if arg:
-            print("注意：新架构默认使用 Tushare，engine 参数已忽略")
-        result = self.saver.save_trade_calendar()
+        params = parse_args(arg)
+        result = self.saver.save_trade_calendar(**params)
         logger.info(f"交易日期数据保存完成: 插入 {result.inserted_count} 条，更新 {result.modified_count} 条")
         print(f"交易日期数据保存完成: 插入 {result.inserted_count} 条，更新 {result.modified_count} 条")
             
     @handle_errors
     def do_save_future_contracts(self, arg: str):
-        """保存期货合约数据 (使用 Tushare 数据源)
+        """保存期货合约数据
 
-        用法: save_future_contracts
+        用法:
+            save_future_contracts                    # 默认保存所有期货交易所
+            save_future_contracts --exchanges SHFE,DCE   # 指定交易所
+            save_future_contracts --symbols SHFE.rb2501  # 指定合约
+            save_future_contracts --spec-names rb,cu     # 指定品种
+
+        参数:
+            --exchanges: 交易所代码，多个用逗号分隔
+            --symbols: 合约代码，多个用逗号分隔
+            --spec-names: 品种名称，多个用逗号分隔
+            --date: 查询日期
         """
-        result = self.saver.save_future_contracts()
+        params = parse_args(arg)
+        result = self.saver.save_future_contracts(**params)
         logger.info(f"期货合约数据保存完成: 插入 {result.inserted_count} 条，更新 {result.modified_count} 条")
         print(f"期货合约数据保存完成: 插入 {result.inserted_count} 条，更新 {result.modified_count} 条")
             
@@ -126,12 +170,23 @@ Welcome to Quantbox Shell (新架构)!
     def do_save_future_holdings(self, arg: str):
         """保存期货持仓数据
 
-        用法: save_future_holdings
-        注意：新架构默认使用 Tushare 数据源
+        用法:
+            save_future_holdings                                 # 默认保存今天所有期货交易所
+            save_future_holdings --exchanges SHFE,DCE            # 指定交易所
+            save_future_holdings --symbols SHFE.rb2501           # 指定合约
+            save_future_holdings --date 2025-01-15               # 指定日期
+            save_future_holdings --start-date 2025-01-01 --end-date 2025-01-31  # 日期范围
+
+        参数:
+            --exchanges: 交易所代码，多个用逗号分隔
+            --symbols: 合约代码，多个用逗号分隔
+            --spec-names: 品种名称，多个用逗号分隔
+            --date: 单日查询
+            --start-date: 起始日期
+            --end-date: 结束日期
         """
-        if arg:
-            print("注意：新架构默认使用 Tushare，engine 参数已忽略")
-        result = self.saver.save_future_holdings()
+        params = parse_args(arg)
+        result = self.saver.save_future_holdings(**params)
         logger.info(f"期货持仓数据保存完成: 插入 {result.inserted_count} 条，更新 {result.modified_count} 条")
         print(f"期货持仓数据保存完成: 插入 {result.inserted_count} 条，更新 {result.modified_count} 条")
             
@@ -139,12 +194,22 @@ Welcome to Quantbox Shell (新架构)!
     def do_save_future_daily(self, arg: str):
         """保存期货日线数据
 
-        用法: save_future_daily
-        注意：新架构默认使用 Tushare 数据源
+        用法:
+            save_future_daily                                    # 默认保存今天所有期货交易所
+            save_future_daily --exchanges SHFE,DCE              # 指定交易所
+            save_future_daily --symbols SHFE.rb2501,DCE.m2505  # 指定合约
+            save_future_daily --date 2025-01-15                 # 指定日期
+            save_future_daily --start-date 2025-01-01 --end-date 2025-01-31  # 日期范围
+
+        参数:
+            --exchanges: 交易所代码，多个用逗号分隔（如：SHFE,DCE,CZCE）
+            --symbols: 合约代码，多个用逗号分隔（如：SHFE.rb2501,DCE.m2505）
+            --date: 单日查询（如：2025-01-15 或 20250115）
+            --start-date: 起始日期（如：2025-01-01）
+            --end-date: 结束日期（如：2025-01-31）
         """
-        if arg:
-            print("注意：新架构默认使用 Tushare，engine 参数已忽略")
-        result = self.saver.save_future_daily()
+        params = parse_args(arg)
+        result = self.saver.save_future_daily(**params)
         logger.info(f"期货日线数据保存完成: 插入 {result.inserted_count} 条，更新 {result.modified_count} 条")
         print(f"期货日线数据保存完成: 插入 {result.inserted_count} 条，更新 {result.modified_count} 条")
             

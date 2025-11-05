@@ -13,6 +13,7 @@ from quantbox.adapters.base import BaseDataAdapter
 from quantbox.adapters.local_adapter import LocalAdapter
 from quantbox.adapters.ts_adapter import TSAdapter
 from quantbox.util.date_utils import DateLike, date_to_int
+from quantbox.util.exchange_utils import FUTURES_EXCHANGES, STOCK_EXCHANGES, ALL_EXCHANGES
 from quantbox.config.config_loader import get_config_loader
 
 
@@ -158,18 +159,35 @@ class DataSaverService:
     ) -> SaveResult:
         """
         保存交易日历数据
-        
+
         Args:
-            exchanges: 交易所代码或列表
-            start_date: 起始日期
-            end_date: 结束日期
-        
+            exchanges: 交易所代码或列表，默认 None（使用所有交易所）
+            start_date: 起始日期，默认 None（使用今年年初）
+            end_date: 结束日期，默认 None（使用今天）
+
+        智能默认行为：
+            - 如果 exchanges 为 None，使用所有交易所
+            - 如果 start_date 为 None，使用今年年初
+            - 如果 end_date 为 None，使用今天
+
         Returns:
             SaveResult: 保存结果
         """
         result = SaveResult()
-        
+
         try:
+            # 智能默认
+            if exchanges is None:
+                exchanges = ALL_EXCHANGES
+
+            if start_date is None:
+                # 默认从今年年初开始
+                start_date = datetime.datetime(datetime.datetime.today().year, 1, 1).strftime("%Y%m%d")
+
+            if end_date is None:
+                # 默认到今天
+                end_date = datetime.datetime.today().strftime("%Y%m%d")
+
             # 从远程获取数据
             df = self.remote_adapter.get_trade_calendar(
                 exchanges=exchanges,
@@ -219,19 +237,26 @@ class DataSaverService:
     ) -> SaveResult:
         """
         保存期货合约信息
-        
+
         Args:
-            exchanges: 交易所代码或列表
+            exchanges: 交易所代码或列表，默认 None（使用所有期货交易所）
             symbols: 合约代码或列表
             spec_names: 品种名称或列表
             date: 查询日期
-        
+
+        智能默认行为：
+            - 如果所有参数都为 None，使用所有期货交易所
+
         Returns:
             SaveResult: 保存结果
         """
         result = SaveResult()
-        
+
         try:
+            # 智能默认：如果没有指定任何参数，使用所有期货交易所
+            if all(x is None for x in [exchanges, symbols, spec_names, date]):
+                exchanges = FUTURES_EXCHANGES
+
             # 从远程获取数据
             df = self.remote_adapter.get_future_contracts(
                 exchanges=exchanges,
@@ -283,20 +308,29 @@ class DataSaverService:
     ) -> SaveResult:
         """
         保存期货日线数据
-        
+
         Args:
-            symbols: 合约代码或列表
-            exchanges: 交易所代码或列表
-            start_date: 起始日期
-            end_date: 结束日期
-            date: 单日查询日期
-        
+            symbols: 合约代码或列表，默认 None（获取所有合约）
+            exchanges: 交易所代码或列表，默认 None（使用所有期货交易所）
+            start_date: 起始日期，默认 None
+            end_date: 结束日期，默认 None
+            date: 单日查询日期，默认 None（使用今天）
+
+        智能默认行为：
+            - 如果 symbols、exchanges、start_date、end_date、date 都为 None，
+              则默认保存今天所有期货交易所的数据
+
         Returns:
             SaveResult: 保存结果
         """
         result = SaveResult()
-        
+
         try:
+            # 智能默认：如果没有指定任何参数，默认保存今天的数据
+            if all(x is None for x in [symbols, exchanges, start_date, end_date, date]):
+                date = datetime.datetime.today().strftime("%Y%m%d")
+                exchanges = FUTURES_EXCHANGES  # 默认使用所有期货交易所
+
             # 从远程获取数据
             df = self.remote_adapter.get_future_daily(
                 symbols=symbols,
@@ -354,21 +388,29 @@ class DataSaverService:
     ) -> SaveResult:
         """
         保存期货持仓数据
-        
+
         Args:
             symbols: 合约代码或列表
-            exchanges: 交易所代码或列表
+            exchanges: 交易所代码或列表，默认 None（使用所有期货交易所）
             spec_names: 品种名称或列表
             start_date: 起始日期
             end_date: 结束日期
-            date: 单日查询日期
-        
+            date: 单日查询日期，默认 None（使用今天）
+
+        智能默认行为：
+            - 如果所有参数都为 None，默认保存今天所有期货交易所的持仓数据
+
         Returns:
             SaveResult: 保存结果
         """
         result = SaveResult()
-        
+
         try:
+            # 智能默认：如果没有指定任何参数，默认保存今天的数据
+            if all(x is None for x in [symbols, exchanges, spec_names, start_date, end_date, date]):
+                date = datetime.datetime.today().strftime("%Y%m%d")
+                exchanges = FUTURES_EXCHANGES
+
             # 从远程获取数据
             df = self.remote_adapter.get_future_holdings(
                 symbols=symbols,
