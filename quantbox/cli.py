@@ -1,6 +1,6 @@
 import click
 from quantbox.services.data_saver_service import DataSaverService
-from quantbox.savers.data_saver import MarketDataSaver  # 仅用于 save_stock_list
+# MarketDataSaver is kept for backward compatibility
 import logging
 from functools import wraps
 from typing import Optional
@@ -18,9 +18,9 @@ def handle_errors(f):
 @click.group()
 def cli():
     """
-    Quantbox CLI 工具 (新架构)
+    Quantbox CLI 工具
 
-    所有命令默认使用新的三层架构（DataSaverService）和 Tushare 数据源
+    所有命令默认使用三层架构（DataSaverService）和 Tushare 数据源
     """
     pass
 
@@ -40,13 +40,12 @@ def engine_option(required: bool = True, help_text: Optional[str] = None):
 @handle_errors
 def save_all():
     """
-    保存所有数据，包括交易日期、期货合约、期货持仓数据、期货日线数据和股票列表
+    保存所有市场数据
 
-    注意：使用新架构（DataSaverService），默认使用 Tushare 数据源
-    股票列表数据使用旧架构（新架构暂未实现此功能）
+    使用统一架构（DataSaverService），默认使用 Tushare 数据源
+    支持交易日历、期货合约、股票列表、期货日线、期货持仓等完整数据类型
     """
     saver = DataSaverService(show_progress=True)
-    legacy_saver = MarketDataSaver()
 
     click.echo("开始保存所有数据...")
 
@@ -58,9 +57,9 @@ def save_all():
     result2 = saver.save_future_contracts()
     click.echo(f"✓ 期货合约: 插入 {result2.inserted_count} 条，更新 {result2.modified_count} 条")
 
-    # 保存股票列表（使用旧架构）
-    click.echo("✓ 股票列表: 使用旧架构保存...")
-    legacy_saver.save_stock_list()
+    # 保存股票列表（使用统一架构）
+    result4 = saver.save_stock_list()
+    click.echo(f"✓ 股票列表: 插入 {result4.inserted_count} 条，更新 {result4.modified_count} 条")
 
     # 保存期货持仓
     result3 = saver.save_future_holdings()
@@ -191,17 +190,16 @@ def save_future_daily(exchanges, symbols, date, start_date, end_date):
     click.echo(f"期货日线数据保存完成: 插入 {result.inserted_count} 条，更新 {result.modified_count} 条")
 
 @click.command()
-@handle_errors
 def save_stock_list():
     """
     保存股票列表数据
 
-    注意：使用旧架构（MarketDataSaver），新架构暂未实现此功能
+    使用统一架构（DataSaverService），支持增量更新和多种过滤条件
     """
-    click.echo("注意：save_stock_list 使用旧架构（新架构暂未实现此功能）")
-    saver = MarketDataSaver()
-    saver.save_stock_list()
-    click.echo("股票列表数据保存完成")
+    click.echo("✓ 股票列表: 使用统一架构保存...")
+    saver = DataSaverService()
+    result = saver.save_stock_list()
+    click.echo(f"股票列表数据保存完成: 插入 {result.inserted_count} 条，更新 {result.modified_count} 条")
 
 # 注册所有命令
 commands = [

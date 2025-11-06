@@ -141,8 +141,8 @@ def _print_next_steps(user_config_dir: Path):
     print("   - 默认: mongodb://localhost:27017")
     print("   - 可根据需要修改连接字符串")
     print("\n4. 开始使用:")
-    print("   from quantbox.fetchers import TSFetcher")
-    print("   fetcher = TSFetcher()")
+    print("   from quantbox.services.market_data_service import MarketDataService")
+    print("   service = MarketDataService()")
     print("="*60)
 
 

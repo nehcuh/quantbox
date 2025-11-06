@@ -15,7 +15,7 @@
 依赖 (Dependencies):
     - pandas
     - pymongo
-    - quantbox.fetchers
+    - quantbox.adapters
     - quantbox.util
     - quantbox.config
     - quantbox.logger
@@ -29,13 +29,11 @@ import pandas as pd
 import pymongo
 from bson import ObjectId
 
-if platform.system() != 'Darwin':  # Not macOS
-    from quantbox.fetchers.fetcher_goldminer import GMFetcher
-from quantbox.fetchers.fetcher_tushare import TSFetcher
-from quantbox.fetchers.local_fetcher import LocalFetcher
+from quantbox.adapters.ts_adapter import TSAdapter
+from quantbox.adapters.local_adapter import LocalAdapter
 from quantbox.util.exchange_utils import ALL_EXCHANGES, STOCK_EXCHANGES, FUTURES_EXCHANGES
 from quantbox.config.config_loader import get_config_loader
-from quantbox.util.date_utils import util_make_date_stamp
+from quantbox.util.date_utils import util_make_date_stamp, date_to_int
 from quantbox.util.tools import (
     util_format_stock_symbols,
     util_to_json_from_pandas
@@ -339,13 +337,12 @@ class MarketDataSaver:
     """
     市场数据保存器，用于从多个数据源获取并保存市场数据到本地数据库。
 
-    本类提供了从多个数据源（如 Tushare、掘金等）获取数据并保存到本地 MongoDB 数据库的方法。
+    本类提供了从多个数据源（如 Tushare）获取数据并保存到本地 MongoDB 数据库的方法。
     包含数据验证、错误恢复和完整的日志记录功能。
 
     属性：
-        ts_fetcher: Tushare 数据获取器实例
-        gm_fetcher: 掘金数据获取器实例
-        queryer: 本地数据获取器实例
+        ts_adapter: Tushare 数据适配器实例
+        local_adapter: 本地数据适配器实例
         client: MongoDB 数据库客户端
         config: 配置设置
         exchanges: 支持的所有交易所列表
@@ -364,14 +361,10 @@ class MarketDataSaver:
         """
         初始化市场数据保存器实例。
 
-        设置数据获取器、数据库客户端和配置。
+        设置数据适配器、数据库客户端和配置。
         """
-        self.ts_fetcher = TSFetcher()
-        if platform.system() != 'Darwin':  # Not macOS
-            self.gm_fetcher = GMFetcher()
-        else:
-            self.gm_fetcher = None
-        self.local_fetcher = LocalFetcher()
+        self.ts_adapter = TSAdapter()
+        self.local_adapter = LocalAdapter()
         self.client = get_config_loader().get_mongodb_client().quantbox
         self.config = get_config_loader()._load_user_config()
         self.exchanges = ALL_EXCHANGES.copy()
@@ -454,7 +447,7 @@ class MarketDataSaver:
                 return 0
 
             # 获取新数据
-            df = self.ts_fetcher.fetch_get_trade_dates(
+            df = self.ts_adapter.get_trade_calendar(
                 exchanges=exchange,
                 start_date=start_date
             )
@@ -534,17 +527,16 @@ class MarketDataSaver:
             return False
 
     @retry(max_attempts=3, delay=60)
-    def save_trade_dates(self, start_date: Optional[str] = None, engine: str = "ts"):
+    def save_trade_dates(self, start_date: Optional[str] = None):
         """
         保存交易日期数据到本地数据库。
 
-        从指定的数据源获取交易日期数据并保存到本地 MongoDB 数据库的 'trade_date' 集合中。
+        从 Tushare 获取交易日期数据并保存到本地 MongoDB 数据库的 'trade_date' 集合中。
         支持增量更新和数据去重。包含完整的数据验证、日志记录和错误恢复机制。
 
         Args:
             start_date: 开始日期，默认为 None。
                        如果为 None，则使用配置文件中指定的默认起始日期。
-            engine: 数据源引擎，可选 'ts' (Tushare) 或 'gm' (掘金)，默认为 'ts'。
 
         Returns:
             SaveResult: 保存操作的结果
@@ -553,12 +545,8 @@ class MarketDataSaver:
             Exception: 当数据保存过程中发生错误时抛出
         """
         result = SaveResult()
-        logger.info(f"开始保存交易日期数据 (数据源: {'Tushare' if engine == 'ts' else '掘金量化'})")
+        logger.info("开始保存交易日期数据 (数据源: Tushare)")
         collections = self.client.trade_date
-
-        if engine == "gm" and platform.system() == 'Darwin':
-            logger.warning("GoldMiner API is not supported on macOS, falling back to TuShare")
-            engine = "ts"
 
         try:
             # 创建检查点
@@ -752,8 +740,8 @@ class MarketDataSaver:
         """
         try:
             # 获取所有合约信息
-            total_contracts = self.ts_fetcher.fetch_get_future_contracts(
-                exchange=exchange
+            total_contracts = self.ts_adapter.get_future_contracts(
+                exchanges=exchange
             )
             if total_contracts is None or total_contracts.empty:
                 logger.warning(f"交易所 {exchange} 未获取到合约信息")
@@ -922,7 +910,6 @@ class MarketDataSaver:
         start_date: Union[str, datetime.date, None] = None,
         end_date: Union[str, datetime.date, None] = None,
         offset: int = None,
-        engine: str = "ts",
         max_workers: int = None
     ):
         """
@@ -939,8 +926,6 @@ class MarketDataSaver:
                       如果为 None，则使用当前日期。
             offset: 偏移天数，默认为 None。
                    如果为 None，则使用配置文件中指定的默认偏移天数。
-            engine: 数据源引擎，默认为 'ts' (Tushare)。
-                   可以是 'ts' (Tushare) 或 'gm' (GoldMiner)。
             max_workers: 最大工作线程数，默认为 None。
                         如果为 None，则使用配置文件中指定的默认最大工作线程数。
 
@@ -1001,7 +986,7 @@ class MarketDataSaver:
         for exchange in exchanges:
             try:
                 # 获取交易日列表
-                trade_dates = self.local_fetcher.fetch_trade_dates(
+                trade_dates = self.local_adapter.get_trade_calendar(
                     exchanges=exchange,
                     start_date=start_date,
                     end_date=end_date
@@ -1024,15 +1009,11 @@ class MarketDataSaver:
 
                             # 根据不同引擎调用不同的数据获取方法
                             if engine == 'ts':
-                                results = self.ts_fetcher.fetch_get_holdings(
-                                    exchanges=exchange, cursor_date=trade_date
-                                )
-                            elif engine == 'gm':
-                                results = self.gm_fetcher.fetch_get_holdings(
-                                    exchanges=exchange, cursor_date=trade_date
+                                results = self.ts_adapter.get_future_holdings(
+                                    exchanges=exchange, date=trade_date
                                 )
                             else:
-                                raise ValueError(f"不支持的数据引擎: {engine}，请使用 'ts' 或 'gm'")
+                                raise ValueError(f"不支持的数据引擎: {engine}，请使用 'ts'")
 
                             if results is not None and not results.empty:
                                 # 检查重复记录
@@ -1072,20 +1053,35 @@ class MarketDataSaver:
         logger.info(f"期货持仓数据保存完成，总共新增 {total_inserted} 条数据")
 
     @retry(max_attempts=3, delay=60)
-    def save_stock_list(self, list_status: str = None):
+    def save_stock_list(
+        self,
+        symbols: Union[str, List[str], None] = None,
+        names: Union[str, List[str], None] = None,
+        exchanges: Union[str, List[str], None] = None,
+        markets: Union[str, List[str], None] = None,
+        list_status: Union[str, List[str], None] = "L",
+        is_hs: Union[str, None] = None,
+        force_refresh: bool = False,
+    ):
         """
         保存股票列表数据到本地数据库。
 
         从 Tushare 获取股票列表数据并保存到本地 MongoDB 数据库的 'stock_list' 集合中。
 
         参数：
-            list_status: 股票列表状态，默认为 None。
-                       可以是 'L' (上市)、'D' (退市)、'P' (暂停)。
+            symbols: 股票代码或列表（标准格式）
+            names: 股票名称或列表
+            exchanges: 交易所代码或列表（如 SSE, SZSE, BSE）
+            markets: 市场板块或列表（如 主板, 创业板, 科创板, CDR, 北交所）
+            list_status: 上市状态（'L' 上市, 'D' 退市, 'P' 暂停上市）
+            is_hs: 沪港通状态（'N' 否, 'H' 沪股通, 'S' 深股通）
+            force_refresh: 是否强制刷新所有数据，默认为 False（增量更新）
 
         注意：
             - 会自动创建必要的数据库索引
             - 包含错误重试机制
             - 保存完整的操作日志
+            - 默认采用增量更新策略，只获取缺失的数据
         """
         logger.info("开始保存股票列表数据")
         collections = self.client.stock_list
@@ -1094,6 +1090,7 @@ class MarketDataSaver:
             # 创建索引
             collections.create_index(
                 [("symbol", pymongo.ASCENDING), ("list_datestamp", pymongo.ASCENDING)],
+                unique=True,
                 background=True
             )
             logger.debug("成功创建/更新索引")
@@ -1102,9 +1099,26 @@ class MarketDataSaver:
             raise
 
         try:
+            # 如果强制刷新，先清空现有数据
+            if force_refresh:
+                logger.info("强制刷新模式，清空现有股票列表数据")
+                collections.delete_many({})
+                existing_symbols = set()
+            else:
+                # 获取现有的股票代码集合
+                existing_symbols = set(collections.distinct("symbol"))
+                logger.info(f"现有股票列表包含 {len(existing_symbols)} 条记录")
+
             # 获取股票列表数据
             logger.info("从数据源获取股票列表数据")
-            data = self.ts_fetcher.fetch_get_stock_list(list_status=list_status)
+            data = self.ts_adapter.get_stock_list(
+                symbols=symbols,
+                names=names,
+                exchanges=exchanges,
+                markets=markets,
+                list_status=list_status,
+                is_hs=is_hs
+            )
 
             if data is None or data.empty:
                 logger.warning("未获取到股票列表数据")
@@ -1116,30 +1130,35 @@ class MarketDataSaver:
             data.symbol = util_format_stock_symbols(data.symbol, "standard")
 
             # 移除不需要的列
-            columns = data.columns.tolist()
-            if "ts_code" in columns:
-                columns.remove("ts_code")
+            if "ts_code" in data.columns:
+                data = data.drop(columns=["ts_code"])
 
             # 添加上市日期时间戳
             data["list_datestamp"] = (
                 data["list_date"].map(str).apply(lambda x: util_make_date_stamp(x))
             )
 
-            # 清空现有数据
-            logger.info("清空现有股票列表数据")
-            collections.delete_many({})
+            # 如果不是强制刷新，过滤掉已存在的数据
+            if not force_refresh and len(existing_symbols) > 0:
+                original_count = len(data)
+                data = data[~data["symbol"].isin(existing_symbols)]
+                filtered_count = len(data)
+                logger.info(f"过滤后保留 {filtered_count}/{original_count} 条新记录")
+
+            if data.empty:
+                logger.info("没有新的股票数据需要保存")
+                return
 
             # 保存新数据
             result = collections.insert_many(util_to_json_from_pandas(data))
             inserted_count = len(result.inserted_ids)
-            logger.info(f"股票列表数据保存完成，共保存 {inserted_count} 条记录")
+            logger.info(f"股票列表数据保存完成，新增 {inserted_count} 条记录")
 
-            # 验证数据完整性
-            count = collections.count_documents({})
-            if count != len(data):
+            # 验证数据完整性（仅针对本次插入的数据）
+            if inserted_count != len(data):
                 raise ValueError(
                     f"数据完整性检查失败：期望保存 {len(data)} 条记录，"
-                    f"实际保存 {count} 条记录"
+                    f"实际保存 {inserted_count} 条记录"
                 )
 
         except Exception as e:
@@ -1207,7 +1226,7 @@ class MarketDataSaver:
             try:
                 # 获取该交易所的所有合约
                 logger.info(f"获取交易所 {exchange} 的合约列表")
-                contracts = self.local_fetcher.fetch_future_contracts(exchanges=exchange)
+                contracts = self.local_adapter.get_future_contracts(exchanges=exchange)
 
                 if contracts is None or contracts.empty:
                     logger.warning(f"交易所 {exchange} 未获取到合约信息")
@@ -1227,7 +1246,12 @@ class MarketDataSaver:
 
                         if latest_doc:
                             latest_date = latest_doc["trade_date"]
-                            next_date = self.local_fetcher.fetch_next_trade_date(exchange=exchange, cursor_date=latest_date)
+                            next_date = self.local_adapter.get_next_trade_date(
+                                exchange=exchange,
+                                cursor_date=latest_date,
+                                n=1,
+                                include=False
+                            )
 
                             if next_date is None:
                                 logger.debug(f"合约 {symbol} 数据已是最新")
@@ -1245,7 +1269,7 @@ class MarketDataSaver:
                             logger.info(f"获取合约 {symbol} 从 {start} 到 {delist_date} 的日线数据")
 
                         # 获取日线数据
-                        data = self.ts_fetcher.fetch_get_future_daily(
+                        data = self.ts_adapter.get_future_daily(
                             symbols=symbol,
                             start_date=start,
                             end_date=delist_date

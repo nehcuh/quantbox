@@ -1,14 +1,21 @@
 """
-Remote Data Fetcher Module
-远程数据获取器模块
+⚠️  DEPRECATED - 本模块已废弃 (DEPRECATED)
+=====================================
 
-This module provides a unified interface for fetching data from different remote sources.
-本模块提供了一个统一的接口来从不同的远程数据源获取数据。
+本模块(remote_fetcher.py)已被新架构废弃，请使用新的 MarketDataService:
+    from quantbox.services.market_data_service import MarketDataService
 
-Available data sources:
-可用数据源：
-- TuShare (ts)
-- GoldMiner (gm)
+迁移说明:
+- RemoteFetcher → MarketDataService
+- fetch_get_trade_dates() → get_trade_calendar()
+- fetch_get_future_contracts() → get_future_contracts()
+- fetch_get_future_daily() → get_future_daily()
+- fetch_get_holdings() → get_future_holdings()
+
+注意：本模块将在未来版本中移除，请尽快迁移到新架构。
+For new code, please use quantbox.services.market_data_service.MarketDataService instead.
+
+最后更新: 2025-11-05
 """
 
 from typing import List, Union, Optional, Dict, Any, Callable
@@ -56,6 +63,8 @@ class RemoteFetcher(BaseFetcher):
         **kwargs
     ):
         """
+        ⚠️  DEPRECATED - 本方法已废弃
+        =============================
         Initialize the RemoteFetcher.
         初始化远程数据获取器。
 
@@ -84,7 +93,7 @@ class RemoteFetcher(BaseFetcher):
             if config_file
             else FetcherConfig.default()
         )
-        
+
         # Update config with kwargs
         for key, value in kwargs.items():
             if hasattr(self.config, key):

@@ -17,7 +17,7 @@ from quantbox.util.date_utils import DateLike
 class MarketDataService:
     """
     市场数据服务
-    
+
     统一的数据查询接口，支持：
     - 自动选择数据源（本地优先，远程备用）
     - 交易日历查询
@@ -25,7 +25,7 @@ class MarketDataService:
     - 期货日线数据查询
     - 期货持仓数据查询
     """
-    
+
     def __init__(
         self,
         local_adapter: Optional[BaseDataAdapter] = None,
@@ -34,7 +34,7 @@ class MarketDataService:
     ):
         """
         初始化市场数据服务
-        
+
         Args:
             local_adapter: 本地数据适配器，默认使用 LocalAdapter
             remote_adapter: 远程数据适配器，默认使用 TSAdapter
@@ -43,20 +43,20 @@ class MarketDataService:
         self.local_adapter = local_adapter or LocalAdapter()
         self.remote_adapter = remote_adapter or TSAdapter()
         self.prefer_local = prefer_local
-    
+
     def _get_adapter(self, use_local: Optional[bool] = None) -> BaseDataAdapter:
         """
         获取适配器
-        
+
         Args:
             use_local: 是否使用本地适配器，None 表示根据 prefer_local 自动选择
-        
+
         Returns:
             适配器实例
         """
         if use_local is None:
             use_local = self.prefer_local
-        
+
         if use_local:
             # 检查本地适配器是否可用
             if self.local_adapter and self.local_adapter.check_availability():
@@ -65,7 +65,7 @@ class MarketDataService:
             return self.remote_adapter
         else:
             return self.remote_adapter
-    
+
     def get_trade_calendar(
         self,
         exchanges: Optional[Union[str, List[str]]] = None,
@@ -75,13 +75,13 @@ class MarketDataService:
     ) -> pd.DataFrame:
         """
         获取交易日历
-        
+
         Args:
             exchanges: 交易所代码或列表，None 表示所有交易所
             start_date: 起始日期
             end_date: 结束日期
             use_local: 是否使用本地数据源，None 表示自动选择
-        
+
         Returns:
             交易日历 DataFrame，包含字段：
             - date: 日期（整数格式 YYYYMMDD）
@@ -94,7 +94,7 @@ class MarketDataService:
             start_date=start_date,
             end_date=end_date
         )
-    
+
     def get_future_contracts(
         self,
         exchanges: Optional[Union[str, List[str]]] = None,
@@ -105,14 +105,14 @@ class MarketDataService:
     ) -> pd.DataFrame:
         """
         获取期货合约信息
-        
+
         Args:
             exchanges: 交易所代码或列表
             symbols: 合约代码或列表
             spec_names: 品种名称或列表
             date: 查询日期（合约在该日期有效）
             use_local: 是否使用本地数据源，None 表示自动选择
-        
+
         Returns:
             期货合约信息 DataFrame，包含字段：
             - symbol: 合约代码
@@ -129,7 +129,7 @@ class MarketDataService:
             spec_names=spec_names,
             date=date
         )
-    
+
     def get_future_daily(
         self,
         symbols: Optional[Union[str, List[str]]] = None,
@@ -141,7 +141,7 @@ class MarketDataService:
     ) -> pd.DataFrame:
         """
         获取期货日线数据
-        
+
         Args:
             symbols: 合约代码或列表
             exchanges: 交易所代码或列表
@@ -149,7 +149,7 @@ class MarketDataService:
             end_date: 结束日期（范围查询）
             date: 单日查询日期
             use_local: 是否使用本地数据源，None 表示自动选择
-        
+
         Returns:
             期货日线数据 DataFrame，包含字段：
             - symbol: 合约代码
@@ -171,7 +171,7 @@ class MarketDataService:
             end_date=end_date,
             date=date
         )
-    
+
     def get_future_holdings(
         self,
         symbols: Optional[Union[str, List[str]]] = None,
@@ -184,7 +184,7 @@ class MarketDataService:
     ) -> pd.DataFrame:
         """
         获取期货持仓数据
-        
+
         Args:
             symbols: 合约代码或列表
             exchanges: 交易所代码或列表
@@ -193,7 +193,7 @@ class MarketDataService:
             end_date: 结束日期（范围查询）
             date: 单日查询日期
             use_local: 是否使用本地数据源，None 表示自动选择
-        
+
         Returns:
             期货持仓数据 DataFrame，包含字段：
             - symbol: 合约代码
@@ -215,4 +215,46 @@ class MarketDataService:
             start_date=start_date,
             end_date=end_date,
             date=date
+        )
+
+    def get_stock_list(
+        self,
+        symbols: Optional[Union[str, List[str]]] = None,
+        names: Optional[Union[str, List[str]]] = None,
+        exchanges: Optional[Union[str, List[str]]] = None,
+        markets: Optional[Union[str, List[str]]] = None,
+        list_status: Union[str, List[str], None] = "L",
+        is_hs: Optional[str] = None,
+        use_local: Optional[bool] = None
+    ) -> pd.DataFrame:
+        """
+        获取股票列表
+
+        Args:
+            symbols: 股票代码或列表（标准格式）
+            names: 股票名称或列表
+            exchanges: 交易所代码或列表（如 SSE, SZSE, BSE）
+            markets: 市场板块或列表（如 主板, 创业板, 科创板, CDR, 北交所）
+            list_status: 上市状态（'L' 上市, 'D' 退市, 'P' 暂停上市）
+            is_hs: 沪港通状态（'N' 否, 'H' 沪股通, 'S' 深股通）
+            use_local: 是否使用本地数据源，None 表示自动选择
+
+        Returns:
+            股票列表 DataFrame，包含字段：
+            - symbol: 股票代码（标准格式）
+            - name: 股票名称
+            - exchange: 交易所代码
+            - list_date: 上市日期
+            - delist_date: 退市日期（可选）
+            - industry: 所属行业
+            - area: 地区
+        """
+        adapter = self._get_adapter(use_local)
+        return adapter.get_stock_list(
+            symbols=symbols,
+            names=names,
+            exchanges=exchanges,
+            markets=markets,
+            list_status=list_status,
+            is_hs=is_hs
         )

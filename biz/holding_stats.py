@@ -1,9 +1,9 @@
-from quantbox.fetchers.local_fetcher import LocalFetcher
+from quantbox.services.market_data_service import MarketDataService
 import os
 import pandas as pd
 
 # 本地查询器
-queryer = LocalFetcher()
+queryer = MarketDataService()
 
 # 1. 参数设置
 start_date = "2023-11-27" # 考察时间起始时间
@@ -11,17 +11,17 @@ end_date = "2024-12-03" # 考察时间结束时间
 
 # 2. 获取所有可用品种列表
 all_specs = set()
-all_contracts = queryer.fetch_future_contracts(cursor_date=start_date)
+all_contracts = queryer.get_future_contracts(date=start_date)
 all_specs.update(all_contracts['chinese_name'].unique())
 
 # 3. 循环处理每个品种
 for target_spec in all_specs:
     print(f"Processing {target_spec}...")
-    
+
     # 3.1 在考察时间范围内，合约获取
     total_symbols = set()
     for cursor_date in pd.date_range(start_date, end_date):
-        symbols = queryer.fetch_future_contracts(spec_name=target_spec, cursor_date=cursor_date)['symbol'].tolist()
+        symbols = queryer.get_future_contracts(spec_names=target_spec, date=cursor_date)['symbol'].tolist()
         total_symbols.update(symbols)
     total_symbols = list(total_symbols)
 
@@ -30,12 +30,12 @@ for target_spec in all_specs:
     total_cumpnl = pd.DataFrame()
     for symbol in total_symbols:
         # 3.2.1 查找当前合约的上市日期
-        list_date = queryer.fetch_future_contracts(
-            symbol=symbol
+        list_date = queryer.get_future_contracts(
+            symbols=symbol
         )['list_date'].iloc[0]
 
         # 3.2.2 获取指定合约的行情数据
-        df_daily = queryer.fetch_future_daily(
+        df_daily = queryer.get_future_daily(
             symbols=symbol,
             start_date=list_date,
             end_date=end_date
@@ -46,8 +46,8 @@ for target_spec in all_specs:
 
         # 3.2.3 计算当前合约的累计盈亏
         # 指定时间段内，指定合约的持仓排行情况，并按日期，经纪商分组
-        pre_holdings = queryer.fetch_future_holdings(
-            symbol=symbol,
+        pre_holdings = queryer.get_future_holdings(
+            symbols=symbol,
             start_date=start_date,
             end_date=end_date
         )
@@ -77,7 +77,7 @@ for target_spec in all_specs:
         results = total_cumpnl.groupby(['symbol', 'broker']).apply(lambda x: x.iloc[-1]).groupby(level=1).apply(lambda x: x['cumpnl'].sum()).sort_values()
         if not os.path.exists("results/"):
             os.makedirs("results")
-            
+
         # 保存pnl和cumpnl到Excel的不同sheet中
         with pd.ExcelWriter(f'results/{target_spec}-{start_date}-{end_date}.xlsx') as writer:
             results.to_excel(writer, sheet_name='summary')

@@ -8,8 +8,8 @@ Quantbox - 量化交易工具包
 - 高性能缓存和预热机制
 """
 
-__version__ = "1.0.0"
-__author__ = "Quantbox Team"
+__version__ = "0.2.0"
+__author__ = "nehcuh"
 
 import logging
 import time
@@ -26,9 +26,9 @@ logger = logging.getLogger(__name__)
 # 导入主要功能模块
 from quantbox.util.date_utils import util_make_date_stamp
 from quantbox.util.tools import util_to_json_from_pandas
-from quantbox.fetchers.local_fetcher import LocalFetcher
-from quantbox.fetchers.fetcher_tushare import TSFetcher
-from quantbox.fetchers.fetcher_goldminer import GMFetcher
+from quantbox.adapters.local_adapter import LocalAdapter
+from quantbox.adapters.ts_adapter import TSAdapter
+from quantbox.services.market_data_service import MarketDataService
 
 # 全局变量标记预热状态
 _cache_warmed = False

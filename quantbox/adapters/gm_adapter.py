@@ -325,5 +325,53 @@ class GMAdapter(BaseDataAdapter):
             raise Exception(f"获取期货持仓数据失败: {str(e)}")
 
 
+    def get_stock_list(
+        self,
+        symbols: Optional[Union[str, List[str]]] = None,
+        names: Optional[Union[str, List[str]]] = None,
+        exchanges: Optional[Union[str, List[str]]] = None,
+        markets: Optional[Union[str, List[str]]] = None,
+        list_status: Union[str, List[str], None] = "L",
+        is_hs: Optional[str] = None,
+    ) -> pd.DataFrame:
+        """从掘金量化获取股票列表
+
+        Args:
+            symbols: 股票代码或列表（标准格式）
+            names: 股票名称或列表
+            exchanges: 交易所代码或列表（如 SSE, SZSE, BSE）
+            markets: 市场板块或列表（如 主板, 创业板, 科创板, CDR, 北交所）
+            list_status: 上市状态（'L' 上市, 'D' 退市, 'P' 暂停上市）
+            is_hs: 沪港通状态（'N' 否, 'H' 沪股通, 'S' 深股通）
+
+        Returns:
+            DataFrame包含股票信息
+
+        TODO: 实现掘金量化股票列表查询
+        """
+        try:
+            # TODO: 使用掘金量化 API 查询股票列表
+            # 示例：
+            # import gm.api as gm
+            # result = gm.get_instruments(
+            #     sec_type='stock',
+            #     symbols=symbols,
+            #     exchanges=exchanges,
+            #     fields='symbol,name,exchange,list_date,delist_date,industry,area'
+            # )
+            # df = pd.DataFrame(result)
+            # # 格式化字段名和数据
+            # return df
+
+            # 当前返回空 DataFrame
+            raise NotImplementedError(
+                "GMAdapter.get_stock_list() 尚未实现，"
+                "请根据掘金量化 API 文档补充实现"
+            )
+        except NotImplementedError:
+            raise
+        except Exception as e:
+            raise Exception(f"获取股票列表失败: {str(e)}")
+
 # 为了保持向后兼容，提供别名
 GoldminerAdapter = GMAdapter

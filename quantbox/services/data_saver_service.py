@@ -20,10 +20,10 @@ from quantbox.config.config_loader import get_config_loader
 class SaveResult:
     """
     保存操作结果类
-    
+
     用于跟踪数据保存操作的统计信息
     """
-    
+
     def __init__(self):
         self.success = True
         self.inserted_count = 0
@@ -32,7 +32,7 @@ class SaveResult:
         self.errors = []
         self.start_time = datetime.datetime.now()
         self.end_time = None
-    
+
     def add_error(self, error_type: str, error_msg: str, data=None):
         """添加错误信息"""
         self.success = False
@@ -43,18 +43,18 @@ class SaveResult:
             "data": data,
             "timestamp": datetime.datetime.now()
         })
-    
+
     def complete(self):
         """完成操作，记录结束时间"""
         self.end_time = datetime.datetime.now()
-    
+
     @property
     def duration(self):
         """获取操作持续时间"""
         if self.end_time:
             return self.end_time - self.start_time
         return datetime.datetime.now() - self.start_time
-    
+
     def to_dict(self):
         """转换为字典格式"""
         return {
@@ -72,14 +72,14 @@ class SaveResult:
 class DataSaverService:
     """
     数据保存服务
-    
+
     统一的数据保存接口，支持：
     - 从远程数据源获取数据
     - 数据验证和清洗
     - 批量保存到本地数据库
     - 增量更新和去重
     """
-    
+
     def __init__(
         self,
         remote_adapter: Optional[BaseDataAdapter] = None,
@@ -100,11 +100,11 @@ class DataSaverService:
         self.local_adapter = local_adapter or LocalAdapter()
         self.database = database or get_config_loader().get_mongodb_client().quantbox
         self.show_progress = show_progress
-    
+
     def _create_index(self, collection, index_keys, unique=False):
         """
         创建索引
-        
+
         Args:
             collection: MongoDB 集合
             index_keys: 索引键列表
@@ -120,22 +120,22 @@ class DataSaverService:
             pass
         except Exception as e:
             print(f"创建索引失败: {str(e)}")
-    
+
     def _bulk_upsert(self, collection, data: List[dict], key_fields: List[str]) -> dict:
         """
         批量更新或插入数据
-        
+
         Args:
             collection: MongoDB 集合
             data: 数据列表
             key_fields: 唯一键字段列表
-        
+
         Returns:
             结果字典，包含 upserted_count 和 modified_count
         """
         if not data:
             return {"upserted_count": 0, "modified_count": 0}
-        
+
         operations = []
         for doc in data:
             # 构建查询条件
@@ -147,13 +147,13 @@ class DataSaverService:
                     upsert=True
                 )
             )
-        
+
         result = collection.bulk_write(operations)
         return {
             "upserted_count": result.upserted_count,
             "modified_count": result.modified_count
         }
-    
+
     def save_trade_calendar(
         self,
         exchanges: Optional[Union[str, List[str]]] = None,
@@ -197,15 +197,15 @@ class DataSaverService:
                 start_date=start_date,
                 end_date=end_date
             )
-            
+
             if df.empty:
                 result.add_error("NO_DATA", "未获取到交易日历数据")
                 result.complete()
                 return result
-            
+
             # 转换为字典列表
             data = df.to_dict('records')
-            
+
             # 创建索引
             collection = self.database.trade_date
             self._create_index(
@@ -213,24 +213,24 @@ class DataSaverService:
                 [("exchange", pymongo.ASCENDING), ("date", pymongo.ASCENDING)],
                 unique=True
             )
-            
+
             # 批量保存
             save_result = self._bulk_upsert(
                 collection,
                 data,
                 ["exchange", "date"]
             )
-            
+
             result.inserted_count = save_result["upserted_count"]
             result.modified_count = save_result["modified_count"]
             result.complete()
-            
+
         except Exception as e:
             result.add_error("SAVE_ERROR", f"保存交易日历失败: {str(e)}")
             result.complete()
-        
+
         return result
-    
+
     def save_future_contracts(
         self,
         exchanges: Optional[Union[str, List[str]]] = None,
@@ -267,15 +267,15 @@ class DataSaverService:
                 spec_names=spec_names,
                 date=date
             )
-            
+
             if df.empty:
                 result.add_error("NO_DATA", "未获取到期货合约数据")
                 result.complete()
                 return result
-            
+
             # 转换为字典列表
             data = df.to_dict('records')
-            
+
             # 创建索引
             collection = self.database.future_contracts
             self._create_index(
@@ -283,24 +283,24 @@ class DataSaverService:
                 [("symbol", pymongo.ASCENDING), ("exchange", pymongo.ASCENDING)],
                 unique=True
             )
-            
+
             # 批量保存
             save_result = self._bulk_upsert(
                 collection,
                 data,
                 ["symbol", "exchange"]
             )
-            
+
             result.inserted_count = save_result["upserted_count"]
             result.modified_count = save_result["modified_count"]
             result.complete()
-            
+
         except Exception as e:
             result.add_error("SAVE_ERROR", f"保存期货合约失败: {str(e)}")
             result.complete()
-        
+
         return result
-    
+
     def save_future_daily(
         self,
         symbols: Optional[Union[str, List[str]]] = None,
@@ -344,15 +344,15 @@ class DataSaverService:
                 date=date,
                 show_progress=self.show_progress
             )
-            
+
             if df.empty:
                 result.add_error("NO_DATA", "未获取到期货日线数据")
                 result.complete()
                 return result
-            
+
             # 转换为字典列表
             data = df.to_dict('records')
-            
+
             # 创建索引
             collection = self.database.future_daily
             self._create_index(
@@ -364,24 +364,24 @@ class DataSaverService:
                 collection,
                 [("date", pymongo.DESCENDING)]
             )
-            
+
             # 批量保存
             save_result = self._bulk_upsert(
                 collection,
                 data,
                 ["symbol", "exchange", "date"]
             )
-            
+
             result.inserted_count = save_result["upserted_count"]
             result.modified_count = save_result["modified_count"]
             result.complete()
-            
+
         except Exception as e:
             result.add_error("SAVE_ERROR", f"保存期货日线失败: {str(e)}")
             result.complete()
-        
+
         return result
-    
+
     def save_future_holdings(
         self,
         symbols: Optional[Union[str, List[str]]] = None,
@@ -428,20 +428,20 @@ class DataSaverService:
                 date=date,
                 show_progress=self.show_progress
             )
-            
+
             if df.empty:
                 result.add_error("NO_DATA", "未获取到期货持仓数据")
                 result.complete()
                 return result
-            
+
             # 转换为字典列表
             data = df.to_dict('records')
-            
+
             # 创建索引
             collection = self.database.future_holdings
             self._create_index(
                 collection,
-                [("symbol", pymongo.ASCENDING), ("exchange", pymongo.ASCENDING), 
+                [("symbol", pymongo.ASCENDING), ("exchange", pymongo.ASCENDING),
                  ("date", pymongo.ASCENDING), ("broker", pymongo.ASCENDING)],
                 unique=True
             )
@@ -449,20 +449,96 @@ class DataSaverService:
                 collection,
                 [("date", pymongo.DESCENDING)]
             )
-            
+
             # 批量保存
             save_result = self._bulk_upsert(
                 collection,
                 data,
                 ["symbol", "exchange", "date", "broker"]
             )
-            
+
             result.inserted_count = save_result["upserted_count"]
             result.modified_count = save_result["modified_count"]
             result.complete()
-            
+
         except Exception as e:
             result.add_error("SAVE_ERROR", f"保存期货持仓失败: {str(e)}")
             result.complete()
-        
+
+        return result
+
+    def save_stock_list(
+        self,
+        symbols: Optional[Union[str, List[str]]] = None,
+        names: Optional[Union[str, List[str]]] = None,
+        exchanges: Optional[Union[str, List[str]]] = None,
+        markets: Optional[Union[str, List[str]]] = None,
+        list_status: Union[str, List[str], None] = "L",
+        is_hs: Optional[str] = None
+    ) -> SaveResult:
+        """
+        保存股票列表数据
+
+        Args:
+            symbols: 股票代码或列表（标准格式）
+            names: 股票名称或列表
+            exchanges: 交易所代码或列表（如 SSE, SZSE, BSE）
+            markets: 市场板块或列表（如 主板, 创业板, 科创板, CDR, 北交所）
+            list_status: 上市状态（'L' 上市, 'D' 退市, 'P' 暂停上市）
+            is_hs: 沪港通状态（'N' 否, 'H' 沪股通, 'S' 深股通）
+
+        智能默认行为：
+            - 如果所有参数都为 None，默认保存所有上市股票（list_status="L"）
+
+        Returns:
+            SaveResult: 保存结果
+        """
+        result = SaveResult()
+
+        try:
+            # 智能默认：如果没有指定任何参数，默认保存所有上市股票
+            if all(x is None for x in [symbols, names, exchanges, markets, list_status, is_hs]):
+                list_status = "L"
+
+            # 从远程获取数据
+            df = self.remote_adapter.get_stock_list(
+                symbols=symbols,
+                names=names,
+                exchanges=exchanges,
+                markets=markets,
+                list_status=list_status,
+                is_hs=is_hs
+            )
+
+            if df.empty:
+                result.add_error("NO_DATA", "未获取到股票列表数据")
+                result.complete()
+                return result
+
+            # 转换为字典列表
+            data = df.to_dict('records')
+
+            # 创建索引
+            collection = self.database.stock_list
+            self._create_index(
+                collection,
+                [("symbol", pymongo.ASCENDING), ("exchange", pymongo.ASCENDING)],
+                unique=True
+            )
+
+            # 批量保存
+            save_result = self._bulk_upsert(
+                collection,
+                data,
+                ["symbol", "exchange"]
+            )
+
+            result.inserted_count = save_result["upserted_count"]
+            result.modified_count = save_result["modified_count"]
+            result.complete()
+
+        except Exception as e:
+            result.add_error("SAVE_ERROR", f"保存股票列表失败: {str(e)}")
+            result.complete()
+
         return result
