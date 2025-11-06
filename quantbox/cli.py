@@ -1,6 +1,5 @@
 import click
 from quantbox.services.data_saver_service import DataSaverService
-# MarketDataSaver is kept for backward compatibility
 import logging
 from functools import wraps
 from typing import Optional

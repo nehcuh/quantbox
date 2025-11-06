@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(tree:*)",
+      "Bash(uv run pytest:*)",
+      "Bash(set UV_HTTP_TIMEOUT=120)",
+      "Bash(dir:*)",
+      "Bash(uv run python:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

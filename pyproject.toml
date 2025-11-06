@@ -39,6 +39,18 @@ gui = [
 build = [
     "pyinstaller>=6.0.0",
 ]
+goldminer = [
+    "gm>=3.0.0",  # 掘金量化 SDK (Windows/Linux only, not supported on macOS)
+]
+all = [
+    "pytest>=8.0.0",
+    "pytest-cov>=4.0.0",
+    "black>=24.0.0",
+    "ruff>=0.1.0",
+    "mypy>=1.8.0",
+    "PyQt6>=6.0.0",
+    "gm>=3.0.0",
+]
 
 [project.scripts]
 quantbox = "quantbox.shell:main"
@@ -109,5 +121,6 @@ module = [
     "tushare.*",
     "pymongo.*",
     "toml.*",
+    "gm.*",
 ]
 ignore_missing_imports = true

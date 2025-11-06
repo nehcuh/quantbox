@@ -70,17 +70,33 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 git clone https://github.com/your-org/quantbox.git
 cd quantbox
 
-# 安装依赖（自动创建虚拟环境）
+# 安装基础依赖（自动创建虚拟环境）
 uv sync
 
-# 激活虚拟环境
+# 【可选】安装掘金量化 SDK（仅支持 Windows/Linux，macOS 不支持）
+uv sync --extra goldminer
+
+# 【可选】安装所有可选依赖（包括开发工具、GUI、掘金 SDK）
+uv sync --extra all
+
+# 激活虚拟环境（Linux/macOS）
 source .venv/bin/activate
+
+# 激活虚拟环境（Windows）
+.venv\Scripts\activate
 ```
 
 **使用 pip**：
 
 ```bash
+# 基础安装
 pip install -e .
+
+# 安装掘金量化支持（Windows/Linux）
+pip install -e ".[goldminer]"
+
+# 安装所有可选依赖
+pip install -e ".[all]"
 ```
 
 ### 配置

@@ -1,6 +1,9 @@
 """
-Data saver module for saving data to various storage backends.
-"""
-from .data_saver import MarketDataSaver
+Data saver module (deprecated)
 
-__all__ = ['MarketDataSaver']
+此模块已废弃，请使用新架构：
+- 使用 quantbox.services.DataSaverService 进行数据保存
+- 使用 quantbox.adapters 进行数据访问
+"""
+
+__all__ = []

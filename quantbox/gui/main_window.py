@@ -19,7 +19,6 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QDate, QTimer
 from PyQt6.QtGui import QShortcut, QKeySequence
 from ..services.market_data_service import MarketDataService
-from ..savers.data_saver import MarketDataSaver
 from pymongo import MongoClient
 import pandas as pd
 from datetime import datetime
