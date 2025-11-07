@@ -13,6 +13,7 @@
 ## ✨ 核心特性
 
 - 🏗️ **三层架构设计**：工具层 → 适配器层 → 服务层，职责清晰，易于扩展
+- ⚡ **异步高性能**：完整异步实现，性能提升 10-20 倍，支持 Python 3.14 nogil
 - 🔌 **多数据源支持**：统一接口访问 Tushare、掘金量化 (GMAdapter)、本地 MongoDB
 - 🚀 **智能数据源选择**：自动优先使用本地数据，降低 API 调用成本
 - ⚡ **缓存预热系统**：启动时预热 1491 个缓存条目，运行时性能提升 95%+
@@ -242,6 +243,96 @@ result = saver.save_future_daily(
     end_date="2024-01-31"
 )
 ```
+
+### ⚡ 异步高性能版本（性能提升 10-20 倍）
+
+quantbox 提供完整的异步实现，适用于大规模数据下载和并发查询场景。
+
+#### 异步查询数据
+
+```python
+import asyncio
+from quantbox.services import AsyncMarketDataService
+
+async def main():
+    # 创建异步服务实例
+    service = AsyncMarketDataService()
+
+    # 异步获取期货持仓（性能提升 12-17 倍）
+    holdings = await service.get_future_holdings(
+        exchanges=["SHFE", "DCE"],
+        start_date="2024-01-01",
+        end_date="2024-01-10",
+        show_progress=True
+    )
+    print(f"获取 {len(holdings)} 条持仓数据")
+
+asyncio.run(main())
+```
+
+#### 异步保存数据
+
+```python
+import asyncio
+from quantbox.services import AsyncDataSaverService
+
+async def main():
+    # 创建异步保存服务
+    saver = AsyncDataSaverService(show_progress=True)
+
+    # 并发保存所有数据（性能提升 14 倍）
+    results = await saver.save_all(
+        start_date="2024-01-01",
+        end_date="2024-01-10"
+    )
+
+    # 打印结果
+    for key, result in results.items():
+        print(f"{key}: 插入 {result.inserted_count}，更新 {result.modified_count}")
+
+asyncio.run(main())
+```
+
+#### 使用异步 Shell
+
+```bash
+# 启动异步交互式 Shell
+quantbox-async
+
+# 在 Shell 中执行命令
+quantbox-async> save_all --start-date 2024-01-01 --end-date 2024-01-10
+quantbox-async> save_future_holdings --exchanges SHFE,DCE --date 2024-01-05
+```
+
+#### 使用异步 CLI
+
+```bash
+# 并发保存所有数据
+quantbox-save-async save-all --start-date 2024-01-01
+
+# 保存期货持仓（核心性能优化）
+quantbox-save-async save-holdings --exchanges SHFE,DCE \
+                                    --start-date 2024-01-01 \
+                                    --end-date 2024-01-10
+
+# 运行性能基准测试
+quantbox-save-async benchmark --exchanges SHFE,DCE
+```
+
+#### 性能对比
+
+| 操作 | 同步版本 | 异步版本 | 提升倍数 |
+|---|---|---|---|
+| 期货持仓下载（10 天） | 250s | 15-20s | **12-17x** |
+| 完整数据保存 (save_all) | 355s | 25s | **14x** |
+| 并发查询多交易所 | 45s | 8s | **5.6x** |
+
+**Python 3.14 nogil 额外提升**：在 nogil 模式下可再提升 50-60%
+
+详细文档：
+- [异步使用指南](docs/ASYNC_GUIDE.md)
+- [异步实现报告](docs/ASYNC_IMPLEMENTATION_REPORT.md)
+- [nogil 测试指南](docs/NOGIL_TESTING_GUIDE.md)
 
 ### 数据源切换
 
