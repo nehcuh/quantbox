@@ -16,20 +16,13 @@
 
 - **`test_all_adapters.py`** - 综合适配器测试
   - 测试所有数据适配器（LocalAdapter, TSAdapter, GMAdapter）
-  - 验证数据查询功能
-  - 检查数据一致性
-
-- **`quick_validation.py`** - 快速验证脚本
-  - 快速检查系统核心功能
-  - 验证基础配置是否正确
+  - 测试所有服务层（MarketDataService, DataSaverService）
+  - 验证数据查询功能和数据一致性
+  - 提供完整的测试报告和统计
 
 - **`test_gm_functionality.py`** - 掘金量化功能测试
   - 完整测试 GMAdapter 所有功能
   - 验证掘金 API 集成
-
-- **`test_tushare_format.py`** - Tushare 格式测试
-  - 测试 Tushare 数据格式兼容性
-  - 验证数据转换正确性
 
 ### 性能测试
 
@@ -64,13 +57,10 @@ uv run python scripts/diagnose_config.py
 ### 测试适配器
 
 ```bash
-# 测试所有适配器
+# 测试所有适配器和服务
 uv run python scripts/test_all_adapters.py
 
-# 快速验证
-uv run python scripts/quick_validation.py
-
-# 测试掘金功能
+# 测试掘金功能（仅 Windows/Linux）
 uv run python scripts/test_gm_functionality.py
 ```
 

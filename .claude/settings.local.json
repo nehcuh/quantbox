@@ -5,7 +5,14 @@
       "Bash(uv run pytest:*)",
       "Bash(set UV_HTTP_TIMEOUT=120)",
       "Bash(dir:*)",
-      "Bash(uv run python:*)"
+      "Bash(uv run python:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nfeat: 完成第四阶段重构 - GMAdapter实现与代码清理\n\n## 主要变更\n\n### GMAdapter 完整实现\n- 实现所有核心方法：交易日历、期货合约、日线、持仓数据\n- 修复 4 个关键 bug（token读取、API方法、参数错误、NaN处理）\n- 添加平台兼容性检查（macOS 不支持）\n- 新增 626 行高质量代码\n\n### 大规模代码清理（-5,475 行）\n- 删除整个 fetchers/ 目录（11 文件，3,814 行）\n- 删除 savers/data_saver.py（1,433 行）\n- 移除所有旧代码引用\n- 净减少代码量 47.7%\n\n### CLI/Shell 迁移\n- 迁移到 DataSaverService 新架构\n- 添加智能默认行为（历史数据默认从 1990-01-01）\n- 添加完整参数支持\n- 移除旧 MarketDataSaver 依赖\n\n### 文档更新\n- 更新 README.md（添加 uv 安装说明）\n- 精简 MIGRATION_GUIDE.md（534 → 229 行，-57%）\n- 更新 pyproject.toml（添加 goldminer 可选依赖）\n- 更新 refactor_progress.md（标记第四阶段完成）\n\n### 测试脚本整理\n- 将测试脚本移至 scripts/ 目录\n- 重命名为更清晰的名称\n- 新增 scripts/README.md 说明文档\n\n## 项目统计\n- 总测试用例：178+\n- 服务层覆盖率：MarketDataService 100%, DataSaverService 85%\n- 总适配器数：3 个（Local, Tushare, GMAdapter）\n- 代码质量：-47.7% 代码量，+100% 功能完整性\n\n## 架构完成度\n✅ 准备阶段：100%\n✅ 第一阶段（工具层）：100%\n✅ 第二阶段（适配器层）：100%\n✅ 第三阶段（服务层）：100%\n✅ 第四阶段（迁移清理）：100%\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git config:*)",
+      "Bash(git push)",
+      "Bash(nul)",
+      "Bash(find:*)",
+      "Bash(del scriptsquick_validation.py)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []

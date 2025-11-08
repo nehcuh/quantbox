@@ -12,6 +12,7 @@ from datetime import datetime, timedelta
 
 from quantbox.adapters.asynchronous.ts_adapter import AsyncTSAdapter
 from quantbox.adapters.asynchronous.local_adapter import AsyncLocalAdapter
+from quantbox.adapters.asynchronous.gm_adapter import AsyncGMAdapter
 
 
 class TestAsyncTSAdapter:
@@ -261,6 +262,165 @@ class TestAsyncLocalAdapter:
                 end_date=20240110
             ),
             adapter.get_future_contracts(exchanges="SHFE"),
+        ]
+
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        assert len(results) == 2
+        for result in results:
+            if not isinstance(result, Exception):
+                assert isinstance(result, pd.DataFrame)
+
+
+class TestAsyncGMAdapter:
+    """测试 AsyncGMAdapter（掘金量化异步适配器）"""
+
+    @pytest_asyncio.fixture
+    async def adapter(self):
+        """创建适配器实例"""
+        try:
+            import platform
+            if platform.system() == 'Darwin':
+                pytest.skip("掘金量化不支持 macOS")
+
+            adapter = AsyncGMAdapter(max_concurrent=5, rate_limit=2.0)
+            yield adapter
+            # 清理
+            if hasattr(adapter, '__del__'):
+                adapter.__del__()
+        except ImportError:
+            pytest.skip("掘金量化 SDK 未安装")
+
+    @pytest.mark.asyncio
+    async def test_check_availability(self, adapter):
+        """测试检查可用性"""
+        result = await adapter.check_availability()
+        # 如果 GM token 配置正确且SDK已安装，应该返回 True
+        assert isinstance(result, bool)
+
+    @pytest.mark.asyncio
+    async def test_get_trade_calendar(self, adapter):
+        """测试获取交易日历"""
+        result = await adapter.get_trade_calendar(
+            exchanges="SHFE",
+            start_date=20240101,
+            end_date=20240110
+        )
+
+        assert isinstance(result, pd.DataFrame)
+        if not result.empty:
+            assert 'date' in result.columns
+            assert 'exchange' in result.columns
+            assert 'is_open' in result.columns
+
+    @pytest.mark.asyncio
+    async def test_get_trade_calendar_multiple_exchanges(self, adapter):
+        """测试并发查询多个交易所"""
+        result = await adapter.get_trade_calendar(
+            exchanges=["SHFE", "DCE"],
+            start_date=20240101,
+            end_date=20240110
+        )
+
+        assert isinstance(result, pd.DataFrame)
+        if not result.empty:
+            exchanges = result['exchange'].unique()
+            assert len(exchanges) > 0
+
+    @pytest.mark.asyncio
+    async def test_get_future_contracts(self, adapter):
+        """测试获取期货合约
+
+        注意：掘金 API 的 get_instruments 不支持历史合约查询
+        """
+        result = await adapter.get_future_contracts(
+            exchanges="SHFE",
+            date=20240101
+        )
+
+        assert isinstance(result, pd.DataFrame)
+        # 可能为空，因为掘金 API 限制
+
+    @pytest.mark.asyncio
+    async def test_get_future_daily_single_symbol(self, adapter):
+        """测试获取单个合约日线数据"""
+        result = await adapter.get_future_daily(
+            symbols="SHFE.rb2501",
+            start_date=20241101,
+            end_date=20241105,
+            show_progress=False
+        )
+
+        assert isinstance(result, pd.DataFrame)
+        if not result.empty:
+            assert 'date' in result.columns
+            assert 'symbol' in result.columns
+            assert 'open' in result.columns
+            assert 'close' in result.columns
+            assert 'volume' in result.columns
+
+    @pytest.mark.asyncio
+    async def test_get_future_daily_multiple_symbols(self, adapter):
+        """测试并发获取多个合约日线数据"""
+        result = await adapter.get_future_daily(
+            symbols=["SHFE.rb2501", "SHFE.hc2501"],
+            start_date=20241101,
+            end_date=20241105,
+            show_progress=False
+        )
+
+        assert isinstance(result, pd.DataFrame)
+        if not result.empty:
+            symbols = result['symbol'].unique()
+            assert len(symbols) > 0
+
+    @pytest.mark.asyncio
+    async def test_get_future_holdings_single_date(self, adapter):
+        """测试获取单日期货持仓"""
+        result = await adapter.get_future_holdings(
+            symbols="SHFE.rb2501",
+            date=20241101,
+            show_progress=False
+        )
+
+        assert isinstance(result, pd.DataFrame)
+        if not result.empty:
+            assert 'date' in result.columns
+            assert 'symbol' in result.columns
+            assert 'broker' in result.columns
+
+    @pytest.mark.asyncio
+    async def test_get_future_holdings_date_range(self, adapter):
+        """测试获取日期范围期货持仓（异步性能优势）"""
+        result = await adapter.get_future_holdings(
+            symbols="SHFE.rb2501",
+            start_date=20241101,
+            end_date=20241105,
+            show_progress=False
+        )
+
+        assert isinstance(result, pd.DataFrame)
+        if not result.empty:
+            assert 'date' in result.columns
+            assert 'symbol' in result.columns
+            assert 'broker' in result.columns
+
+    @pytest.mark.asyncio
+    async def test_concurrent_requests(self, adapter):
+        """测试并发请求性能"""
+        # 并发执行多个查询
+        tasks = [
+            adapter.get_trade_calendar(
+                exchanges="SHFE",
+                start_date=20240101,
+                end_date=20240110
+            ),
+            adapter.get_future_daily(
+                symbols="SHFE.rb2501",
+                start_date=20241101,
+                end_date=20241105,
+                show_progress=False
+            ),
         ]
 
         results = await asyncio.gather(*tasks, return_exceptions=True)

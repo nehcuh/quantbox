@@ -476,21 +476,6 @@ def list_instruments(exchange_code: str) -> List[str]:
     return get_config_loader().list_instruments(exchange_code)
 
 
-def get_trading_hours(exchange_code: str, instrument_code: Optional[str] = None) -> Dict[str, Any]:
-    """获取交易时间"""
-    return get_config_loader().get_trading_hours(exchange_code, instrument_code)
-
-
-def get_fee_config(exchange_code: str, instrument_code: str) -> Dict[str, Any]:
-    """获取手续费配置"""
-    return get_config_loader().get_fee_config(exchange_code, instrument_code)
-
-
-def get_margin_config(exchange_code: str, instrument_code: str) -> Dict[str, Any]:
-    """获取保证金配置"""
-    return get_config_loader().get_margin_config(exchange_code, instrument_code)
-
-
 def validate_instrument(exchange_code: str, instrument_code: str) -> bool:
     """验证品种"""
     return get_config_loader().validate_instrument(exchange_code, instrument_code)
