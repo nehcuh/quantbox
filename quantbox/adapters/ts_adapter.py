@@ -10,6 +10,7 @@ import pandas as pd
 from tqdm import tqdm
 
 from quantbox.adapters.base import BaseDataAdapter
+from quantbox.adapters.formatters import process_tushare_futures_data, process_tushare_stock_data
 from quantbox.util.date_utils import DateLike, date_to_int
 from quantbox.util.exchange_utils import denormalize_exchange, validate_exchanges
 from quantbox.util.contract_utils import normalize_contracts, format_contracts, ContractFormat
@@ -281,31 +282,17 @@ class TSAdapter(BaseDataAdapter):
                     "volume", "amount", "oi"
                 ])
 
-            # 处理返回数据
-            # 提取 symbol 和 exchange
-            data["symbol"] = data["ts_code"].str.split(".").str[0]
-            data["ts_exchange"] = data["ts_code"].str.split(".").str[1]
+            # 使用公共格式转换函数处理数据
+            data = process_tushare_futures_data(
+                data,
+                parse_ts_code=True,
+                normalize_case=True,
+                standardize_columns=True
+            )
 
-            # 转换交易所代码 SHF → SHFE, ZCE → CZCE
-            exchange_map = {"SHF": "SHFE", "ZCE": "CZCE"}
-            data["ts_exchange"] = data["ts_exchange"].replace(exchange_map)
-            data["exchange"] = data["ts_exchange"]
-
-            # 对于非郑商所和中金所，转为小写
-            for exchange in data["exchange"].unique():
-                if exchange not in ["CZCE", "CFFEX"]:
-                    data.loc[data["exchange"] == exchange, "symbol"] = (
-                        data.loc[data["exchange"] == exchange, "symbol"].str.lower()
-                    )
-
-            # 处理日期
-            data["date"] = data["trade_date"].astype(int)
-
-            # 重命名字段
-            data = data.rename(columns={
-                "vol": "volume",
-                "oi": "oi"
-            })
+            # 保留 oi 字段名（不使用 open_interest）
+            if "open_interest" in data.columns:
+                data = data.rename(columns={"open_interest": "oi"})
 
             # 选择关键字段
             result_columns = [
@@ -532,13 +519,12 @@ class TSAdapter(BaseDataAdapter):
             if df.empty:
                 return pd.DataFrame(columns=["symbol", "name", "exchange", "list_date", "delist_date", "industry", "area"])
 
-            # 标准化数据
-            # 转换 ts_code 为 symbol (去掉 .SH/.SZ 后缀)
-            df["symbol"] = df["ts_code"].str.split(".").str[0]
-
-            # 转换交易所代码
-            exchange_map = {"SH": "SSE", "SZ": "SZSE", "BJ": "BSE"}
-            df["exchange"] = df["ts_code"].str.split(".").str[1].map(exchange_map)
+            # 使用公共格式转换函数处理股票数据
+            df = process_tushare_stock_data(
+                df,
+                parse_ts_code=True,
+                standardize_columns=False  # 保持原字段名
+            )
 
             # 转换日期格式
             df["list_date"] = df["list_date"].astype(int)

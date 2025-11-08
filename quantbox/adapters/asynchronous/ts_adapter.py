@@ -23,6 +23,7 @@ from tqdm.asyncio import tqdm as async_tqdm
 
 from quantbox.adapters.asynchronous.base import AsyncBaseDataAdapter
 from quantbox.adapters.asynchronous.utils import RateLimiter, AsyncRetry, batch_process
+from quantbox.adapters.formatters import process_tushare_futures_data, process_tushare_stock_data
 from quantbox.util.date_utils import DateLike, date_to_int
 from quantbox.util.exchange_utils import denormalize_exchange, validate_exchanges
 from quantbox.util.contract_utils import normalize_contracts, format_contracts, ContractFormat
@@ -631,27 +632,13 @@ class AsyncTSAdapter(AsyncBaseDataAdapter):
                     ]
                 )
 
-            # 数据处理
-            data["date"] = data["trade_date"].astype(int)
-            data["symbol"] = data["ts_code"].str.split(".").str[0]
-
-            # 推断交易所
-            data["exchange"] = data["ts_code"].str.split(".").str[1]
-            exchange_mapping = {
-                "SHF": "SHFE",
-                "ZCE": "CZCE",
-                "DCE": "DCE",
-                "CFX": "CFFEX",
-                "INE": "INE",
-            }
-            data["exchange"] = data["exchange"].map(exchange_mapping)
-
-            # 对于非郑商所和中金所，转为小写
-            for exchange in data["exchange"].unique():
-                if exchange not in ["CZCE", "CFFEX"]:
-                    data.loc[data["exchange"] == exchange, "symbol"] = (
-                        data.loc[data["exchange"] == exchange, "symbol"].str.lower()
-                    )
+            # 使用公共格式转换函数处理数据
+            data = process_tushare_futures_data(
+                data,
+                parse_ts_code=True,
+                normalize_case=True,
+                standardize_columns=False  # 保持原字段名 (vol, oi)
+            )
 
             # 选择关键字段
             key_columns = [
