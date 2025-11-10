@@ -12,7 +12,9 @@
       "Bash(nul)",
       "Bash(find:*)",
       "Bash(del scriptsquick_validation.py)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(uv sync:*)"
     ],
     "deny": [],
     "ask": []

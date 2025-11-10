@@ -382,6 +382,108 @@ class DataSaverService:
 
         return result
 
+    def save_future_minute(
+        self,
+        symbols: Optional[Union[str, List[str]]] = None,
+        exchanges: Optional[Union[str, List[str]]] = None,
+        start_date: Optional[DateLike] = None,
+        end_date: Optional[DateLike] = None,
+        date: Optional[DateLike] = None,
+        freq: str = "1min"
+    ) -> SaveResult:
+        """
+        保存期货分钟线数据
+
+        Args:
+            symbols: 合约代码或列表（如 "SHFE.rb2501"）
+            exchanges: 交易所代码或列表（如 "SHFE", "DCE"）
+            start_date: 起始日期（默认最近一周）
+            end_date: 结束日期（默认今天）
+            date: 单日查询日期（与 start_date/end_date 互斥）
+            freq: 分钟频率，支持 "1min", "5min", "15min", "30min", "60min"（默认 "1min"）
+
+        智能默认行为：
+            - 如果没有指定日期，默认保存最近一周的数据（避免数据量过大）
+            - 必须指定 symbols 或 exchanges
+
+        注意:
+            - 分钟数据量很大，建议使用 5min 或更长周期
+            - 建议指定具体合约或较短的日期范围
+            - Tushare 分钟数据接口有调用限制
+
+        Returns:
+            SaveResult: 保存结果
+        """
+        result = SaveResult()
+
+        try:
+            # 验证必须指定合约或交易所
+            if not symbols and not exchanges:
+                raise ValueError("必须指定 symbols 或 exchanges 参数")
+
+            # 智能默认：如果没有指定日期，默认保存最近一周的数据
+            if all(x is None for x in [start_date, end_date, date]):
+                # 默认最近一周（避免数据量过大）
+                end_date = datetime.datetime.today()
+                start_date = end_date - datetime.timedelta(days=7)
+                start_date = start_date.strftime("%Y%m%d")
+                end_date = end_date.strftime("%Y%m%d")
+
+            # 从远程获取数据
+            df = self.remote_adapter.get_future_minute(
+                symbols=symbols,
+                exchanges=exchanges,
+                start_date=start_date,
+                end_date=end_date,
+                date=date,
+                freq=freq,
+                show_progress=self.show_progress
+            )
+
+            if df.empty:
+                result.add_error("NO_DATA", "未获取到期货分钟数据")
+                result.complete()
+                return result
+
+            # 转换为字典列表
+            data = df.to_dict('records')
+
+            # 创建索引
+            collection = self.database.future_minute
+            # 唯一索引：合约 + 交易所 + 时间戳
+            self._create_index(
+                collection,
+                [("symbol", pymongo.ASCENDING), ("exchange", pymongo.ASCENDING), ("datetime", pymongo.ASCENDING)],
+                unique=True
+            )
+            # 时间索引
+            self._create_index(
+                collection,
+                [("datetime", pymongo.DESCENDING)]
+            )
+            # 日期索引（用于按日期查询）
+            self._create_index(
+                collection,
+                [("date", pymongo.DESCENDING)]
+            )
+
+            # 批量保存
+            save_result = self._bulk_upsert(
+                collection,
+                data,
+                ["symbol", "exchange", "datetime"]
+            )
+
+            result.inserted_count = save_result["upserted_count"]
+            result.modified_count = save_result["modified_count"]
+            result.complete()
+
+        except Exception as e:
+            result.add_error("SAVE_ERROR", f"保存期货分钟数据失败: {str(e)}")
+            result.complete()
+
+        return result
+
     def save_future_holdings(
         self,
         symbols: Optional[Union[str, List[str]]] = None,

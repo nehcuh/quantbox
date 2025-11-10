@@ -304,6 +304,7 @@ class GMAdapter(BaseDataAdapter):
         start_date: Optional[DateLike] = None,
         end_date: Optional[DateLike] = None,
         date: Optional[DateLike] = None,
+        show_progress: bool = False,
     ) -> pd.DataFrame:
         """从掘金量化获取期货日线数据
 

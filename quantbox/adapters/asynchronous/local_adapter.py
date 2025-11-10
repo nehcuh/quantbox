@@ -65,7 +65,7 @@ class AsyncLocalAdapter(AsyncBaseDataAdapter):
         if database is None:
             # 创建异步 MongoDB 客户端
             config = get_config_loader()
-            mongo_uri = config.get("mongodb", {}).get("uri", "mongodb://localhost:27017")
+            mongo_uri = config.get_mongodb_uri()
             self.client = motor_asyncio.AsyncIOMotorClient(mongo_uri)
             self.database = self.client.quantbox
         else:

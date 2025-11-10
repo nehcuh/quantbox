@@ -137,6 +137,10 @@ class AsyncGMAdapter(AsyncBaseDataAdapter):
         self.rate_limiter = RateLimiter(calls_per_second=rate_limit, burst=20)
         self.executor = ThreadPoolExecutor(max_workers=max_workers)
 
+        # 创建同步适配器实例用于在线程池中执行
+        from quantbox.adapters.gm_adapter import GMAdapter
+        self.sync_adapter = GMAdapter(token=self.gm_token)
+
         # 获取配置
         config_loader = get_config_loader()
         self.exchanges = config_loader.list_exchanges()
@@ -159,8 +163,7 @@ class AsyncGMAdapter(AsyncBaseDataAdapter):
     def _get_token_from_config(self):
         """从配置文件获取 token"""
         try:
-            config = get_config_loader().get_gm_config()
-            return config.get("token")
+            return get_config_loader().get_gm_token()
         except Exception:
             return None
 
@@ -469,18 +472,39 @@ class AsyncGMAdapter(AsyncBaseDataAdapter):
         start_date: Optional[DateLike] = None,
         end_date: Optional[DateLike] = None,
         date: Optional[DateLike] = None,
+        show_progress: bool = False,
     ) -> pd.DataFrame:
         """
         异步获取期货日线数据
 
-        注意：建议使用 AsyncTSAdapter 获取期货日线数据，数据更完整。
+        Args:
+            symbols: 合约代码或列表（标准格式）
+            exchanges: 交易所代码或列表
+            start_date: 开始日期
+            end_date: 结束日期
+            date: 单日查询
+            show_progress: 显示进度条（掘金API不支持，此参数被忽略）
 
         Returns:
             期货日线数据 DataFrame
+
+        Note:
+            掘金API要求必须指定symbols参数，不支持按交易所批量下载
         """
-        raise NotImplementedError(
-            "掘金 API 的期货日线数据功能建议使用 AsyncTSAdapter，数据更完整"
-        )
+        loop = asyncio.get_event_loop()
+
+        # 使用lambda包装函数调用以传递参数
+        def sync_call():
+            return self.sync_adapter.get_future_daily(
+                symbols=symbols,
+                exchanges=exchanges,
+                start_date=start_date,
+                end_date=end_date,
+                date=date,
+                show_progress=show_progress,
+            )
+
+        return await loop.run_in_executor(self.executor, sync_call)
 
     async def get_stock_list(
         self,

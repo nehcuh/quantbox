@@ -309,6 +309,187 @@ class TSAdapter(BaseDataAdapter):
         except Exception as e:
             raise Exception(f"获取期货日线数据失败: {str(e)}")
 
+    def get_future_minute(
+        self,
+        symbols: Optional[Union[str, List[str]]] = None,
+        exchanges: Optional[Union[str, List[str]]] = None,
+        start_date: Optional[DateLike] = None,
+        end_date: Optional[DateLike] = None,
+        date: Optional[DateLike] = None,
+        freq: str = "1min",
+        show_progress: bool = False,
+    ) -> pd.DataFrame:
+        """从 Tushare 获取期货分钟线数据
+
+        Args:
+            symbols: 合约代码或列表（标准格式，如 "SHFE.rb2501"）
+            exchanges: 交易所代码或列表（标准格式，如 "SHFE"）
+            start_date: 起始日期
+            end_date: 结束日期
+            date: 单日查询日期（与 start_date/end_date 互斥）
+            freq: 分钟频率，支持 "1min", "5min", "15min", "30min", "60min"，默认 "1min"
+            show_progress: 是否显示进度条，默认 False
+
+        Returns:
+            DataFrame 包含以下列：
+            - symbol: 合约代码（标准格式，如 "SHFE.rb2501"）
+            - exchange: 交易所代码（标准格式，如 "SHFE"）
+            - datetime: 时间戳（int，格式：YYYYMMDDHHmm）
+            - date: 日期（int，格式：YYYYMMDD）
+            - time: 时间（str，格式：HH:MM:SS）
+            - open: 开盘价
+            - high: 最高价
+            - low: 最低价
+            - close: 收盘价
+            - volume: 成交量
+            - amount: 成交额
+            - oi: 持仓量（如果有）
+
+        注意:
+            - 分钟数据量很大，建议指定具体合约或较短的日期范围
+            - 建议使用 5min 或更长周期以减少数据量
+            - Tushare 分钟数据接口有调用限制，频繁调用可能受限
+        """
+        try:
+            # 验证频率参数
+            valid_freqs = ["1min", "5min", "15min", "30min", "60min"]
+            if freq not in valid_freqs:
+                raise ValueError(f"不支持的频率: {freq}，必须是 {valid_freqs} 之一")
+
+            # 验证日期参数
+            self._validate_date_range(start_date, end_date, date)
+
+            # 验证必须指定合约或交易所
+            if not symbols and not exchanges:
+                raise ValueError("必须指定 symbols 或 exchanges 参数")
+
+            # 标准化合约代码
+            ts_symbols = []
+            if symbols:
+                if isinstance(symbols, str):
+                    symbols = [symbols]
+
+                for symbol in symbols:
+                    from quantbox.util.contract_utils import parse_contract
+                    contract = parse_contract(symbol)
+                    if contract:
+                        # 转换为 Tushare 格式
+                        ts_exchange = denormalize_exchange(contract.exchange, "tushare")
+                        ts_symbols.append(f"{contract.symbol.upper()}.{ts_exchange}")
+
+            # 处理日期参数
+            if date:
+                # 单日查询
+                trade_date_str = str(date_to_int(date))
+                start_str = trade_date_str
+                end_str = trade_date_str
+            else:
+                # 日期范围查询
+                if start_date is None:
+                    raise ValueError("必须指定 date 或 start_date")
+
+                start_str = str(date_to_int(start_date))
+                end_str = str(date_to_int(end_date)) if end_date else str(date_to_int(datetime.datetime.today()))
+
+            # 获取数据
+            all_data = []
+
+            if ts_symbols:
+                # 按合约查询（逐个合约查询以避免超限）
+                symbols_iter = tqdm(ts_symbols, desc=f"获取期货{freq}数据", disable=not show_progress)
+                for ts_symbol in symbols_iter:
+                    if show_progress:
+                        symbols_iter.set_postfix({"合约": ts_symbol})
+
+                    try:
+                        df = self.pro.fut_min(
+                            ts_code=ts_symbol,
+                            start_date=start_str,
+                            end_date=end_str,
+                            freq=freq
+                        )
+                        if not df.empty:
+                            all_data.append(df)
+                    except Exception as e:
+                        if show_progress:
+                            tqdm.write(f"获取 {ts_symbol} 数据失败: {str(e)}")
+                        continue
+
+            else:
+                # 按交易所查询
+                if exchanges is None:
+                    exchanges = validate_exchanges(None, "futures")
+                elif isinstance(exchanges, str):
+                    exchanges = [exchanges]
+
+                exchanges_iter = tqdm(exchanges, desc=f"获取期货{freq}数据", disable=not show_progress)
+                for exchange in exchanges_iter:
+                    if show_progress:
+                        exchanges_iter.set_postfix({"交易所": exchange})
+
+                    ts_exchange = denormalize_exchange(exchange, "tushare")
+                    try:
+                        df = self.pro.fut_min(
+                            exchange=ts_exchange,
+                            start_date=start_str,
+                            end_date=end_str,
+                            freq=freq
+                        )
+                        if not df.empty:
+                            all_data.append(df)
+                    except Exception as e:
+                        if show_progress:
+                            tqdm.write(f"获取交易所 {exchange} 数据失败: {str(e)}")
+                        continue
+
+            if not all_data:
+                return pd.DataFrame(columns=[
+                    "symbol", "exchange", "datetime", "date", "time",
+                    "open", "high", "low", "close", "volume", "amount", "oi"
+                ])
+
+            # 合并所有数据
+            data = pd.concat(all_data, ignore_index=True)
+
+            # 使用公共格式转换函数处理数据
+            data = process_tushare_futures_data(
+                data,
+                parse_ts_code=True,
+                normalize_case=True,
+                standardize_columns=True
+            )
+
+            # 处理时间字段
+            # Tushare 返回的 trade_time 格式为 "YYYY-MM-DD HH:MM:SS"
+            if "trade_time" in data.columns:
+                data["datetime"] = pd.to_datetime(data["trade_time"]).dt.strftime("%Y%m%d%H%M").astype(int)
+                data["time"] = pd.to_datetime(data["trade_time"]).dt.strftime("%H:%M:%S")
+
+            # 保留 oi 字段名（不使用 open_interest）
+            if "open_interest" in data.columns:
+                data = data.rename(columns={"open_interest": "oi"})
+
+            # 选择关键字段
+            result_columns = [
+                "symbol", "exchange", "datetime", "date", "time",
+                "open", "high", "low", "close", "volume", "amount"
+            ]
+            if "oi" in data.columns:
+                result_columns.append("oi")
+
+            # 只保留存在的列
+            result_columns = [col for col in result_columns if col in data.columns]
+            data = data[result_columns]
+
+            # 按时间排序
+            if "datetime" in data.columns:
+                data = data.sort_values(["symbol", "datetime"]).reset_index(drop=True)
+
+            return data
+
+        except Exception as e:
+            raise Exception(f"获取期货分钟数据失败: {str(e)}")
+
     def get_future_holdings(
         self,
         symbols: Optional[Union[str, List[str]]] = None,

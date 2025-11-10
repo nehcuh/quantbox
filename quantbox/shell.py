@@ -68,6 +68,7 @@ class QuantboxShell(cmd.Cmd):
     - save_future_contracts: 保存期货合约数据
     - save_future_holdings: 保存期货持仓数据
     - save_future_daily: 保存期货日线数据
+    - save_future_minute: 保存期货分钟线数据
     - save_stock_list: 保存股票列表数据
     - quit/exit: 退出程序
 
@@ -87,7 +88,28 @@ Welcome to Quantbox Shell!
     
     def __init__(self):
         super().__init__()
-        self.saver = DataSaverService(show_progress=True)
+        self.adapter_type = "tushare"  # 默认使用 Tushare，可选: "tushare", "gm"
+
+    def _get_saver(self) -> DataSaverService:
+        """获取 DataSaverService 实例"""
+        # 根据配置的适配器类型创建对应的适配器
+        remote_adapter = None
+        if self.adapter_type == "gm":
+            from quantbox.adapters.gm_adapter import GMAdapter
+            try:
+                remote_adapter = GMAdapter()
+                print("[INFO] 使用掘金量化数据源")
+            except Exception as e:
+                print(f"[WARN] 掘金适配器初始化失败: {e}")
+                print("[INFO] 回退到 Tushare 数据源")
+                remote_adapter = None
+
+        # 如果未指定或初始化失败，使用默认的 Tushare
+        if remote_adapter is None:
+            from quantbox.adapters.ts_adapter import TSAdapter
+            remote_adapter = TSAdapter()
+
+        return DataSaverService(remote_adapter=remote_adapter, show_progress=True)
         
     @handle_errors
     def do_save_all(self, arg: str):
@@ -101,23 +123,23 @@ Welcome to Quantbox Shell!
         print("开始保存所有数据...")
 
         # 保存交易日历
-        result1 = self.saver.save_trade_calendar()
+        result1 = self._get_saver().save_trade_calendar()
         print(f"✓ 交易日历: 插入 {result1.inserted_count} 条，更新 {result1.modified_count} 条")
 
         # 保存期货合约
-        result2 = self.saver.save_future_contracts()
+        result2 = self._get_saver().save_future_contracts()
         print(f"✓ 期货合约: 插入 {result2.inserted_count} 条，更新 {result2.modified_count} 条")
 
         # 保存股票列表
-        result_stock = self.saver.save_stock_list()
+        result_stock = self._get_saver().save_stock_list()
         print(f"✓ 股票列表: 插入 {result_stock.inserted_count} 条，更新 {result_stock.modified_count} 条")
 
         # 保存期货持仓
-        result3 = self.saver.save_future_holdings()
+        result3 = self._get_saver().save_future_holdings()
         print(f"✓ 期货持仓: 插入 {result3.inserted_count} 条，更新 {result3.modified_count} 条")
 
         # 保存期货日线
-        result4 = self.saver.save_future_daily()
+        result4 = self._get_saver().save_future_daily()
         print(f"✓ 期货日线: 插入 {result4.inserted_count} 条，更新 {result4.modified_count} 条")
 
         logger.info("所有数据保存完成")
@@ -139,7 +161,7 @@ Welcome to Quantbox Shell!
             --end-date: 结束日期，默认今天
         """
         params = parse_args(arg)
-        result = self.saver.save_trade_calendar(**params)
+        result = self._get_saver().save_trade_calendar(**params)
         logger.info(f"交易日期数据保存完成: 插入 {result.inserted_count} 条，更新 {result.modified_count} 条")
         print(f"交易日期数据保存完成: 插入 {result.inserted_count} 条，更新 {result.modified_count} 条")
             
@@ -160,7 +182,7 @@ Welcome to Quantbox Shell!
             --date: 查询日期
         """
         params = parse_args(arg)
-        result = self.saver.save_future_contracts(**params)
+        result = self._get_saver().save_future_contracts(**params)
         logger.info(f"期货合约数据保存完成: 插入 {result.inserted_count} 条，更新 {result.modified_count} 条")
         print(f"期货合约数据保存完成: 插入 {result.inserted_count} 条，更新 {result.modified_count} 条")
             
@@ -184,7 +206,7 @@ Welcome to Quantbox Shell!
             --end-date: 结束日期（默认今天）
         """
         params = parse_args(arg)
-        result = self.saver.save_future_holdings(**params)
+        result = self._get_saver().save_future_holdings(**params)
         logger.info(f"期货持仓数据保存完成: 插入 {result.inserted_count} 条，更新 {result.modified_count} 条")
         print(f"期货持仓数据保存完成: 插入 {result.inserted_count} 条，更新 {result.modified_count} 条")
             
@@ -207,10 +229,41 @@ Welcome to Quantbox Shell!
             --end-date: 结束日期（如：2025-01-31，默认今天）
         """
         params = parse_args(arg)
-        result = self.saver.save_future_daily(**params)
+        result = self._get_saver().save_future_daily(**params)
         logger.info(f"期货日线数据保存完成: 插入 {result.inserted_count} 条，更新 {result.modified_count} 条")
         print(f"期货日线数据保存完成: 插入 {result.inserted_count} 条，更新 {result.modified_count} 条")
-            
+
+    @handle_errors
+    def do_save_future_minute(self, arg: str):
+        """保存期货分钟线数据
+
+        用法:
+            save_future_minute --symbols SHFE.rb2501                # 保存指定合约最近一周的 1 分钟数据
+            save_future_minute --symbols SHFE.rb2501 --freq 5min   # 保存指定合约最近一周的 5 分钟数据
+            save_future_minute --symbols SHFE.rb2501,DCE.m2505 --date 2025-01-15  # 保存指定合约单日的分钟数据
+            save_future_minute --exchanges SHFE --start-date 2025-01-01 --end-date 2025-01-07 --freq 15min  # 保存指定交易所一周的 15 分钟数据
+
+        参数:
+            --symbols: 合约代码，多个用逗号分隔（如：SHFE.rb2501,DCE.m2505）
+            --exchanges: 交易所代码，多个用逗号分隔（如：SHFE,DCE）
+            --date: 单日查询（如：2025-01-15 或 20250115）
+            --start-date: 起始日期（如：2025-01-01，默认最近一周）
+            --end-date: 结束日期（如：2025-01-07，默认今天）
+            --freq: 分钟频率（1min/5min/15min/30min/60min，默认 1min）
+
+        注意:
+            - 必须指定 --symbols 或 --exchanges
+            - 分钟数据量很大，建议：
+              1. 指定具体合约而不是整个交易所
+              2. 使用 5min 或更长周期
+              3. 限制日期范围（如一周内）
+            - Tushare 分钟数据接口有调用限制，频繁调用可能受限
+        """
+        params = parse_args(arg)
+        result = self._get_saver().save_future_minute(**params)
+        logger.info(f"期货分钟数据保存完成: 插入 {result.inserted_count} 条，更新 {result.modified_count} 条")
+        print(f"期货分钟数据保存完成: 插入 {result.inserted_count} 条，更新 {result.modified_count} 条")
+
     @handle_errors
     def do_save_stock_list(self, arg: str):
         """保存股票列表数据
@@ -225,10 +278,55 @@ Welcome to Quantbox Shell!
             --list-status: 上市状态（L, D, P）
         """
         params = parse_args(arg)
-        result = self.saver.save_stock_list(**params)
+        result = self._get_saver().save_stock_list(**params)
         logger.info(f"股票列表数据保存完成: 插入 {result.inserted_count} 条，更新 {result.modified_count} 条")
         print(f"股票列表数据保存完成: 插入 {result.inserted_count} 条，更新 {result.modified_count} 条")
     
+    def do_set_adapter(self, arg: str):
+        """设置数据源适配器
+
+        用法:
+            set_adapter tushare    # 使用 Tushare Pro 数据源（默认）
+            set_adapter gm         # 使用掘金量化数据源
+
+        可用适配器:
+            - tushare: Tushare Pro（默认，需要 token 配置）
+            - gm: 掘金量化（需要 token 配置和 GM SDK）
+
+        注意:
+            - 需要在 ~/.quantbox/settings/config.toml 中配置对应的 token
+            - 掘金量化需要安装: pip install gm
+            - 掘金量化仅支持 Windows（macOS 不支持，Linux 需连接Windows终端）
+        """
+        adapter_type = arg.strip().lower()
+
+        if adapter_type not in ["tushare", "gm"]:
+            print(f"[ERROR] 未知的适配器类型: {adapter_type}")
+            print("[INFO] 可用适配器: tushare, gm")
+            print("[INFO] 使用方法: set_adapter <adapter_type>")
+            return
+
+        self.adapter_type = adapter_type
+        print(f"[PASS] 数据源已切换为: {adapter_type}")
+
+        if adapter_type == "gm":
+            print("[INFO] 掘金量化数据源要求:")
+            print("  1. 安装 GM SDK: pip install gm")
+            print("  2. 配置 token: ~/.quantbox/settings/config.toml")
+            print("  3. 仅支持 Windows（macOS 不支持，Linux 需连接Windows终端）")
+        elif adapter_type == "tushare":
+            print("[INFO] Tushare 数据源要求:")
+            print("  1. 配置 token: ~/.quantbox/settings/config.toml")
+            print("  2. 部分接口需要积分（如分钟数据需要 ≥2000 积分）")
+
+    def do_show_adapter(self, arg: str):
+        """显示当前使用的数据源适配器
+
+        用法:
+            show_adapter
+        """
+        print(f"[INFO] 当前数据源: {self.adapter_type}")
+
     def do_quit(self, arg: str):
         """退出程序"""
         print("再见！")
