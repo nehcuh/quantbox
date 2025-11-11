@@ -37,7 +37,8 @@ get_trade_calendar(
     use_local: bool | None = None,
 ) -> pd.DataFrame
 ```
-- 列：`cal_date(int), exchange(str), is_open(int), pretrade_date(int)`
+- 列：`date(int), exchange(str)`
+- 注：数据库只存储交易日（is_open=True），因此不返回 `is_open` 字段
 
 ```python
 get_future_contracts(
@@ -52,39 +53,49 @@ get_future_contracts(
 
 ```python
 get_future_daily(
-    contracts: list[str] | None = None,  # 完整 ts_code，如 ["RB2405.SHF"]
-    symbols: list[str] | None = None,    # 或品种根，如 ["RB"]
+    symbols: list[str] | None = None,    # 支持多种格式（见下方说明）
     exchanges: list[str] | None = None,
-    is_main: bool | None = None,         # 主力合约
     start_date: str | int | None = None,
     end_date: str | int | None = None,
-    fields: list[str] | None = None,     # 选列
-    adjust: str | None = None,           # 前复权/不复权等（如有）
+    date: str | int | None = None,       # 单日查询
     use_local: bool | None = None,
-    limit: int | None = None,
 ) -> pd.DataFrame
 ```
-- 典型列：`trade_date, ts_code, open, high, low, close, preclose, change, pct_chg, vol, amount, oi?`
+- 典型列：`date, symbol, exchange, open, high, low, close, volume, amount, oi`
+- **symbols 参数支持灵活格式**：
+  - 简单格式：`"a2501"` - 直接使用合约代码，不限制交易所
+  - 完整格式：`"DCE.a2501"` - 自动解析为 symbol="a2501", exchange="DCE"
+  - 混合使用：`symbols="a2501", exchanges="DCE"` - 两者结合
 
 ```python
 get_future_holdings(
-    contracts: list[str] | None = None,
-    symbols: list[str] | None = None,
+    symbols: list[str] | None = None,    # 支持灵活格式（同 get_future_daily）
+    exchanges: list[str] | None = None,
+    spec_names: list[str] | None = None, # 品种名称
     start_date: str | int | None = None,
     end_date: str | int | None = None,
-    top_n: int | None = 20,
-    brokers: list[str] | None = None,
+    date: str | int | None = None,       # 单日查询
     use_local: bool | None = None,
 ) -> pd.DataFrame
 ```
-- 典型列：`trade_date, ts_code, broker, rank, vol, vol_chg, long_hld, short_hld`
+- 典型列：`date, symbol, exchange, broker, vol, vol_chg, rank`
+- **symbols 参数支持灵活格式**（同 `get_future_daily`）
 
 示例
 ```python
 from quantbox.services import MarketDataService
 svc = MarketDataService()
-cal = svc.get_trade_calendar(["SHFE"], "2024-01-01", "2024-12-31")
-daily = svc.get_future_daily(contracts=["RB2405.SHF"], start_date=20240101, end_date=20240131)
+
+# 获取交易日历
+cal = svc.get_trade_calendar(["SHSE", "SZSE"], "2024-01-01", "2024-12-31")
+
+# 获取期货日线 - 支持多种格式
+daily1 = svc.get_future_daily(symbols="DCE.a2501", start_date="2024-01-01", end_date="2024-01-31")
+daily2 = svc.get_future_daily(symbols="a2501", exchanges="DCE", start_date="2024-01-01")
+daily3 = svc.get_future_daily(symbols="a2501")  # 简单格式，不限制交易所
+
+# 获取持仓数据
+holdings = svc.get_future_holdings(symbols="DCE.a2505", date="2024-01-15")
 ```
 
 #### DataSaverService
