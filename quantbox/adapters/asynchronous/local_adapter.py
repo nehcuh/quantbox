@@ -170,6 +170,11 @@ class AsyncLocalAdapter(AsyncBaseDataAdapter):
             DataFrame 包含合约信息
         """
         try:
+            # 如果只传了 date 参数，默认查询所有期货交易所
+            if date is not None and all(x is None for x in [symbols, exchanges, spec_names]):
+                from quantbox.util.exchange_utils import FUTURES_EXCHANGES
+                exchanges = FUTURES_EXCHANGES
+
             # 验证至少有一个参数
             self._validate_symbol_params(symbols, exchanges, spec_names)
 
@@ -180,9 +185,22 @@ class AsyncLocalAdapter(AsyncBaseDataAdapter):
             if symbols is not None:
                 if isinstance(symbols, str):
                     symbols = [symbols]
-                # 标准化合约代码
-                symbols = normalize_contracts(symbols)
-                query["symbol"] = {"$in": symbols}
+                # 对于合约查询，支持灵活格式但不做完整标准化
+                # 如果是完整格式（如 "DCE.a2501"），提取 symbol 部分
+                parsed_symbols = []
+                for sym in symbols:
+                    if '.' in sym:
+                        # 尝试解析完整格式
+                        try:
+                            contract_info = parse_contract(sym)
+                            parsed_symbols.append(contract_info.symbol)
+                        except Exception:
+                            # 解析失败，直接使用
+                            parsed_symbols.append(sym)
+                    else:
+                        # 简单格式，直接使用
+                        parsed_symbols.append(sym)
+                query["symbol"] = {"$in": parsed_symbols}
 
             # 处理交易所
             if exchanges is not None:
