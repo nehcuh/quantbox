@@ -362,7 +362,7 @@ class GMAdapter(BaseDataAdapter):
                         frequency='1d',
                         start_time=start_str,
                         end_time=end_str,
-                        fields='symbol,eob,open,high,low,close,volume,amount,position',
+                        fields='symbol,eob,open,high,low,close,volume,amount,position,settle_price,pre_settle',
                         adjust=0,  # 不复权
                         df=True
                     )
@@ -384,6 +384,12 @@ class GMAdapter(BaseDataAdapter):
                         df['volume'] = data['volume']
                         df['amount'] = data['amount']
                         df['oi'] = data['position']
+
+                        # 可选字段：结算价
+                        if 'settle_price' in data.columns:
+                            df['settle'] = data['settle_price']
+                        if 'pre_settle' in data.columns:
+                            df['pre_settle'] = data['pre_settle']
 
                         all_data.append(df)
 

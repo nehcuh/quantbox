@@ -8,15 +8,18 @@
 
 数据源要求：
 - 持仓数据：需要本地数据库包含历史持仓数据
-- 行情数据：推荐使用 Tushare 数据源（包含 settle 结算价字段）
-  * 使用 DataSaverService 从 Tushare 保存数据可获得完整字段
+- 行情数据：推荐使用 Tushare 或掘金量化数据源（包含 settle 结算价字段）
+  * 使用 DataSaverService 从 Tushare 或 GM 保存数据可获得完整字段
   * 如果数据中没有 settle 字段，脚本会自动使用 close 收盘价代替
 
 使用说明：
-1. 确保已配置 Tushare token
+1. 确保已配置 Tushare token（或 GM token）
 2. 使用 DataSaverService 保存完整的历史数据：
    from quantbox.services import DataSaverService
-   saver = DataSaverService()
+   # 使用 Tushare（推荐）
+   saver = DataSaverService(source='tushare')
+   # 或使用掘金量化（仅限 Linux/Windows）
+   # saver = DataSaverService(source='goldminer')
    saver.save_future_daily(exchanges=['SHFE','DCE','CZCE','INE'], start_date='20230101', end_date='20241231')
 3. 运行本脚本进行分析
 """
