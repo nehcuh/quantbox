@@ -295,6 +295,10 @@ class AsyncDataSaverService:
                 result.complete()
                 return result
 
+            # 增加 datestamp 字段用于快速日期范围查询
+            if "datestamp" not in df.columns:
+                df["datestamp"] = df["date"].apply(util_make_date_stamp)
+
             # 转换为字典列表
             data = df.to_dict("records")
 
@@ -306,6 +310,12 @@ class AsyncDataSaverService:
                     ("date", pymongo.ASCENDING),
                 ],
                 unique=True,
+            )
+            # datestamp 索引：用于快速日期范围查询
+            await self._create_index(
+                "future_daily",
+                [("datestamp", pymongo.ASCENDING)],
+                unique=False,
             )
 
             # 异步批量保存
@@ -491,6 +501,10 @@ class AsyncDataSaverService:
                 result.complete()
                 return result
 
+            # 增加 datestamp 字段用于快速日期范围查询
+            if "datestamp" not in df.columns:
+                df["datestamp"] = df["date"].apply(util_make_date_stamp)
+
             # 转换为字典列表
             data = df.to_dict("records")
 
@@ -503,6 +517,12 @@ class AsyncDataSaverService:
                     ("broker", pymongo.ASCENDING),
                 ],
                 unique=True,
+            )
+            # datestamp 索引：用于快速日期范围查询
+            await self._create_index(
+                "future_holdings",
+                [("datestamp", pymongo.ASCENDING)],
+                unique=False,
             )
 
             # 异步批量保存

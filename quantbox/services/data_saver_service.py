@@ -366,6 +366,10 @@ class DataSaverService:
                 result.complete()
                 return result
 
+            # 增加 datestamp 字段用于快速日期范围查询
+            if "datestamp" not in df.columns:
+                df["datestamp"] = df["date"].apply(util_make_date_stamp)
+
             # 转换为字典列表
             data = df.to_dict('records')
 
@@ -379,6 +383,11 @@ class DataSaverService:
             self._create_index(
                 collection,
                 [("date", pymongo.DESCENDING)]
+            )
+            # datestamp 索引：用于快速日期范围查询
+            self._create_index(
+                collection,
+                [("datestamp", pymongo.ASCENDING)]
             )
 
             # 批量保存
@@ -552,6 +561,10 @@ class DataSaverService:
                 result.complete()
                 return result
 
+            # 增加 datestamp 字段用于快速日期范围查询
+            if "datestamp" not in df.columns:
+                df["datestamp"] = df["date"].apply(util_make_date_stamp)
+
             # 转换为字典列表
             data = df.to_dict('records')
 
@@ -566,6 +579,11 @@ class DataSaverService:
             self._create_index(
                 collection,
                 [("date", pymongo.DESCENDING)]
+            )
+            # datestamp 索引：用于快速日期范围查询
+            self._create_index(
+                collection,
+                [("datestamp", pymongo.ASCENDING)]
             )
 
             # 批量保存
