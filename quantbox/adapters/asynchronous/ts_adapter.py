@@ -644,7 +644,8 @@ class AsyncTSAdapter(AsyncBaseDataAdapter):
             if "open_interest" in data.columns:
                 data = data.rename(columns={"open_interest": "oi"})
 
-            # 选择关键字段
+            # 保留所有有用的字段，包括结算价等
+            # 基础字段（必需）
             key_columns = [
                 "date",
                 "symbol",
@@ -655,8 +656,23 @@ class AsyncTSAdapter(AsyncBaseDataAdapter):
                 "close",
                 "volume",  # 注意：使用 volume 而不是 vol
                 "amount",
-                "oi",
             ]
+
+            # 可选字段（如果存在则保留）
+            optional_columns = [
+                "oi",           # 持仓量
+                "settle",       # 结算价
+                "pre_settle",   # 前结算价
+                "pre_close",    # 前收盘价
+                "change",       # 涨跌额
+                "pct_chg",      # 涨跌幅
+                "deliv_settle", # 交割结算价
+            ]
+
+            for col in optional_columns:
+                if col in data.columns:
+                    key_columns.append(col)
+
             available_columns = [col for col in key_columns if col in data.columns]
 
             return data[available_columns]

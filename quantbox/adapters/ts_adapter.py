@@ -13,7 +13,7 @@ from quantbox.adapters.base import BaseDataAdapter
 from quantbox.adapters.formatters import process_tushare_futures_data, process_tushare_stock_data
 from quantbox.util.date_utils import DateLike, date_to_int
 from quantbox.util.exchange_utils import get_exchange_for_data_source, validate_exchanges
-from quantbox.util.contract_utils import normalize_contracts, format_contracts, ContractFormat
+from quantbox.util.contract_utils import normalize_contracts, format_contracts, ContractFormat, parse_contract
 from quantbox.config.config_loader import get_config_loader
 
 
@@ -196,16 +196,15 @@ class TSAdapter(BaseDataAdapter):
                 # 将合约代码转换为 Tushare 格式 (symbol.EXCHANGE)
                 ts_symbols = []
                 for symbol in symbols:
-                    contracts = normalize_contracts(symbol)
-                    if contracts:
-                        contract = contracts[0]
-                        # 转换 SHFE → SHF, CZCE → ZCE
-                        ts_exchange = get_exchange_for_data_source(contract.exchange, "tushare", "api")
-                        if ts_exchange == "SHF":
-                            ts_exchange = "SHF"
-                        elif ts_exchange == "ZCE":
-                            ts_exchange = "ZCE"
-                        ts_symbols.append(f"{contract.symbol.upper()}.{ts_exchange}")
+                    # 使用 parse_contract 解析合约信息
+                    contract_info = parse_contract(symbol)
+                    # 转换 SHFE → SHF, CZCE → ZCE
+                    ts_exchange = get_exchange_for_data_source(contract_info.exchange, "tushare", "api")
+                    if ts_exchange == "SHF":
+                        ts_exchange = "SHF"
+                    elif ts_exchange == "ZCE":
+                        ts_exchange = "ZCE"
+                    ts_symbols.append(f"{contract_info.symbol.upper()}.{ts_exchange}")
 
             # 处理日期参数
             if date:
@@ -294,13 +293,27 @@ class TSAdapter(BaseDataAdapter):
             if "open_interest" in data.columns:
                 data = data.rename(columns={"open_interest": "oi"})
 
-            # 选择关键字段
+            # 保留所有有用的字段，包括结算价等
+            # 基础字段（必需）
             result_columns = [
                 "symbol", "exchange", "date", "open", "high", "low", "close",
                 "volume", "amount"
             ]
-            if "oi" in data.columns:
-                result_columns.append("oi")
+
+            # 可选字段（如果存在则保留）
+            optional_columns = [
+                "oi",           # 持仓量
+                "settle",       # 结算价
+                "pre_settle",   # 前结算价
+                "pre_close",    # 前收盘价
+                "change",       # 涨跌额
+                "pct_chg",      # 涨跌幅
+                "deliv_settle", # 交割结算价
+            ]
+
+            for col in optional_columns:
+                if col in data.columns:
+                    result_columns.append(col)
 
             data = data[result_columns]
 

@@ -6,10 +6,19 @@
 - 计算各经纪商的累计盈亏
 - 生成 Excel 报告
 
-注意事项：
-- 本脚本使用收盘价代替结算价计算盈亏（数据源限制）
-- 如需精确结算价，请使用 Tushare Pro 或掘金数据源
-- 需要本地数据库包含完整的历史持仓和行情数据
+数据源要求：
+- 持仓数据：需要本地数据库包含历史持仓数据
+- 行情数据：推荐使用 Tushare 数据源（包含 settle 结算价字段）
+  * 使用 DataSaverService 从 Tushare 保存数据可获得完整字段
+  * 如果数据中没有 settle 字段，脚本会自动使用 close 收盘价代替
+
+使用说明：
+1. 确保已配置 Tushare token
+2. 使用 DataSaverService 保存完整的历史数据：
+   from quantbox.services import DataSaverService
+   saver = DataSaverService()
+   saver.save_future_daily(exchanges=['SHFE','DCE','CZCE','INE'], start_date='20230101', end_date='20241231')
+3. 运行本脚本进行分析
 """
 
 from quantbox.services.market_data_service import MarketDataService
@@ -75,14 +84,20 @@ for target_spec in all_specs:
         ).droplevel(2)
 
         # 3.2.4 计算权重，即实际合约结算价差
-        # 注意：由于数据源不包含 settle/pre_settle 字段，使用 close 价格代替
-        # 如果需要精确的结算价，请从 Tushare Pro 或掘金等数据源获取
-        if 'settle' in df_daily.columns and 'pre_settle' in df_daily.columns:
+        # 优先使用结算价（settle），如果不存在则使用收盘价（close）
+        if 'settle' in df_daily.columns:
+            # 使用结算价（推荐）
+            df_daily['pre_settle_shift'] = df_daily.groupby('symbol')['settle'].shift(1)
+            settle_difference = df_daily.groupby(['date']).apply(
+                lambda x: x['pre_settle_shift'] - x["settle"]
+            ).droplevel(1)
+        elif 'pre_settle' in df_daily.columns and 'settle' in df_daily.columns:
+            # 如果有 pre_settle 字段（某些数据源提供）
             settle_difference = df_daily.groupby(['date']).apply(
                 lambda x: x['pre_settle'] - x["settle"]
             ).droplevel(1)
         else:
-            # 使用收盘价代替结算价（注意：新API返回date字段）
+            # 回退方案：使用收盘价代替结算价
             df_daily['pre_close_shift'] = df_daily.groupby('symbol')['close'].shift(1)
             settle_difference = df_daily.groupby(['date']).apply(
                 lambda x: x['pre_close_shift'] - x["close"]
