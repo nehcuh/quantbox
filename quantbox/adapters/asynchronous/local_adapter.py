@@ -471,8 +471,19 @@ class AsyncLocalAdapter(AsyncBaseDataAdapter):
 
             # 标准化输出格式
             result = df.copy()
-            if "date" not in result.columns and "trade_date" in result.columns:
+
+            # 转换日期格式（确保 date 字段是整数格式）
+            if "date" in result.columns and result["date"].dtype in [int, 'int64', 'int32']:
+                # date 字段已经是正确的整数格式，无需转换
+                pass
+            elif "trade_date" in result.columns:
                 result["date"] = result["trade_date"].astype(int)
+            elif "datestamp" in result.columns and "date" not in result.columns:
+                # 从 datestamp 提取日期（仅当没有 date 字段时）
+                result["date"] = result["datestamp"].apply(
+                    lambda x: int(x.strftime("%Y%m%d")) if isinstance(x, datetime.datetime)
+                    else int(datetime.datetime.fromtimestamp(x).strftime("%Y%m%d"))
+                )
 
             # 选择关键字段
             key_columns = [

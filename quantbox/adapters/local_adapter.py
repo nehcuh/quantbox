@@ -430,11 +430,18 @@ class LocalAdapter(BaseDataAdapter):
             if df.empty:
                 return pd.DataFrame(columns=["date", "symbol", "exchange", "broker", "vol", "vol_chg", "rank"])
 
-            # 转换日期格式
-            if "trade_date" in df.columns:
+            # 转换日期格式（确保 date 字段是整数格式）
+            if "date" in df.columns and df["date"].dtype in [int, 'int64', 'int32']:
+                # date 字段已经是正确的整数格式，无需转换
+                pass
+            elif "trade_date" in df.columns:
                 df["date"] = df["trade_date"].apply(lambda x: int(x.replace("-", "")) if isinstance(x, str) else x)
-            elif "datestamp" in df.columns:
-                df["date"] = df["datestamp"].apply(lambda x: int(x.strftime("%Y%m%d")) if isinstance(x, datetime.datetime) else x)
+            elif "datestamp" in df.columns and "date" not in df.columns:
+                # 从 datestamp 提取日期（仅当没有 date 字段时）
+                df["date"] = df["datestamp"].apply(
+                    lambda x: int(x.strftime("%Y%m%d")) if isinstance(x, datetime.datetime)
+                    else int(datetime.datetime.fromtimestamp(x).strftime("%Y%m%d"))
+                )
 
             return df
 
