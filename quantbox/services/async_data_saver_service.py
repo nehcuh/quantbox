@@ -22,7 +22,7 @@ import pymongo
 from quantbox.adapters.asynchronous.base import AsyncBaseDataAdapter
 from quantbox.adapters.asynchronous.ts_adapter import AsyncTSAdapter
 from quantbox.adapters.asynchronous.local_adapter import AsyncLocalAdapter
-from quantbox.util.date_utils import DateLike, date_to_int
+from quantbox.util.date_utils import DateLike, date_to_int, util_make_date_stamp
 from quantbox.util.exchange_utils import FUTURES_EXCHANGES, STOCK_EXCHANGES, ALL_EXCHANGES
 from quantbox.services.data_saver_service import SaveResult
 
@@ -140,14 +140,30 @@ class AsyncDataSaverService:
                 result.complete()
                 return result
 
+            # 优化数据结构：去掉 is_open，增加 datestamp
+            # 我们只保存交易日，因此 is_open 肯定为 True，没必要存储
+            if "is_open" in df.columns:
+                df = df.drop(columns=["is_open"])
+
+            # 增加 datestamp 字段用于快速日期比较
+            if "datestamp" not in df.columns:
+                df["datestamp"] = df["date"].apply(util_make_date_stamp)
+
             # 转换为字典列表
             data = df.to_dict("records")
 
             # 异步创建索引
+            # 唯一索引：交易所 + 日期
             await self._create_index(
                 "trade_date",
                 [("exchange", pymongo.ASCENDING), ("date", pymongo.ASCENDING)],
                 unique=True,
+            )
+            # datestamp 索引：用于快速日期范围查询
+            await self._create_index(
+                "trade_date",
+                [("exchange", pymongo.ASCENDING), ("datestamp", pymongo.ASCENDING)],
+                unique=False,
             )
 
             # 异步批量保存

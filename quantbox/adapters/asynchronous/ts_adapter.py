@@ -25,7 +25,7 @@ from quantbox.adapters.asynchronous.base import AsyncBaseDataAdapter
 from quantbox.adapters.asynchronous.utils import RateLimiter, AsyncRetry, batch_process
 from quantbox.adapters.formatters import process_tushare_futures_data, process_tushare_stock_data
 from quantbox.util.date_utils import DateLike, date_to_int
-from quantbox.util.exchange_utils import denormalize_exchange, validate_exchanges
+from quantbox.util.exchange_utils import get_exchange_for_data_source, validate_exchanges
 from quantbox.util.contract_utils import normalize_contracts, format_contracts, ContractFormat
 from quantbox.config.config_loader import get_config_loader
 
@@ -161,7 +161,7 @@ class AsyncTSAdapter(AsyncBaseDataAdapter):
             # 并发查询所有交易所
             tasks = []
             for exchange in exchanges:
-                ts_exchange = denormalize_exchange(exchange, "tushare")
+                ts_exchange = get_exchange_for_data_source(exchange, "tushare", "api")
                 task = self._fetch_trade_cal(ts_exchange, start_str, end_str)
                 tasks.append((exchange, task))
 
@@ -291,7 +291,7 @@ class AsyncTSAdapter(AsyncBaseDataAdapter):
                 # 创建并发任务
                 tasks = []
                 for exchange in exchanges:
-                    ts_exchange = denormalize_exchange(exchange, "tushare")
+                    ts_exchange = get_exchange_for_data_source(exchange, "tushare", "api")
 
                     if symbols:
                         for symbol in symbols:
@@ -334,7 +334,7 @@ class AsyncTSAdapter(AsyncBaseDataAdapter):
                 trade_dates = []
                 cal_tasks = []
                 for exchange in exchanges:
-                    ts_exchange = denormalize_exchange(exchange, "tushare")
+                    ts_exchange = get_exchange_for_data_source(exchange, "tushare", "api")
                     task = self._fetch_trade_cal(ts_exchange, start_str, end_str)
                     cal_tasks.append(task)
 
@@ -366,7 +366,7 @@ class AsyncTSAdapter(AsyncBaseDataAdapter):
                 tasks = []
                 for trade_date in trade_dates:
                     for exchange in exchanges:
-                        ts_exchange = denormalize_exchange(exchange, "tushare")
+                        ts_exchange = get_exchange_for_data_source(exchange, "tushare", "api")
 
                         if symbols:
                             for symbol in symbols:
@@ -540,7 +540,7 @@ class AsyncTSAdapter(AsyncBaseDataAdapter):
                     from quantbox.util.contract_utils import parse_contract
                     contract = parse_contract(symbol)
                     if contract:
-                        ts_exchange = denormalize_exchange(contract.exchange, "tushare")
+                        ts_exchange = get_exchange_for_data_source(contract.exchange, "tushare", "api")
                         ts_symbols.append(f"{contract.symbol.upper()}.{ts_exchange}")
 
             # 处理日期参数
@@ -562,7 +562,7 @@ class AsyncTSAdapter(AsyncBaseDataAdapter):
 
                     tasks = []
                     for exchange in exchanges:
-                        ts_exchange = denormalize_exchange(exchange, "tushare")
+                        ts_exchange = get_exchange_for_data_source(exchange, "tushare", "api")
                         task = self._fetch_future_daily(
                             exchange=ts_exchange, trade_date=trade_date_str
                         )
@@ -602,7 +602,7 @@ class AsyncTSAdapter(AsyncBaseDataAdapter):
 
                     tasks = []
                     for exchange in exchanges:
-                        ts_exchange = denormalize_exchange(exchange, "tushare")
+                        ts_exchange = get_exchange_for_data_source(exchange, "tushare", "api")
                         task = self._fetch_future_daily(
                             exchange=ts_exchange, start_date=start_str, end_date=end_str
                         )
@@ -759,7 +759,7 @@ class AsyncTSAdapter(AsyncBaseDataAdapter):
                     from quantbox.util.contract_utils import parse_contract
                     contract = parse_contract(symbol)
                     if contract:
-                        ts_exchange = denormalize_exchange(contract.exchange, "tushare")
+                        ts_exchange = get_exchange_for_data_source(contract.exchange, "tushare", "api")
                         ts_symbols.append(f"{contract.symbol.upper()}.{ts_exchange}")
 
             # 处理日期参数
@@ -796,7 +796,7 @@ class AsyncTSAdapter(AsyncBaseDataAdapter):
                     exchanges = [exchanges]
 
                 for exchange in exchanges:
-                    ts_exchange = denormalize_exchange(exchange, "tushare")
+                    ts_exchange = get_exchange_for_data_source(exchange, "tushare", "api")
                     task = self._fetch_future_minute(
                         exchange=ts_exchange,
                         start_date=start_str,
@@ -937,7 +937,7 @@ class AsyncTSAdapter(AsyncBaseDataAdapter):
             # 并发获取所有交易所的合约信息
             tasks = []
             for exchange in exchanges:
-                ts_exchange = denormalize_exchange(exchange, "tushare")
+                ts_exchange = get_exchange_for_data_source(exchange, "tushare", "api")
                 task = self._fetch_future_basic(ts_exchange)
                 tasks.append((exchange, task))
 
@@ -1061,11 +1061,11 @@ class AsyncTSAdapter(AsyncBaseDataAdapter):
 
                 if exchanges:
                     if isinstance(exchanges, str):
-                        ts_exchange = denormalize_exchange(exchanges, "tushare")
+                        ts_exchange = get_exchange_for_data_source(exchanges, "tushare", "api")
                         kwargs["exchange"] = ts_exchange
                     else:
                         ts_exchanges = [
-                            denormalize_exchange(ex, "tushare") for ex in exchanges
+                            get_exchange_for_data_source(ex, "tushare", "api") for ex in exchanges
                         ]
                         kwargs["exchange"] = ",".join(ts_exchanges)
 

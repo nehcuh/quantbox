@@ -65,7 +65,6 @@ class LocalAdapter(BaseDataAdapter):
             DataFrame 包含以下列：
             - date: 日期（int，YYYYMMDD格式）
             - exchange: 交易所代码（标准格式）
-            - is_open: 是否交易日（bool）
         """
         try:
             # 构建查询条件
@@ -79,7 +78,7 @@ class LocalAdapter(BaseDataAdapter):
                 exchanges = validate_exchanges(exchanges)
                 query["exchange"] = {"$in": exchanges}
 
-            # 处理日期范围
+            # 处理日期范围（优先使用 datestamp 字段进行快速查询）
             if start_date is not None or end_date is not None:
                 date_query = {}
                 if start_date is not None:
@@ -94,7 +93,7 @@ class LocalAdapter(BaseDataAdapter):
             # 执行查询
             cursor = self.database.trade_date.find(
                 query,
-                {"_id": 0, "trade_date": 1, "exchange": 1, "datestamp": 1},
+                {"_id": 0, "date": 1, "exchange": 1},
                 sort=[("exchange", pymongo.ASCENDING), ("datestamp", pymongo.ASCENDING)]
             )
 
@@ -102,14 +101,10 @@ class LocalAdapter(BaseDataAdapter):
 
             if df.empty:
                 # 返回空 DataFrame 但包含正确的列
-                return pd.DataFrame(columns=["date", "exchange", "is_open"])
+                return pd.DataFrame(columns=["date", "exchange"])
 
-            # 转换为标准格式
-            df["date"] = df["trade_date"].apply(lambda x: int(x.replace("-", "")))
-            df["is_open"] = True  # 数据库中只存储交易日，所以都是 True
-
-            # 选择需要的列
-            result = df[["date", "exchange", "is_open"]].copy()
+            # 数据已经是标准格式，直接返回
+            result = df[["date", "exchange"]].copy()
 
             return result
 
@@ -234,8 +229,33 @@ class LocalAdapter(BaseDataAdapter):
             if symbols is not None:
                 if isinstance(symbols, str):
                     symbols = [symbols]
-                symbols = normalize_contracts(symbols)
-                query["symbol"] = {"$in": symbols}
+
+                # 智能解析合约代码，支持多种格式：
+                # 1. 完整格式: "DCE.a2501" -> symbol="a2501", exchange="DCE"
+                # 2. 简单格式: "a2501" -> symbol="a2501" (不设置 exchange 过滤)
+                parsed_symbols = []
+                parsed_exchanges = []
+
+                for sym in symbols:
+                    # 尝试解析为完整格式
+                    if '.' in sym:
+                        try:
+                            contract_info = parse_contract(sym)
+                            parsed_symbols.append(contract_info.symbol)
+                            parsed_exchanges.append(contract_info.exchange)
+                        except Exception:
+                            # 解析失败，直接使用原始值
+                            parsed_symbols.append(sym)
+                    else:
+                        # 简单格式，直接使用
+                        parsed_symbols.append(sym)
+
+                query["symbol"] = {"$in": parsed_symbols}
+
+                # 如果从 symbols 中解析出了 exchange，且用户没有显式指定 exchanges
+                # 则使用解析出的 exchange 进行过滤
+                if parsed_exchanges and exchanges is None:
+                    query["exchange"] = {"$in": list(set(parsed_exchanges))}
 
             # 处理交易所
             if exchanges is not None:
@@ -274,12 +294,19 @@ class LocalAdapter(BaseDataAdapter):
                 # 返回空 DataFrame 但包含基本列
                 return pd.DataFrame(columns=["date", "symbol", "exchange", "open", "high", "low", "close", "volume", "amount", "oi"])
 
-            # 转换日期格式
-            if "trade_date" in df.columns:
+            # 转换日期格式（确保 date 字段是整数格式）
+            if "date" in df.columns and df["date"].dtype in [int, 'int64', 'int32']:
+                # date 字段已经是正确的整数格式，无需转换
+                pass
+            elif "trade_date" in df.columns:
+                # 从 trade_date 字符串转换
                 df["date"] = df["trade_date"].apply(lambda x: int(x.replace("-", "")) if isinstance(x, str) else x)
-            elif "datestamp" in df.columns:
-                # 从 datestamp 提取日期
-                df["date"] = df["datestamp"].apply(lambda x: int(x.strftime("%Y%m%d")) if isinstance(x, datetime.datetime) else x)
+            elif "datestamp" in df.columns and "date" not in df.columns:
+                # 从 datestamp 提取日期（仅当没有 date 字段时）
+                df["date"] = df["datestamp"].apply(
+                    lambda x: int(x.strftime("%Y%m%d")) if isinstance(x, datetime.datetime)
+                    else int(datetime.datetime.fromtimestamp(x).strftime("%Y%m%d"))
+                )
 
             # 确保字段存在（某些数据源可能缺少某些字段）
             required_fields = ["date", "symbol", "exchange", "open", "high", "low", "close", "volume"]
@@ -323,12 +350,35 @@ class LocalAdapter(BaseDataAdapter):
             # 构建查询条件
             query = {}
 
-            # 处理合约代码
+            # 处理合约代码（同样支持灵活格式）
             if symbols is not None:
                 if isinstance(symbols, str):
                     symbols = [symbols]
-                symbols = normalize_contracts(symbols)
-                query["symbol"] = {"$in": symbols}
+
+                # 智能解析合约代码，支持多种格式
+                parsed_symbols = []
+                parsed_exchanges = []
+
+                for sym in symbols:
+                    # 尝试解析为完整格式
+                    if '.' in sym:
+                        try:
+                            contract_info = parse_contract(sym)
+                            parsed_symbols.append(contract_info.symbol)
+                            parsed_exchanges.append(contract_info.exchange)
+                        except Exception:
+                            # 解析失败，直接使用原始值
+                            parsed_symbols.append(sym)
+                    else:
+                        # 简单格式，直接使用
+                        parsed_symbols.append(sym)
+
+                query["symbol"] = {"$in": parsed_symbols}
+
+                # 如果从 symbols 中解析出了 exchange，且用户没有显式指定 exchanges
+                # 则使用解析出的 exchange 进行过滤
+                if parsed_exchanges and exchanges is None:
+                    query["exchange"] = {"$in": list(set(parsed_exchanges))}
 
             # 处理交易所
             if exchanges is not None:

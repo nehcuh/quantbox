@@ -40,6 +40,12 @@
   - 验证交易日历数据完整性
   - 检查日期数据准确性
 
+- **`migrate_trade_date.py`** - 交易日历数据迁移脚本
+  - 将旧的 trade_date 数据结构迁移到优化后的新结构
+  - 移除冗余的 is_open 字段
+  - 添加 datestamp 字段以提升查询性能
+  - 支持 dry-run 模式预览迁移操作
+
 ### GUI 启动
 
 - **`run_gui.py`** - 启动图形界面
@@ -69,6 +75,12 @@ uv run python scripts/test_gm_functionality.py
 ```bash
 # 保存市场数据
 uv run python scripts/save_data.py
+
+# 迁移交易日历数据结构（预览模式）
+uv run python scripts/migrate_trade_date.py --dry-run
+
+# 迁移交易日历数据结构（实际执行）
+uv run python scripts/migrate_trade_date.py
 ```
 
 ### 性能测试

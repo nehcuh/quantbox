@@ -12,7 +12,7 @@ from tqdm import tqdm
 from quantbox.adapters.base import BaseDataAdapter
 from quantbox.adapters.formatters import process_tushare_futures_data, process_tushare_stock_data
 from quantbox.util.date_utils import DateLike, date_to_int
-from quantbox.util.exchange_utils import denormalize_exchange, validate_exchanges
+from quantbox.util.exchange_utils import get_exchange_for_data_source, validate_exchanges
 from quantbox.util.contract_utils import normalize_contracts, format_contracts, ContractFormat
 from quantbox.config.config_loader import get_config_loader
 
@@ -62,7 +62,7 @@ class TSAdapter(BaseDataAdapter):
 
             all_data = []
             for exchange in exchanges:
-                ts_exchange = denormalize_exchange(exchange, "tushare")
+                ts_exchange = get_exchange_for_data_source(exchange, "tushare", "api")
                 df = self.pro.trade_cal(exchange=ts_exchange, start_date=start_str, end_date=end_str, is_open='1')
 
                 if not df.empty:
@@ -108,7 +108,7 @@ class TSAdapter(BaseDataAdapter):
             all_data = []
             for exchange in exchanges:
                 # 转换为 Tushare 交易所代码
-                ts_exchange = denormalize_exchange(exchange, "tushare")
+                ts_exchange = get_exchange_for_data_source(exchange, "tushare", "api")
 
                 # 获取合约信息（fut_type="1" 表示普通合约，不包括主力和连续）
                 data = self.pro.fut_basic(exchange=ts_exchange, fut_type="1")
@@ -200,7 +200,7 @@ class TSAdapter(BaseDataAdapter):
                     if contracts:
                         contract = contracts[0]
                         # 转换 SHFE → SHF, CZCE → ZCE
-                        ts_exchange = denormalize_exchange(contract.exchange, "tushare")
+                        ts_exchange = get_exchange_for_data_source(contract.exchange, "tushare", "api")
                         if ts_exchange == "SHF":
                             ts_exchange = "SHF"
                         elif ts_exchange == "ZCE":
@@ -228,7 +228,7 @@ class TSAdapter(BaseDataAdapter):
                     all_data = []
                     exchanges_iter = tqdm(exchanges, desc="获取期货日线", disable=not show_progress)
                     for exchange in exchanges_iter:
-                        ts_exchange = denormalize_exchange(exchange, "tushare")
+                        ts_exchange = get_exchange_for_data_source(exchange, "tushare", "api")
                         df = self.pro.fut_daily(
                             trade_date=trade_date_str,
                             exchange=ts_exchange
@@ -263,7 +263,7 @@ class TSAdapter(BaseDataAdapter):
                     all_data = []
                     exchanges_iter = tqdm(exchanges, desc="获取期货日线", disable=not show_progress)
                     for exchange in exchanges_iter:
-                        ts_exchange = denormalize_exchange(exchange, "tushare")
+                        ts_exchange = get_exchange_for_data_source(exchange, "tushare", "api")
                         if show_progress:
                             exchanges_iter.set_postfix({"交易所": exchange})
                         df = self.pro.fut_daily(
@@ -374,7 +374,7 @@ class TSAdapter(BaseDataAdapter):
                     contract = parse_contract(symbol)
                     if contract:
                         # 转换为 Tushare 格式
-                        ts_exchange = denormalize_exchange(contract.exchange, "tushare")
+                        ts_exchange = get_exchange_for_data_source(contract.exchange, "tushare", "api")
                         ts_symbols.append(f"{contract.symbol.upper()}.{ts_exchange}")
 
             # 处理日期参数
@@ -427,7 +427,7 @@ class TSAdapter(BaseDataAdapter):
                     if show_progress:
                         exchanges_iter.set_postfix({"交易所": exchange})
 
-                    ts_exchange = denormalize_exchange(exchange, "tushare")
+                    ts_exchange = get_exchange_for_data_source(exchange, "tushare", "api")
                     try:
                         df = self.pro.fut_min(
                             exchange=ts_exchange,
@@ -539,7 +539,7 @@ class TSAdapter(BaseDataAdapter):
                 trade_date_str = str(date_to_int(date))
 
                 for exchange in exchanges:
-                    ts_exchange = denormalize_exchange(exchange, "tushare")
+                    ts_exchange = get_exchange_for_data_source(exchange, "tushare", "api")
 
                     if symbols:
                         # 按合约代码查询
@@ -579,7 +579,7 @@ class TSAdapter(BaseDataAdapter):
                 # 获取日期范围内的交易日
                 trade_dates = []
                 for exchange in exchanges:
-                    ts_exchange = denormalize_exchange(exchange, "tushare")
+                    ts_exchange = get_exchange_for_data_source(exchange, "tushare", "api")
                     cal_df = self.pro.trade_cal(
                         exchange=ts_exchange,
                         start_date=start_str,
@@ -597,7 +597,7 @@ class TSAdapter(BaseDataAdapter):
                     if show_progress:
                         dates_iter.set_postfix({"日期": str(trade_date)})
                     for exchange in exchanges:
-                        ts_exchange = denormalize_exchange(exchange, "tushare")
+                        ts_exchange = get_exchange_for_data_source(exchange, "tushare", "api")
 
                         if symbols:
                             for symbol in symbols:

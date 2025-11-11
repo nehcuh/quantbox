@@ -120,10 +120,10 @@ def denormalize_exchange(exchange: str, target: str = "tushare") -> str:
         ValueError: 交易所代码无效或目标数据源不支持
 
     Examples:
-        >>> denormalize_exchange("SHSE", "tushare")
+        >>> denormalize_exchange("SHSE", "tushare")  # 股票：使用简称
         'SH'
-        >>> denormalize_exchange("SHFE", "tushare")
-        'SHF'
+        >>> denormalize_exchange("SHFE", "tushare")  # 期货：使用标准代码
+        'SHFE'
         >>> denormalize_exchange("SHFE", "vnpy")
         'SHFE'
     """
@@ -139,13 +139,21 @@ def denormalize_exchange(exchange: str, target: str = "tushare") -> str:
         )
 
     if target.lower() == "tushare":
-        # TuShare 特殊映射：使用简称
+        # TuShare 特殊映射
+        # 注意：Tushare 有两套交易所代码体系：
+        # 1. API 入参（exchange 参数）：使用标准代码（SHFE、CZCE、CFFEX）
+        # 2. API 返回值（ts_code 后缀）：使用简称（SHF、ZCE、CFX）
+        # 本函数用于生成 API 入参，因此：
+        # - 期货接口：使用标准代码（SHFE、CZCE、CFFEX）
+        # - 股票接口：使用简称（SH、SZ、BJ）
         tushare_mapping = {
+            # 股票交易所：使用简称
             "SHSE": "SH",
             "SZSE": "SZ",
             "BSE": "BJ",
-            "SHFE": "SHF",
-            "CZCE": "ZCE",
+            # 期货交易所：使用标准代码（与返回值不同！）
+            "SHFE": "SHFE",
+            "CZCE": "CZCE",
             "DCE": "DCE",
             "CFFEX": "CFFEX",
             "INE": "INE",
