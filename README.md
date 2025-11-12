@@ -66,9 +66,44 @@
 
 ## 🚀 快速开始
 
-### 安装
+### 一分钟上手
 
-**使用 uv（推荐）**：
+```bash
+# 1. 安装（3 种方式任选其一）
+pip install quantbox                    # 从 PyPI 安装（推荐）
+pip install quantbox[goldminer]         # 包含掘金支持（Windows/Linux）
+
+# 2. 启动 MongoDB
+docker run -d --name quantbox-mongo -p 27017:27017 mongo:latest
+
+# 3. 初始化配置
+quantbox-config
+
+# 4. 编辑配置文件，填入 Tushare token
+vi ~/.quantbox/settings/config.toml
+
+# 5. 测试安装
+python -c "from quantbox.services import MarketDataService; print('✅ 安装成功！')"
+```
+
+> 💡 **首次使用？** 请查看下方详细的 [配置指南](#📝-配置指南)
+
+### 完整安装指南
+
+#### 方式 1：从 PyPI 安装（推荐，适合普通用户）
+
+```bash
+# 基础安装
+pip install quantbox
+
+# 安装掘金量化支持（仅 Windows/Linux）
+pip install quantbox[goldminer]
+
+# 安装所有可选依赖（包括开发工具）
+pip install quantbox[all]
+```
+
+#### 方式 2：使用 uv 安装（适合开发者）
 
 ```bash
 # 安装 uv
@@ -81,87 +116,153 @@ cd quantbox
 # 安装基础依赖（自动创建虚拟环境）
 uv sync
 
-# 【可选】安装掘金量化 SDK（仅支持 Windows/Linux，macOS 不支持）
+# 【可选】安装掘金量化 SDK（仅支持 Windows/Linux）
 uv sync --extra goldminer
 
-# 【可选】安装所有可选依赖（包括开发工具、GUI、掘金 SDK）
+# 【可选】安装所有可选依赖（包括开发工具、GUI）
 uv sync --extra all
 
-# 激活虚拟环境（Linux/macOS）
-source .venv/bin/activate
-
-# 激活虚拟环境（Windows）
-.venv\Scripts\activate
+# 激活虚拟环境
+source .venv/bin/activate  # Linux/macOS
+# .venv\Scripts\activate   # Windows
 ```
 
-**使用 pip（从 PyPI 安装）**：
+#### 方式 3：从源码安装（适合贡献者）
 
 ```bash
-# 基础安装
-pip install quantbox
-
-# 安装掘金量化支持（Windows/Linux）
-pip install quantbox[goldminer]
-
-# 安装所有可选依赖
-pip install quantbox[all]
-
-# 开发安装（从源码）
 git clone https://github.com/curiousbull/quantbox.git
 cd quantbox
-pip install -e .
+pip install -e .              # 开发模式安装
+pip install -e ".[dev]"       # 包含开发工具
 ```
 
-### 配置
+### 📝 配置指南
 
-Quantbox 会在首次使用时自动初始化配置文件，无需手动创建。
+#### 第一步：安装 MongoDB
 
-#### 自动配置
+Quantbox 使用 MongoDB 作为本地数据存储。请选择以下任一方式安装：
 
-首次运行时，系统会自动：
-1. 创建配置目录：`~/.quantbox/settings/`
-2. 生成配置文件：`~/.quantbox/settings/config.toml`
-3. 显示配置说明和下一步操作
+**方式 1：Docker（推荐）**
+```bash
+# 拉取 MongoDB 镜像
+docker pull mongo:latest
 
-#### 手动配置（可选）
+# 启动 MongoDB 容器
+docker run -d \
+  --name quantbox-mongo \
+  -p 27017:27017 \
+  -v ~/quantbox-data:/data/db \
+  mongo:latest
 
-如需重新初始化配置，可运行：
+# 验证运行状态
+docker ps | grep quantbox-mongo
+```
+
+**方式 2：本地安装**
+- **macOS**: `brew install mongodb-community && brew services start mongodb-community`
+- **Ubuntu**: `sudo apt install mongodb && sudo systemctl start mongodb`
+- **Windows**: 下载 [MongoDB Community Server](https://www.mongodb.com/try/download/community)
+
+**方式 3：云服务**
+- 使用 [MongoDB Atlas](https://www.mongodb.com/cloud/atlas) 免费套餐（512MB）
+
+#### 第二步：获取数据源 Token
+
+**Tushare Pro（必需）**
+
+Tushare 是主要的数据源，需要注册并获取 token：
+
+1. 访问 [Tushare Pro](https://tushare.pro/) 注册账号
+2. 登录后进入 [个人中心](https://tushare.pro/user/token) 获取 token
+3. 注意：免费用户有积分限制，建议充值获取更多积分
+
+**掘金量化（可选，仅支持 Windows/Linux）**
+
+如需使用掘金数据源：
+
+1. 访问 [掘金量化](https://www.myquant.cn/) 注册账号
+2. 安装掘金终端并获取 token
+3. 安装 Python SDK：`pip install quantbox[goldminer]`
+
+> ⚠️ 注意：掘金 SDK 不支持 macOS
+
+#### 第三步：初始化配置
 
 ```bash
-# 初始化配置
+# 安装完成后，运行配置工具
 quantbox-config
-
-# 强制覆盖现有配置
-quantbox-config --force
-
-# 使用自定义配置目录
-quantbox-config --config-dir /path/to/config
 ```
 
-#### 配置文件格式
+这将自动：
+- 创建配置目录：`~/.quantbox/settings/`
+- 生成配置文件：`~/.quantbox/settings/config.toml`
+- 显示配置说明
+
+#### 第四步：编辑配置文件
+
+打开配置文件并填入你的 token：
+
+```bash
+# macOS/Linux
+vi ~/.quantbox/settings/config.toml
+
+# Windows
+notepad %USERPROFILE%\.quantbox\settings\config.toml
+```
+
+配置文件格式：
 
 ```toml
-# Tushare Pro API 配置
+# Tushare Pro API 配置（必需）
 [TSPRO]
-token = "your_tushare_token_here"
+token = "your_tushare_token_here"  # 替换为你的 Tushare token
 
-# 掘金量化 API 配置
+# 掘金量化 API 配置（可选，Windows/Linux）
 [GM]
-token = ""
+token = ""  # 如果使用掘金，填入你的 token
 
 # MongoDB 数据库配置
 [MONGODB]
-uri = "mongodb://localhost:27017"
+uri = "mongodb://localhost:27017"  # 本地 MongoDB
+# uri = "mongodb+srv://user:pass@cluster.mongodb.net"  # 云服务示例
 ```
 
-### 启动 MongoDB
+#### 第五步：验证安装
 
-使用 Docker（推荐）：
+运行以下命令验证配置是否正确：
 
 ```bash
-cd docker/qb-base
-docker-compose -f database.yaml up -d
+# 测试数据查询
+python -c "
+from quantbox.services import MarketDataService
+service = MarketDataService()
+print('✅ Quantbox 配置成功！')
+print('获取交易日历示例：')
+calendar = service.get_trade_calendar(exchanges='SHSE', start_date='2024-01-01', end_date='2024-01-05')
+print(calendar)
+"
 ```
+
+如果看到交易日历数据输出，说明配置成功！
+
+#### 常见问题
+
+**Q: MongoDB 连接失败？**
+- 检查 MongoDB 是否运行：`docker ps` 或 `brew services list`
+- 检查端口是否被占用：`lsof -i :27017`
+- 尝试使用 IP 地址：`mongodb://127.0.0.1:27017`
+
+**Q: Tushare 报错 "token 无效"？**
+- 检查 token 是否复制完整（无多余空格）
+- 检查配置文件路径是否正确
+- 尝试重新运行：`quantbox-config --force`
+
+**Q: 提示积分不足？**
+- Tushare 免费用户有积分限制
+- 建议充值获取更多积分，或减少请求频率
+
+**Q: macOS 上使用掘金？**
+- 掘金 SDK 不支持 macOS，请使用 Tushare 或其他数据源
 
 ## 📖 使用示例
 
