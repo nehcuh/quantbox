@@ -407,16 +407,27 @@ quantbox/
 │   ├── formatters.py     # 公共格式转换工具
 │   └── asynchronous/     # 异步适配器
 ├── services/             # 服务层
-│   ├── market_data_service.py  # 数据查询服务
-│   └── data_saver_service.py   # 数据保存服务
+│   ├── market_data_service.py        # 数据查询服务
+│   ├── data_saver_service.py         # 数据保存服务
+│   ├── async_market_data_service.py  # 异步查询服务
+│   └── async_data_saver_service.py   # 异步保存服务
+├── config/               # 配置管理
+│   ├── config_loader.py  # 配置加载器
+│   ├── exchanges.toml    # 交易所配置
+│   ├── instruments.toml  # 合约配置
+│   ├── fees_margin.toml  # 手续费和保证金配置
+│   └── templates/        # 配置模板
 ├── util/                 # 工具层
 │   ├── date_utils.py     # 日期处理工具
 │   ├── exchange_utils.py # 交易所代码工具
+│   ├── contract_utils.py # 合约代码工具
 │   ├── tools.py          # 通用工具函数
 │   └── cache_warmup.py   # 缓存预热系统
-├── fetchers/             # 遗留数据获取器（待废弃）
-├── savers/               # 遗留数据保存器（待废弃）
-└── gui/                  # 图形界面
+├── gui/                  # 图形界面（可选）
+├── cli.py                # 命令行工具（同步）
+├── cli_async.py          # 命令行工具（异步）
+├── shell.py              # 交互式 Shell（同步）
+└── shell_async.py        # 交互式 Shell（异步）
 ```
 
 ## 🔄 API 变更
@@ -431,15 +442,17 @@ service = MarketDataService()
 data = service.get_trade_calendar(exchanges="SHSE")
 ```
 
-### v1.x 旧 API（已废弃）
+### v1.x 旧 API（已移除）
 
 ```python
-# ❌ 旧版本 - 将被移除
-from quantbox.fetchers import TSFetcher
+# ❌ 旧版本 - 已在 v0.2.0 中完全移除
+# from quantbox.fetchers import TSFetcher
+# from quantbox.savers import MarketDataSaver
 
-fetcher = TSFetcher()
-data = fetcher.fetch_get_trade_dates(exchanges="SSE")
+# 这些模块已不存在，请使用新的服务层 API
 ```
+
+**注意**：旧的 `fetchers/` 和 `savers/` 模块已在 v0.2.0 中完全移除。
 
 详细迁移指南请参阅 [MIGRATION_GUIDE.md](docs/MIGRATION_GUIDE.md)
 
@@ -475,14 +488,17 @@ data = fetcher.fetch_get_trade_dates(exchanges="SSE")
 
 ## 📝 更新日志
 
-### v2.0.0 (2025-10-31)
+### v0.2.0 (2025-11-12)
 
 - 🎉 **重大重构**：全新的三层架构设计
-- ✨ **新增**：MarketDataService 和 DataSaverService
+- ✨ **新增**：MarketDataService 和 DataSaverService（同步+异步）
+- ⚡ **异步支持**：完整异步实现，性能提升 10-20 倍
+- 🗑️ **移除**：删除旧的 fetchers/ 和 savers/ 模块
 - 🔧 **改进**：统一的数据接口和错误处理
 - 📚 **文档**：全面更新的使用文档
-- ✅ **测试**：159 个测试，95%+ 覆盖率
+- ✅ **测试**：187+ 测试用例，服务层覆盖率 100%/85%
 - 🚀 **工具**：迁移到 uv 项目管理
+- 🧹 **清理**：项目结构优化，移除临时文件和开发文件
 
 完整更新日志请查看 [docs/refactor_progress.md](docs/refactor_progress.md)
 
