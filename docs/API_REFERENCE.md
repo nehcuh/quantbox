@@ -1,12 +1,24 @@
 # Quantbox API 参考
 
-本参考覆盖公开 API（Python 与 CLI）以及数据模型约定。示例以 pandas DataFrame 为返回类型。
+本参考覆盖公开 API（Python 与 CLI）以及数据模型约定。适用于 **v0.2.0+** 版本。
 
-- 目标读者：开发者与数据工程师
-- 返回类型：默认 pandas.DataFrame；保存接口返回 SaveResult
-- 日期约定：支持 YYYY-MM-DD 字符串或 int(YYYYMMDD)，内部统一为 int
-- 交易所代码：统一为 SHFE, DCE, CZCE, INE, SHSE, SZSE
-- 合约代码：统一为如 `RB2405.SHF`（品种+到期月.交易所）
+## 约定
+
+- **目标读者**：开发者与数据工程师
+- **返回类型**：默认 pandas.DataFrame；保存接口返回 SaveResult
+- **日期约定**：支持 YYYY-MM-DD 字符串或 int(YYYYMMDD)，内部统一为 int
+- **交易所代码**：SHFE, DCE, CZCE, INE, SHSE, SZSE（统一大写）
+- **合约代码**：标准格式为 `SHFE.rb2405`（交易所.品种+到期月），也支持简单格式 `rb2405`
+
+## 安装
+
+```bash
+# 从 PyPI 安装
+pip install quantbox
+
+# 包含掘金支持（仅 Windows/Linux）
+pip install quantbox[goldminer]
+```
 
 ---
 
@@ -31,14 +43,15 @@ MarketDataService(
 
 ```python
 get_trade_calendar(
-    exchanges: list[str] | None = None,
+    exchanges: list[str] | str | None = None,
     start_date: str | int | None = None,
     end_date: str | int | None = None,
     use_local: bool | None = None,
 ) -> pd.DataFrame
 ```
-- 列：`date(int), exchange(str)`
-- 注：数据库只存储交易日（is_open=True），因此不返回 `is_open` 字段
+- **返回列**：`date (int YYYYMMDD), exchange (str), datestamp (int timestamp)`
+- **注意**：数据库只存储交易日，不返回非交易日数据
+- **datestamp**：日期的 Unix 时间戳，便于快速日期比较和排序
 
 ```python
 get_future_contracts(
@@ -172,28 +185,56 @@ class BaseDataAdapter(ABC):
 
 ---
 
-## 2. CLI
+## 2. 命令行工具
 
-可通过 `quantbox` 命令行调用。
+### 2.1 配置工具
 
-查询
 ```bash
-quantbox query calendar   --exchange SHFE --start 2024-01-01 --end 2024-01-31
-quantbox query contracts  --exchange SHFE --symbol RB
-quantbox query daily      --contract RB2405.SHF --start 2024-01-01 --end 2024-01-31
-quantbox query holdings   --contract RB2405.SHF --date 2024-01-15
+# 初始化配置
+quantbox-config
+
+# 强制重新初始化
+quantbox-config --force
 ```
 
-保存
+### 2.2 交互式 Shell
+
+**同步版本**（适合日常使用）
 ```bash
-quantbox save calendar   --exchange SHFE DCE CZCE INE --start 2020-01-01 --end 2024-12-31
-quantbox save contracts  --exchange SHFE DCE CZCE INE
-quantbox save daily      --contract RB2405.SHF --start 2024-01-01 --end 2024-12-31
+quantbox
 ```
 
-GUI
+Shell 命令示例：
+```
+quantbox> get_trade_calendar --exchanges SHFE --start-date 2024-01-01 --end-date 2024-01-31
+quantbox> get_future_contracts --exchanges SHFE --date 2024-01-15
+quantbox> help                   # 查看所有命令
+quantbox> exit                   # 退出
+```
+
+**异步版本**（高性能，适合大量数据）
 ```bash
-quantbox gui
+quantbox-async
+```
+
+Shell 命令示例：
+```
+quantbox-async> save_all --start-date 2024-01-01 --end-date 2024-01-10
+quantbox-async> save_future_holdings --exchanges SHFE,DCE --date 2024-01-15
+```
+
+### 2.3 数据保存工具
+
+**同步版本**
+```bash
+quantbox-save --help             # 查看帮助
+quantbox-save [command] [options]
+```
+
+**异步版本**（推荐，性能更好）
+```bash
+quantbox-save-async save-all --start-date 2024-01-01
+quantbox-save-async save-holdings --exchanges SHFE,DCE --start-date 2024-01-01 --end-date 2024-01-10
 ```
 
 ---
@@ -201,10 +242,14 @@ quantbox gui
 ## 3. 数据模型与列定义
 
 ### 3.1 trade_calendar
-- cal_date int YYYYMMDD
-- exchange str one of [SHFE, DCE, CZCE, INE, SHSE, SZSE]
-- is_open int {0,1}
-- pretrade_date int YYYYMMDD
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `date` | int | 交易日期，YYYYMMDD 格式 |
+| `exchange` | str | 交易所代码：SHFE, DCE, CZCE, INE, SHSE, SZSE |
+| `datestamp` | int | Unix 时间戳，用于快速排序和比较 |
+
+**注意**：v0.2.0 移除了 `is_open` 字段（冗余），只存储交易日
 
 ### 3.2 future_contracts
 - ts_code str 如 RB2405.SHF
@@ -261,7 +306,51 @@ except (ValidationError, DataSourceUnavailableError) as e:
 
 ---
 
-## 6. 版本兼容
+## 6. 版本变更
 
-- 旧 API 将在小版本内保持软兼容（触发 DeprecationWarning）
-- 破坏性变更详见 MIGRATION_GUIDE.md
+### v0.2.0（当前版本）
+
+**新增**：
+- 异步 API：`AsyncMarketDataService`, `AsyncDataSaverService`
+- 命令行工具：`quantbox-config`, `quantbox-async`, `quantbox-save-async`
+- 数据字段：`datestamp` 时间戳字段
+
+**移除**：
+- `quantbox.fetchers` 模块（已完全删除）
+- `quantbox.savers` 模块（已完全删除）
+- `is_open` 字段（从 trade_calendar 移除，仅保存交易日）
+
+**变更**：
+- 合约代码格式：推荐使用 `SHFE.rb2405` 而非 `RB2405.SHF`
+- Python 要求：最低 Python 3.12+
+
+详见 [MIGRATION_GUIDE.md](MIGRATION_GUIDE.md)
+
+## 7. 异步 API
+
+Quantbox 提供完整的异步 API，性能提升 10-20 倍：
+
+```python
+import asyncio
+from quantbox.services import AsyncMarketDataService, AsyncDataSaverService
+
+async def main():
+    # 异步查询
+    service = AsyncMarketDataService()
+    calendar = await service.get_trade_calendar(
+        exchanges="SHFE",
+        start_date="2024-01-01",
+        end_date="2024-12-31"
+    )
+
+    # 异步保存
+    saver = AsyncDataSaverService(show_progress=True)
+    results = await saver.save_all(
+        start_date="2024-01-01",
+        end_date="2024-01-10"
+    )
+
+asyncio.run(main())
+```
+
+详细异步使用指南请参阅 [ASYNC_GUIDE.md](ASYNC_GUIDE.md)
