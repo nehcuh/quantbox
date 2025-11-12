@@ -14,10 +14,10 @@
 
 ```bash
 # 从 PyPI 安装（推荐）
-pip install quantbox
+pip install quantbox-cn
 
 # 或安装掘金支持（仅 Windows/Linux）
-pip install quantbox[goldminer]
+pip install quantbox-cn[goldminer]
 ```
 
 ### MongoDB 快速启动

@@ -14,10 +14,10 @@
 
 ```bash
 # 从 PyPI 安装
-pip install quantbox
+pip install quantbox-cn
 
 # 包含掘金支持（仅 Windows/Linux）
-pip install quantbox[goldminer]
+pip install quantbox-cn[goldminer]
 ```
 
 ---

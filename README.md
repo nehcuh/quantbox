@@ -5,7 +5,7 @@
 [![Test Cases](https://img.shields.io/badge/test_cases-187+-success.svg)](https://github.com/curiousbull/quantbox)
 [![Services Coverage](https://img.shields.io/badge/services-100%25%20%7C%2085%25-brightgreen.svg)](https://github.com/curiousbull/quantbox)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![PyPI Version](https://img.shields.io/pypi/v/quantbox.svg)](https://pypi.org/project/quantbox/)
+[![PyPI Version](https://img.shields.io/pypi/v/quantbox-cn.svg)](https://pypi.org/project/quantbox-cn/)
 
 **Quantbox** 是一个现代化的 Python 金融数据获取和管理框架，采用清晰的三层架构设计，支持多种数据源（Tushare、掘金量化等），为量化研究和交易提供统一、高效的数据接口。
 
@@ -70,8 +70,8 @@
 
 ```bash
 # 1. 安装（3 种方式任选其一）
-pip install quantbox                    # 从 PyPI 安装（推荐）
-pip install quantbox[goldminer]         # 包含掘金支持（Windows/Linux）
+pip install quantbox-cn                    # 从 PyPI 安装（推荐）
+pip install quantbox-cn[goldminer]         # 包含掘金支持（Windows/Linux）
 
 # 2. 启动 MongoDB
 docker run -d --name quantbox-mongo -p 27017:27017 mongo:latest
@@ -94,13 +94,13 @@ python -c "from quantbox.services import MarketDataService; print('✅ 安装成
 
 ```bash
 # 基础安装
-pip install quantbox
+pip install quantbox-cn
 
 # 安装掘金量化支持（仅 Windows/Linux）
-pip install quantbox[goldminer]
+pip install quantbox-cn[goldminer]
 
 # 安装所有可选依赖（包括开发工具）
-pip install quantbox[all]
+pip install quantbox-cn[all]
 ```
 
 #### 方式 2：使用 uv 安装（适合开发者）
@@ -182,7 +182,7 @@ Tushare 是主要的数据源，需要注册并获取 token：
 
 1. 访问 [掘金量化](https://www.myquant.cn/) 注册账号
 2. 安装掘金终端并获取 token
-3. 安装 Python SDK：`pip install quantbox[goldminer]`
+3. 安装 Python SDK：`pip install quantbox-cn[goldminer]`
 
 > ⚠️ 注意：掘金 SDK 不支持 macOS
 

@@ -20,10 +20,10 @@
 
 ```bash
 # 从 PyPI 安装
-pip install quantbox
+pip install quantbox-cn
 
 # 或升级现有版本
-pip install --upgrade quantbox
+pip install --upgrade quantbox-cn
 ```
 
 ## 主要变更
@@ -253,7 +253,7 @@ A: 主要变化：
 
 A: 三步走：
 1. 卸载旧版本：`pip uninstall quantbox`
-2. 安装新版本：`pip install quantbox`
+2. 安装新版本：`pip install quantbox-cn`
 3. 按照本指南的映射表更新代码
 
 ## 版本历史

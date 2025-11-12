@@ -1,5 +1,5 @@
 [project]
-name = "quantbox"
+name = "quantbox-cn"
 version = "0.2.0"
 description = "A quantitative trading toolbox with multiple data source support"
 readme = "README.md"
