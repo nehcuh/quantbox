@@ -62,9 +62,8 @@ all = [
 [project.scripts]
 quantbox = "quantbox.shell:main"
 quantbox-async = "quantbox.shell_async:main"
-quantbox-save = "quantbox.savers.data_saver:save_data"
+quantbox-save = "quantbox.cli:main"
 quantbox-save-async = "quantbox.cli_async:main"
-quantbox-gui = "scripts.run_gui:main"
 quantbox-config = "quantbox.user_config:main"
 
 [build-system]
@@ -73,6 +72,21 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["quantbox"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/quantbox",
+    "/README.md",
+    "/LICENSE",
+    "/pyproject.toml",
+    "/docs/QUICK_START.md",
+    "/docs/ARCHITECTURE.md",
+    "/docs/API_REFERENCE.md",
+    "/docs/MIGRATION_GUIDE.md",
+    "/docs/ASYNC_GUIDE.md",
+    "/examples/cache_warmup_example.py",
+    "/examples/async_example.py",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -1,0 +1,43 @@
+# Include essential files only
+include README.md
+include LICENSE
+
+# Include core documentation
+include docs/QUICK_START.md
+include docs/ARCHITECTURE.md
+include docs/API_REFERENCE.md
+include docs/MIGRATION_GUIDE.md
+include docs/ASYNC_GUIDE.md
+
+# Include cache warmup example
+include examples/cache_warmup_example.py
+include examples/async_example.py
+
+# Exclude everything else
+exclude .envrc
+exclude .python-version
+exclude package.json
+exclude package-lock.json
+exclude setup.py
+exclude uv.lock
+exclude *.md
+
+# Exclude directories
+recursive-exclude .github *
+recursive-exclude .claude *
+recursive-exclude benchmarks *
+recursive-exclude biz *
+recursive-exclude docker *
+recursive-exclude scripts *
+recursive-exclude tests *
+recursive-exclude images *
+recursive-exclude docs/.archive *
+
+# Exclude cache and build artifacts
+global-exclude __pycache__
+global-exclude *.py[cod]
+global-exclude *$py.class
+global-exclude *.so
+global-exclude .DS_Store
+global-exclude *.swp
+global-exclude *.egg-info

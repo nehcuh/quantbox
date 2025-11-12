@@ -1,10 +1,11 @@
 # Quantbox
 
 [![Python Version](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
-[![Test Files](https://img.shields.io/badge/test_files-12-success.svg)](https://github.com/your-org/quantbox)
-[![Test Cases](https://img.shields.io/badge/test_cases-187+-success.svg)](https://github.com/your-org/quantbox)
-[![Services Coverage](https://img.shields.io/badge/services-100%25%20%7C%2085%25-brightgreen.svg)](https://github.com/your-org/quantbox)
+[![Test Files](https://img.shields.io/badge/test_files-12-success.svg)](https://github.com/curiousbull/quantbox)
+[![Test Cases](https://img.shields.io/badge/test_cases-187+-success.svg)](https://github.com/curiousbull/quantbox)
+[![Services Coverage](https://img.shields.io/badge/services-100%25%20%7C%2085%25-brightgreen.svg)](https://github.com/curiousbull/quantbox)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![PyPI Version](https://img.shields.io/pypi/v/quantbox.svg)](https://pypi.org/project/quantbox/)
 
 **Quantbox** 是一个现代化的 Python 金融数据获取和管理框架，采用清晰的三层架构设计，支持多种数据源（Tushare、掘金量化等），为量化研究和交易提供统一、高效的数据接口。
 
@@ -74,7 +75,7 @@
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # 克隆项目
-git clone https://github.com/your-org/quantbox.git
+git clone https://github.com/curiousbull/quantbox.git
 cd quantbox
 
 # 安装基础依赖（自动创建虚拟环境）
@@ -93,17 +94,22 @@ source .venv/bin/activate
 .venv\Scripts\activate
 ```
 
-**使用 pip**：
+**使用 pip（从 PyPI 安装）**：
 
 ```bash
 # 基础安装
-pip install -e .
+pip install quantbox
 
 # 安装掘金量化支持（Windows/Linux）
-pip install -e ".[goldminer]"
+pip install quantbox[goldminer]
 
 # 安装所有可选依赖
-pip install -e ".[all]"
+pip install quantbox[all]
+
+# 开发安装（从源码）
+git clone https://github.com/curiousbull/quantbox.git
+cd quantbox
+pip install -e .
 ```
 
 ### 配置
@@ -492,8 +498,8 @@ data = fetcher.fetch_get_trade_dates(exchanges="SSE")
 
 ## 📮 联系方式
 
-- 问题反馈：[GitHub Issues](https://github.com/your-org/quantbox/issues)
-- 功能建议：[GitHub Discussions](https://github.com/your-org/quantbox/discussions)
+- 问题反馈：[GitHub Issues](https://github.com/curiousbull/quantbox/issues)
+- 功能建议：[GitHub Discussions](https://github.com/curiousbull/quantbox/discussions)
 
 ---
 
